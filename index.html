@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SIMTEC</title>
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ============ LOGIN ============ -->
+  <section id="login" class="screen">
+    <div class="login-wrap">
+      <img class="login-logo" src="assets/logo.jpg" alt="SIMTEC Tecnología Informática">
+      <form id="login-form" autocomplete="on">
+        <label class="pill">
+          <span class="pill-ico">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M2 23c0-6 4.5-9 10-9s10 3 10 9z"/></svg>
+          </span>
+          <input id="login-user" type="text" placeholder="Usuario" autocomplete="username" required>
+        </label>
+        <label class="pill">
+          <span class="pill-ico">
+            <svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h-2.4V7a2.6 2.6 0 0 0-5.2 0v3z"/><rect x="4" y="10" width="16" height="13" rx="2"/><circle cx="12" cy="15.5" r="1.8" fill="#fff"/><rect x="11.2" y="16" width="1.6" height="3.5" fill="#fff"/></svg>
+          </span>
+          <input id="login-pass" type="password" placeholder="Contraseña" autocomplete="current-password" required>
+        </label>
+        <p id="login-error" class="login-error" hidden>Usuario o contraseña incorrectos</p>
+        <button class="btn-entrar" type="submit">
+          <span class="pill-ico small">
+            <svg viewBox="0 0 24 24"><path d="M10 4h10v16H10v-2.5h7.5v-11H10z"/><path d="M3 10.5h8V7l5 5-5 5v-3.5H3z"/></svg>
+          </span>
+          ENTRAR
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <section id="app" class="screen" hidden>
+    <header class="topbar">
+      <button class="top-home" data-go="menu" aria-label="Menú principal">
+        <img src="assets/logo.jpg" alt=""><span>SIMTEC</span>
+      </button>
+      <div class="top-actions">
+        <button class="btn ghost" data-go="ajustes" title="Ajustes">⚙ Ajustes</button>
+        <button class="btn ghost" id="btn-logout">Salir</button>
+      </div>
+    </header>
+
+    <main id="view"></main>
+  </section>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
