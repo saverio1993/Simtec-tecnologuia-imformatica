@@ -792,6 +792,21 @@
 
   // ================================================================== ORDEN DE INGRESO
   const ESTADOS = ['Recibido', 'En reparación', 'Listo', 'Entregado'];
+  const FALLAS = ['FRP', 'KG', 'Software', 'Cuenta Mi'];
+  const MARCAS = ['Samsung', 'iPhone', 'Xiaomi', 'Honor', 'Huawei', 'Motorola', 'Oppo', 'Tecno', 'Infinix', 'ZTE'];
+  // modelos más comunes por marca (se pueden escribir otros)
+  const MODELOS = {
+    Samsung: ['A03', 'A03s', 'A04', 'A04s', 'A04e', 'A05', 'A05s', 'A06', 'A10', 'A10s', 'A11', 'A12', 'A13', 'A14', 'A15', 'A16', 'A20', 'A21s', 'A22', 'A23', 'A24', 'A25', 'A30', 'A31', 'A32', 'A33', 'A34', 'A35', 'A50', 'A51', 'A52', 'A53', 'A54', 'A55', 'S20', 'S21', 'S22', 'S23', 'S24', 'Note 10', 'Note 20', 'M14', 'M15'],
+    iPhone: ['6s', '7', '7 Plus', '8', '8 Plus', 'X', 'XR', 'XS', 'XS Max', '11', '11 Pro', '11 Pro Max', '12', '12 Pro', '12 Pro Max', '13', '13 Pro', '13 Pro Max', '14', '14 Plus', '14 Pro', '14 Pro Max', '15', '15 Plus', '15 Pro', '15 Pro Max', '16', '16 Pro'],
+    Xiaomi: ['Redmi 9A', 'Redmi 9C', 'Redmi 10', 'Redmi 10C', 'Redmi 12', 'Redmi 12C', 'Redmi 13', 'Redmi 13C', 'Redmi A1', 'Redmi A2', 'Redmi A3', 'Redmi Note 9', 'Redmi Note 10', 'Redmi Note 11', 'Redmi Note 12', 'Redmi Note 13', 'Redmi Note 14', 'Poco X3', 'Poco X5', 'Poco X6', 'Poco M5', 'Poco C65'],
+    Honor: ['X5', 'X6', 'X6a', 'X7', 'X7a', 'X7b', 'X8', 'X8a', 'X8b', 'X9a', 'X9b', '90', '90 Lite', 'Magic 5 Lite', 'Magic 6 Lite'],
+    Huawei: ['Y5 2019', 'Y6 2019', 'Y7 2019', 'Y9 2019', 'Y9 Prime', 'Y6p', 'Y7a', 'Y9a', 'P20 Lite', 'P30 Lite', 'P40 Lite', 'Nova 9', 'Nova 11', 'Nova Y61', 'Nova Y70', 'Nova Y90'],
+    Motorola: ['E7', 'E13', 'E14', 'E20', 'E22', 'E32', 'E40', 'G13', 'G14', 'G22', 'G23', 'G24', 'G32', 'G34', 'G54', 'G84', 'One Fusion'],
+    Oppo: ['A15', 'A16', 'A17', 'A18', 'A38', 'A54', 'A57', 'A58', 'A78', 'A79', 'Reno 8', 'Reno 10'],
+    Tecno: ['Spark 10', 'Spark 20', 'Spark Go 2023', 'Spark Go 2024', 'Camon 20', 'Pop 7', 'Pova 5'],
+    Infinix: ['Hot 30', 'Hot 40', 'Smart 7', 'Smart 8', 'Note 30', 'Note 40'],
+    ZTE: ['Blade A31', 'Blade A51', 'Blade A52', 'Blade A53', 'Blade A54', 'Blade V40'],
+  };
 
   // abonos hechos después desde Cartera o al entregar
   const abonosOrden = (o) => {
@@ -835,6 +850,7 @@
     const c = clienteById(o.clienteId) || {};
     const cfg = db.config;
     const row = (k, v) => `<tr><th>${k}</th><td>${esc(v) || '&nbsp;'}</td></tr>`;
+    const opt = (k, v) => (v ? row(k, v) : ''); // campos que solo tienen las órdenes antiguas
     return `<div class="receipt">
       <div class="r-head">
         <img src="assets/logo.jpg" alt="">
@@ -845,10 +861,9 @@
       <table>
         ${row('Cliente', c.nombre)}${row('Tienda', c.tienda)}${row('WhatsApp', c.whatsapp)}
         ${row('Equipo', o.equipo)}${row('Marca / Modelo', [o.marca, o.modelo].filter(Boolean).join(' '))}
-        ${row('IMEI / Serie', o.imei)}${row('Color', o.color)}${row('Clave / Patrón', o.clave)}
-        ${row('Accesorios recibidos', o.accesorios)}${row('Falla reportada', o.falla)}
-        ${row('Trabajo a realizar', o.trabajo)}${row('Técnico', o.tecnico)}
-        ${row('Fecha estimada de entrega', fmtDate(o.entrega))}${row('Estado', o.estado)}
+        ${opt('IMEI / Serie', o.imei)}${opt('Color', o.color)}${opt('Clave / Patrón', o.clave)}${opt('Accesorios recibidos', o.accesorios)}
+        ${row('Falla', o.falla)}${opt('Nota', o.trabajo)}${opt('Técnico', o.tecnico)}${opt('Fecha estimada de entrega', fmtDate(o.entrega))}
+        ${row('Estado', o.estado)}
         ${row('Costo', money(o.costo))}${row('Abono', money(num(o.abono) + abonosOrden(o)))}
         <tr><th>SALDO PENDIENTE</th><td><b>${money(saldoOrden(o))}</b></td></tr>
       </table>
@@ -1111,23 +1126,23 @@
           <div class="field nuevo"><label for="or-tie">Tienda</label><input id="or-tie"></div>
           <div class="field nuevo"><label for="or-wa">WhatsApp</label><input id="or-wa" type="tel"></div>
           <div class="field"><label for="or-eq">Equipo</label><select id="or-eq"><option>Celular</option><option>Tablet</option><option>Laptop</option><option>PC</option><option>Otro</option></select></div>
-          <div class="field"><label for="or-marca">Marca</label><input id="or-marca" placeholder="Samsung, iPhone, Xiaomi…"></div>
-          <div class="field"><label for="or-modelo">Modelo</label><input id="or-modelo"></div>
-          <div class="field"><label for="or-imei">IMEI / Serie</label><input id="or-imei"></div>
-          <div class="field"><label for="or-color">Color</label><input id="or-color"></div>
-          <div class="field"><label for="or-clave">Clave / Patrón</label><input id="or-clave"></div>
-          <div class="field full"><label for="or-acc">Accesorios recibidos</label><input id="or-acc" placeholder="Cargador, forro, chip, memoria…"></div>
-          <div class="field full"><label for="or-falla">Falla reportada</label><textarea id="or-falla" required></textarea></div>
-          <div class="field full"><label for="or-trab">Trabajo a realizar / Diagnóstico</label><textarea id="or-trab"></textarea></div>
-          <div class="field"><label for="or-tec">Técnico</label><input id="or-tec"></div>
-          <div class="field"><label for="or-ent">Fecha estimada de entrega</label><input id="or-ent" type="date"></div>
+          <div class="field full"><label>Marca</label>
+            <div class="chips" id="or-marcas">${MARCAS.map((m) => `<button type="button" class="chip" data-marca="${m}">${m}</button>`).join('')}<button type="button" class="chip" data-marca="">Otra…</button></div>
+            <input id="or-marca-otra" placeholder="Escriba la marca" hidden>
+          </div>
+          <div class="field"><label for="or-modelo">Modelo</label><input id="or-modelo" list="or-modelos" placeholder="Toque para ver la lista o escriba"><datalist id="or-modelos"></datalist></div>
+          <div class="field full"><label>Falla (toque una o varias)</label>
+            <div class="chips" id="or-fallas">${FALLAS.map((f) => `<button type="button" class="chip big" data-falla="${f}">${f}</button>`).join('')}<button type="button" class="chip big" data-falla="otra">Otra…</button></div>
+            <input id="or-falla-otra" placeholder="Describa la falla" hidden>
+          </div>
+          <div class="field full"><label for="or-trab">Nota (opcional)</label><input id="or-trab" placeholder="Algo que quiera recordar del equipo"></div>
           <div class="field"><label for="or-costo">Costo</label><input id="or-costo" type="number" step="0.01" min="0" value="0"></div>
           <div class="field"><label for="or-abono">Abono</label><input id="or-abono" type="number" step="0.01" min="0" value="0"></div>
         </div>
         <div class="form-actions"><button class="btn primary big" type="submit">GUARDAR E IMPRIMIR</button></div>
       </form>
       <div class="toolbar">
-        <div class="search"><input id="or-q" placeholder="Buscar por número, cliente, marca, IMEI…"></div>
+        <div class="search"><input id="or-q" placeholder="Buscar por número, cliente, marca o modelo…"></div>
         <div class="seg" id="or-filtro"><button class="on" data-f="taller">En taller</button><button data-f="Listo">Listos</button><button data-f="Entregado">Entregados</button><button data-f="all">Todas</button></div>
       </div>
       <div class="table-wrap"><table>
@@ -1172,8 +1187,46 @@
       render();
     }));
 
+    // ---- marca y falla con botones
+    let marcaSel = null;
+    const fallasSel = new Set();
+    const fillModelos = () => ($('#or-modelos').innerHTML = (MODELOS[marcaSel] || []).map((m) => `<option value="${esc(m)}">`).join(''));
+    $('#or-marcas').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-marca]');
+      if (!b) return;
+      marcaSel = b.dataset.marca;
+      $$('#or-marcas .chip', el).forEach((x) => x.classList.toggle('on', x === b));
+      $('#or-marca-otra').hidden = marcaSel !== '';
+      if (marcaSel === '') $('#or-marca-otra').focus();
+      $('#or-modelo').value = '';
+      fillModelos();
+    });
+    $('#or-fallas').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-falla]');
+      if (!b) return;
+      const f = b.dataset.falla;
+      fallasSel.has(f) ? fallasSel.delete(f) : fallasSel.add(f);
+      b.classList.toggle('on', fallasSel.has(f));
+      $('#or-falla-otra').hidden = !fallasSel.has('otra');
+      if (fallasSel.has('otra')) $('#or-falla-otra').focus();
+    });
+    const resetChips = () => {
+      marcaSel = null;
+      fallasSel.clear();
+      $$('#or-form .chip', el).forEach((x) => x.classList.remove('on'));
+      $('#or-marca-otra').hidden = true;
+      $('#or-falla-otra').hidden = true;
+      fillModelos();
+    };
+
     $('#or-form').addEventListener('submit', (e) => {
       e.preventDefault();
+      const marca = marcaSel === '' ? $('#or-marca-otra').value.trim() : marcaSel || '';
+      const falla = [...fallasSel].map((f) => (f === 'otra' ? $('#or-falla-otra').value.trim() : f)).filter(Boolean).join(', ');
+      if (!falla) {
+        toast('Seleccione la falla del equipo');
+        return;
+      }
       let clienteId = $('#or-cli').value;
       if (!clienteId) {
         const nombre = $('#or-nom').value.trim();
@@ -1188,10 +1241,7 @@
       db.seq.orden += 1;
       const o = {
         id: uid(), numero: 'SIM-' + String(db.seq.orden).padStart(4, '0'), fecha: today(), clienteId,
-        equipo: $('#or-eq').value, marca: $('#or-marca').value.trim(), modelo: $('#or-modelo').value.trim(),
-        imei: $('#or-imei').value.trim(), color: $('#or-color').value.trim(), clave: $('#or-clave').value.trim(),
-        accesorios: $('#or-acc').value.trim(), falla: $('#or-falla').value.trim(), trabajo: $('#or-trab').value.trim(),
-        tecnico: $('#or-tec').value.trim(), entrega: $('#or-ent').value,
+        equipo: $('#or-eq').value, marca, modelo: $('#or-modelo').value.trim(), falla, trabajo: $('#or-trab').value.trim(),
         costo: num($('#or-costo').value), abono: num($('#or-abono').value), estado: 'Recibido',
         historial: [{ estado: 'Recibido', fecha: new Date().toISOString() }],
       };
@@ -1206,6 +1256,7 @@
       }
       save();
       $('#or-form').reset();
+      resetChips();
       $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo (llenar abajo) —');
       toggleNuevo();
       render();
@@ -1242,8 +1293,7 @@
       exportXLSX(`Ordenes_Ingreso_SIMTEC_${today()}.xlsx`, {
         Ordenes: db.ordenes.map((o) => ({
           'N°': o.numero, Fecha: fmtDate(o.fecha), Cliente: clienteNombre(o.clienteId), Equipo: o.equipo, Marca: o.marca, Modelo: o.modelo,
-          'IMEI/Serie': o.imei, Color: o.color, Accesorios: o.accesorios, Falla: o.falla, Trabajo: o.trabajo, Técnico: o.tecnico,
-          Entrega: fmtDate(o.entrega), Estado: o.estado, 'Listo el': fechaEstado(o, 'Listo'), 'Entregado el': fechaEstado(o, 'Entregado'),
+          Falla: o.falla, Nota: o.trabajo, Estado: o.estado, 'Listo el': fechaEstado(o, 'Listo'), 'Entregado el': fechaEstado(o, 'Entregado'),
           Costo: num(o.costo), Abono: num(o.abono) + abonosOrden(o), Saldo: saldoOrden(o),
         })),
       })
