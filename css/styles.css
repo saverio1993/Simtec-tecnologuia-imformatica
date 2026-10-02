@@ -110,22 +110,53 @@ main { max-width: 1200px; margin: 0 auto; padding: 18px 16px 60px; }
 }
 .menu-logo { grid-area: logo; width: 100%; max-width: 520px; justify-self: center; animation: pop .6s ease-out; }
 .tile {
-  display: block; padding: 0; border: 0; background: none;
-  border-radius: var(--radius); overflow: hidden;
-  transition: transform .15s, filter .15s;
-  animation: rise .5s ease-out both;
+  --glow: #1e9bff;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 100%;
+  padding: 4px;
+  background: #000;
+  border: 4px solid #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px #000, 0 0 0 3px #ffffff33;
+  transition: transform .2s ease, filter .2s ease, box-shadow .2s ease, border-color .2s ease;
+  animation: rise .5s ease-out backwards; /* backwards: no bloquea el transform del hover */
 }
-.tile img { display: block; width: 100%; height: auto; }
-.tile:hover { transform: translateY(-3px) scale(1.03); filter: brightness(1.15) drop-shadow(0 0 14px #1e9bff88); }
-.tile:active { transform: scale(.97); }
-.tile:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
-.t-clientes { grid-area: clientes; }
-.t-cartera { grid-area: cartera; }
-.t-estadistica { grid-area: estadistica; }
-.t-reporte { grid-area: reporte; }
-.t-factura { grid-area: factura; }
-.t-orden { grid-area: orden; }
-.t-inventario { grid-area: inventario; }
+.tile img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 14px; }
+/* mismo alto para los botones de cada fila */
+.t-clientes, .t-cartera { aspect-ratio: 1.5; }
+.t-estadistica, .t-reporte { aspect-ratio: 1.42; }
+.t-factura, .t-orden { aspect-ratio: 2; }
+.t-inventario { aspect-ratio: 7.6; }
+
+/* destello de luz que cruza el botón */
+.tile::after {
+  content: '';
+  position: absolute; top: -20%; bottom: -20%; left: -60%; width: 40%;
+  background: linear-gradient(100deg, transparent, #ffffffaa, transparent);
+  transform: skewX(-20deg);
+  opacity: 0;
+  pointer-events: none;
+}
+.tile:hover, .tile:focus-visible {
+  transform: translateY(-4px) scale(1.05);
+  filter: brightness(1.3) saturate(1.6) contrast(1.05);
+  border-color: var(--glow);
+  box-shadow: 0 0 0 2px #fff, 0 0 18px 4px var(--glow), 0 0 46px 10px color-mix(in srgb, var(--glow) 55%, transparent);
+  z-index: 2;
+  outline: none;
+}
+.tile:hover::after, .tile:focus-visible::after { animation: shine .7s ease-out; }
+.tile:active { transform: scale(.97); filter: brightness(1.45) saturate(1.8); }
+
+.t-clientes { grid-area: clientes; --glow: #1e9bff; }
+.t-cartera { grid-area: cartera; --glow: #ffd500; }
+.t-estadistica { grid-area: estadistica; --glow: #22c55e; }
+.t-reporte { grid-area: reporte; --glow: #ef2b2d; }
+.t-factura { grid-area: factura; --glow: #ffb800; }
+.t-orden { grid-area: orden; --glow: #2ee86b; }
+.t-inventario { grid-area: inventario; --glow: #ff9a1f; }
 .menu-grid .tile:nth-child(2) { animation-delay: .05s; }
 .menu-grid .tile:nth-child(3) { animation-delay: .1s; }
 .menu-grid .tile:nth-child(4) { animation-delay: .15s; }
@@ -321,6 +352,7 @@ tfoot td { font-weight: 700; background: #1a1a1f; font-size: 18px; }
 }
 
 @keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes shine { 0% { left: -60%; opacity: 1; } 100% { left: 130%; opacity: 0; } }
 @keyframes rise { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
