@@ -101,8 +101,12 @@ main { max-width: 1200px; margin: 0 auto; padding: 18px 16px 60px; }
     "estadistica logo reporte"
     "factura    logo  orden"
     "inventario inventario inventario";
-  gap: 14px;
+  gap: 12px;
   align-items: center;
+  /* el menú completo (hasta Inventario) cabe en la pantalla sin hacer scroll */
+  width: 100%;
+  max-width: min(980px, calc((100vh - 110px) * 1.42));
+  margin: 0 auto;
 }
 .menu-logo { grid-area: logo; width: 100%; max-width: 520px; justify-self: center; animation: pop .6s ease-out; }
 .tile {
