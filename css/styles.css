@@ -89,6 +89,11 @@ input, select, textarea { font: inherit; }
 .top-home img { width: 44px; height: 44px; border-radius: 50%; }
 .top-home span { font-family: var(--font-title); font-size: 26px; letter-spacing: 1px; }
 .top-actions { display: flex; gap: 8px; }
+.sync { margin-left: auto; font-weight: 700; font-size: 14px; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.sync.ok { color: #4ade80; background: #16a34a22; }
+.sync.busy { color: #7cc4ff; background: #1e9bff22; }
+.sync.bad { color: #ff7b7c; background: #ef2b2d22; }
+.btn-entrar:disabled { opacity: .6; cursor: wait; }
 
 main { max-width: 1200px; margin: 0 auto; padding: 18px 16px 60px; }
 
@@ -178,6 +183,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 18px 16px 60px; }
   }
   .menu-logo { max-width: 300px; }
   .top-home span { display: none; }
+  .sync { font-size: 12px; padding: 4px 8px; white-space: normal; text-align: center; }
 }
 
 /* ================= SECCIONES ================= */

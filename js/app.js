@@ -1,20 +1,18 @@
 /* SIMTEC - Tecnología Informática
- * App web de una sola página. Los datos se guardan en el navegador (localStorage)
- * y cada sección se puede exportar a Excel (.xlsx).
+ * App web de una sola página. Los datos se guardan en la nube (Vercel, carpeta /api)
+ * y se comparten entre todas las computadoras; cada sección se puede descargar a Excel (.xlsx).
  */
 (function () {
   'use strict';
 
-  const STORE_KEY = 'simtec_db_v1';
-  const SESSION_KEY = 'simtec_session';
-  const DEFAULT_USER = 'admin';
-  const DEFAULT_PASS = 'simtec';
+  const TOKEN_KEY = 'simtec_token';
+  const CACHE_KEY = 'simtec_cache_v2';
+  const OLD_LOCAL_KEY = 'simtec_db_v1'; // datos de la versión anterior (solo en este navegador)
+  const COLLECTIONS = ['clientes', 'cartera', 'movimientos', 'ordenes', 'inventario'];
 
   // ------------------------------------------------------------------ datos
   const emptyDB = () => ({
     config: {
-      user: DEFAULT_USER,
-      passHash: null, // null = contraseña por defecto
       dgiUrl: 'https://dgi.mef.gob.pa/',
       negocio: 'SIMTEC Tecnología Informática',
       telefono: '',
@@ -28,27 +26,168 @@
     ordenes: [],
     inventario: [],
   });
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const normalize = (d) => {
+    const base = emptyDB();
+    const out = { ...base, ...(d || {}), config: { ...base.config, ...((d && d.config) || {}) }, seq: { ...base.seq, ...((d && d.seq) || {}) } };
+    COLLECTIONS.forEach((c) => (out[c] = Array.isArray(out[c]) ? out[c] : []));
+    return out;
+  };
 
-  let db = load();
+  const ls = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* almacenamiento bloqueado */ } },
+    del(k) { try { localStorage.removeItem(k); } catch (e) { /* almacenamiento bloqueado */ } },
+  };
 
-  function load() {
+  // db = lo que se ve y edita; synced = última versión confirmada por el servidor.
+  // Lo que cambie entre los dos se envía al servidor.
+  let token = ls.get(TOKEN_KEY);
+  let db = emptyDB();
+  let synced = emptyDB();
+  let version = 0;
+  (function loadCache() {
     try {
-      const raw = localStorage.getItem(STORE_KEY);
-      if (!raw) return emptyDB();
-      const data = JSON.parse(raw);
-      const base = emptyDB();
-      return { ...base, ...data, config: { ...base.config, ...data.config }, seq: { ...base.seq, ...data.seq } };
-    } catch (e) {
-      return emptyDB();
-    }
+      const c = JSON.parse(ls.get(CACHE_KEY));
+      if (c && c.db) { db = normalize(c.db); synced = normalize(c.synced); version = c.version || 0; }
+    } catch (e) { /* sin caché */ }
+  })();
+  const cacheLocal = () => ls.set(CACHE_KEY, JSON.stringify({ db, synced, version }));
+
+  // ---- diferencias entre dos versiones (lo que se manda al servidor)
+  function diff(a, b) {
+    const ops = [];
+    COLLECTIONS.forEach((c) => {
+      const old = new Map(a[c].map((x) => [x.id, x]));
+      b[c].forEach((x) => {
+        const o = old.get(x.id);
+        if (!o || JSON.stringify(o) !== JSON.stringify(x)) ops.push({ c, id: x.id, item: x });
+        old.delete(x.id);
+      });
+      old.forEach((_, id) => ops.push({ c, id, del: true }));
+    });
+    const config = {};
+    Object.keys(b.config).forEach((k) => { if (a.config[k] !== b.config[k]) config[k] = b.config[k]; });
+    const hasConfig = Object.keys(config).length > 0;
+    const seq = b.seq.orden > a.seq.orden ? { orden: b.seq.orden } : null;
+    if (!ops.length && !hasConfig && !seq) return null;
+    return { ops, config: hasConfig ? config : undefined, seq: seq || undefined };
   }
+  function applyChanges(data, ch) {
+    (ch.ops || []).forEach((op) => {
+      const list = data[op.c];
+      const i = list.findIndex((x) => x.id === op.id);
+      if (op.del) { if (i >= 0) list.splice(i, 1); }
+      else if (i >= 0) list[i] = op.item;
+      else list.push(op.item);
+    });
+    if (ch.config) Object.assign(data.config, ch.config);
+    if (ch.seq) data.seq.orden = Math.max(data.seq.orden, ch.seq.orden);
+    return data;
+  }
+
+  // ---- comunicación con el servidor
+  class AuthError extends Error {}
+  async function api(method, path, body) {
+    const res = await fetch('/api/' + path, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+      cache: 'no-store',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) throw new AuthError(data.error || 'Sesión vencida');
+    if (!res.ok) throw new Error(data.error || 'Error del servidor (' + res.status + ')');
+    return data;
+  }
+
+  function setStatus(s) {
+    const el = $('#sync-status');
+    if (!el) return;
+    const map = {
+      ok: ['☁ Guardado', 'ok'], saving: ['⟳ Guardando…', 'busy'], pending: ['⟳ Guardando…', 'busy'],
+      offline: ['⚠ Sin conexión — se guardará al volver', 'bad'], loading: ['⟳ Cargando…', 'busy'],
+    };
+    const [text, cls] = map[s] || map.ok;
+    el.textContent = text;
+    el.className = 'sync ' + cls;
+  }
+
+  // Cada cambio: se guarda en este navegador al instante y se sube a la nube enseguida.
+  let pushTimer, retryTimer, pushing = false, again = false;
   function save() {
+    cacheLocal();
+    setStatus('pending');
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(push, 300);
+  }
+  const hasPending = () => !!diff(synced, db);
+
+  async function push() {
+    if (pushing) { again = true; return; }
+    const changes = diff(synced, db);
+    if (!changes) { setStatus('ok'); return; }
+    pushing = true;
+    setStatus('saving');
+    const sent = clone(db);
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(db));
+      const r = await api('POST', 'data', changes);
+      const later = diff(sent, db); // lo que se editó mientras se subía
+      synced = normalize(r.data);
+      version = r.version;
+      db = applyChanges(clone(synced), later || {});
+      cacheLocal();
+      setStatus(later ? 'pending' : 'ok');
+      if (later) again = true;
     } catch (e) {
-      toast('No se pudo guardar (almacenamiento lleno o bloqueado)');
+      handleSyncError(e);
+    } finally {
+      pushing = false;
+      if (again) { again = false; push(); }
     }
   }
+
+  // Trae lo último del servidor (lo que hayan guardado otras computadoras).
+  async function pull({ rerender = false } = {}) {
+    if (!token) return;
+    if (hasPending()) return push();
+    try {
+      const r = await api('GET', 'data');
+      if (hasPending()) return; // el usuario editó mientras llegaba la respuesta
+      const changed = r.version !== version;
+      synced = normalize(r.data);
+      db = clone(synced);
+      version = r.version;
+      cacheLocal();
+      setStatus('ok');
+      if (changed && rerender) refreshView();
+    } catch (e) {
+      handleSyncError(e);
+    }
+  }
+
+  function handleSyncError(e) {
+    if (e instanceof AuthError) {
+      toast('Su sesión venció, vuelva a entrar');
+      logout();
+      return;
+    }
+    setStatus('offline');
+    clearTimeout(retryTimer);
+    retryTimer = setTimeout(() => (hasPending() ? push() : pull({ rerender: true })), 10000);
+  }
+
+  // Actualiza la pantalla con datos nuevos solo si el usuario no está escribiendo.
+  function refreshView() {
+    const active = document.activeElement;
+    const typing = active && $('#view').contains(active) && /INPUT|SELECT|TEXTAREA/.test(active.tagName);
+    const filled = $$('#view form input, #view form textarea').some((i) => i.type !== 'date' && i.type !== 'number' && i.value);
+    if (typing || filled || document.querySelector('.modal-back')) return;
+    route({ keepScroll: true });
+  }
+  setInterval(() => document.visibilityState === 'visible' && pull({ rerender: true }), 20000);
+  window.addEventListener('focus', () => pull({ rerender: true }));
+  window.addEventListener('online', () => (hasPending() ? push() : pull({ rerender: true })));
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const today = () => {
@@ -68,14 +207,6 @@
   const clienteNombre = (id) => (clienteById(id) || {}).nombre || '';
   const waDigits = (s) => String(s || '').replace(/\D/g, '');
   const waLink = (phone, text) => `https://wa.me/${waDigits(phone)}${text ? '?text=' + encodeURIComponent(text) : ''}`;
-
-  async function hash(text) {
-    if (window.crypto && crypto.subtle) {
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('simtec:' + text));
-      return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
-    }
-    return 'plain:' + text;
-  }
 
   let toastTimer;
   function toast(msg) {
@@ -104,32 +235,73 @@
   }
 
   // ------------------------------------------------------------------ login
-  function isLogged() {
-    try { return sessionStorage.getItem(SESSION_KEY) === '1'; } catch (e) { return false; }
-  }
-  function setLogged(v) {
-    try { v ? sessionStorage.setItem(SESSION_KEY, '1') : sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* sin sesión persistente */ }
-  }
+  const isLogged = () => !!token;
 
   $('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const u = $('#login-user').value.trim();
-    const p = $('#login-pass').value;
-    const okPass = db.config.passHash ? (await hash(p)) === db.config.passHash : p === DEFAULT_PASS;
-    if (u.toLowerCase() === db.config.user.toLowerCase() && okPass) {
-      setLogged(true);
-      $('#login-error').hidden = true;
+    const btn = $('.btn-entrar');
+    btn.disabled = true;
+    $('#login-error').hidden = true;
+    try {
+      const r = await api('POST', 'login', { user: $('#login-user').value.trim(), pass: $('#login-pass').value });
+      token = r.token;
+      ls.set(TOKEN_KEY, token);
+      ls.set('simtec_user', r.user);
       $('#login-pass').value = '';
       showApp();
-    } else {
+      setStatus('loading');
+      await pull({ rerender: true });
+      route();
+      await offerLocalMigration();
+    } catch (err) {
+      $('#login-error').textContent = err instanceof AuthError ? 'Usuario o contraseña incorrectos' : 'No hay conexión con el servidor. Intente de nuevo.';
       $('#login-error').hidden = false;
+    } finally {
+      btn.disabled = false;
     }
   });
 
-  $('#btn-logout').addEventListener('click', () => {
-    setLogged(false);
+  // Si esta computadora tenía datos de la versión anterior (guardados solo aquí), se ofrecen subir a la nube.
+  async function offerLocalMigration() {
+    let old;
+    try { old = JSON.parse(ls.get(OLD_LOCAL_KEY)); } catch (e) { return; }
+    if (!old) return;
+    const total = COLLECTIONS.reduce((s, c) => s + ((old[c] || []).length), 0);
+    if (!total) { ls.del(OLD_LOCAL_KEY); return; }
+    const resumen = `${(old.clientes || []).length} clientes, ${(old.ordenes || []).length} órdenes, ${(old.cartera || []).length} deudas, ${(old.inventario || []).length} productos`;
+    const nubeVacia = COLLECTIONS.every((c) => !db[c].length);
+    const msg = nubeVacia
+      ? `En esta computadora hay datos guardados de antes (${resumen}).\n\n¿Subirlos a la nube para verlos en todas las computadoras?`
+      : `En esta computadora hay datos guardados de antes (${resumen}).\n\n¿Agregarlos a los datos de la nube? (no se borra nada de lo que ya está en la nube)`;
+    if (!confirm(msg)) return;
+    const local = normalize(old);
+    COLLECTIONS.forEach((c) => local[c].forEach((x) => { if (!db[c].some((y) => y.id === x.id)) db[c].push(x); }));
+    db.seq.orden = Math.max(db.seq.orden, local.seq.orden || 0);
+    if (nubeVacia) ['dgiUrl', 'negocio', 'telefono', 'direccion', 'moneda'].forEach((k) => { if (local.config[k]) db.config[k] = local.config[k]; });
+    save();
+    await push();
+    ls.set(OLD_LOCAL_KEY + '_subido', ls.get(OLD_LOCAL_KEY));
+    ls.del(OLD_LOCAL_KEY);
+    toast('Datos subidos a la nube ✅');
+    route();
+  }
+
+  function logout() {
+    token = null;
+    ls.del(TOKEN_KEY);
+    ls.del(CACHE_KEY);
+    db = emptyDB();
+    synced = emptyDB();
+    version = 0;
     location.hash = '';
     showLogin();
+  }
+  $('#btn-logout').addEventListener('click', async () => {
+    if (hasPending()) {
+      await push();
+      if (hasPending() && !confirm('Hay cambios que todavía no se subieron (sin conexión). Si sale ahora se pierden. ¿Salir igual?')) return;
+    }
+    logout();
   });
 
   function showLogin() {
@@ -152,15 +324,20 @@
       location.hash = go.dataset.go === 'menu' ? '' : go.dataset.go;
     }
   });
-  window.addEventListener('hashchange', () => isLogged() && route());
+  window.addEventListener('hashchange', () => {
+    if (!isLogged()) return;
+    route();
+    pull({ rerender: true });
+  });
 
-  function route() {
+  function route({ keepScroll = false } = {}) {
     const name = location.hash.replace('#', '') || 'menu';
     const view = views[name] || views.menu;
     const main = $('#view');
+    const y = window.scrollY;
     main.innerHTML = '';
     view(main);
-    window.scrollTo(0, 0);
+    window.scrollTo(0, keepScroll ? y : 0);
   }
 
   const head = (title, cls, extra = '') => `
@@ -199,7 +376,7 @@
   views.clientes = (el) => {
     let editId = null;
     el.innerHTML = `
-      ${head('CLIENTES', 'h-blue', `<button class="btn green" id="cl-xls">📊 Abrir en Excel</button>`)}
+      ${head('CLIENTES', 'h-blue', `<button class="btn green" id="cl-xls">⬇ Descargar Excel</button>`)}
       <form class="card" id="cl-form">
         <h2 id="cl-title">Crear cliente</h2>
         <div class="form-grid">
@@ -300,7 +477,7 @@
 
   views.cartera = (el) => {
     el.innerHTML = `
-      ${head('CARTERA', 'h-yellow', `<button class="btn green" id="ca-xls">📊 Abrir en Excel</button>`)}
+      ${head('CARTERA', 'h-yellow', `<button class="btn green" id="ca-xls">⬇ Descargar Excel</button>`)}
       <div class="stats-row" id="ca-stats"></div>
       <form class="card" id="ca-form">
         <h2>Agregar deuda (quién me debe)</h2>
@@ -497,7 +674,7 @@
   // ================================================================== REPORTE DIARIO
   views.reporte = (el) => {
     el.innerHTML = `
-      ${head('REPORTE DIARIO', 'h-red', `<input type="date" id="rd-fecha" class="btn ghost" value="${today()}"><button class="btn green" id="rd-xls">📊 Abrir en Excel</button><button class="btn" id="rd-xls-all">Excel completo</button>`)}
+      ${head('REPORTE DIARIO', 'h-red', `<input type="date" id="rd-fecha" class="btn ghost" value="${today()}"><button class="btn green" id="rd-xls">⬇ Descargar Excel</button><button class="btn" id="rd-xls-all">⬇ Excel completo</button>`)}
       <div class="stats-row" id="rd-stats"></div>
       <form class="card" id="rd-form">
         <h2>Agregar movimiento</h2>
@@ -656,7 +833,7 @@
 
   views.orden = (el) => {
     el.innerHTML = `
-      ${head('ORDEN DE INGRESO', 'h-blue', `<button class="btn green" id="or-xls">📊 Abrir en Excel</button>`)}
+      ${head('ORDEN DE INGRESO', 'h-blue', `<button class="btn green" id="or-xls">⬇ Descargar Excel</button>`)}
       <form class="card" id="or-form">
         <h2>Plantilla de servicio técnico</h2>
         <div class="form-grid">
@@ -795,7 +972,7 @@
   // ================================================================== INVENTARIO
   views.inventario = (el) => {
     el.innerHTML = `
-      ${head('INVENTARIO', 'h-yellow', `<button class="btn green" id="in-xls">📊 Abrir en Excel</button>`)}
+      ${head('INVENTARIO', 'h-yellow', `<button class="btn green" id="in-xls">⬇ Descargar Excel</button>`)}
       <form class="card" id="in-form">
         <h2>Agregar producto</h2>
         <div class="form-grid">
@@ -899,16 +1076,17 @@
       <form class="card" id="aj-login">
         <h2>Usuario y contraseña</h2>
         <div class="form-grid">
-          <div class="field"><label for="aj-user">Usuario</label><input id="aj-user" value="${esc(c.user)}" required></div>
+          <div class="field"><label for="aj-user">Usuario</label><input id="aj-user" value="${esc(ls.get('simtec_user') || 'admin')}" required autocomplete="username"></div>
           <div class="field"><label for="aj-pass">Nueva contraseña</label><input id="aj-pass" type="password" minlength="4" required autocomplete="new-password"></div>
         </div>
+        <p style="color:var(--muted);margin:10px 0 0">Aplica para todas las computadoras. Las demás sesiones abiertas se cierran y deberán entrar con la nueva contraseña.</p>
         <div class="form-actions"><button class="btn primary" type="submit">Cambiar acceso</button></div>
       </form>
       <div class="card">
-        <h2>Copia de seguridad</h2>
-        <p style="color:var(--muted);margin-top:0">Los datos se guardan en este navegador. Descargue una copia seguido para no perder información o para pasarla a otro equipo.</p>
+        <h2>Datos en la nube y copias</h2>
+        <p style="color:var(--muted);margin-top:0">Todo se guarda automáticamente en la nube (Vercel) y se ve igual en todas las computadoras donde entre con su usuario. Además, cada día se guarda una copia de seguridad automática en la nube. Cuando quiera tener los datos en esta PC, use <b>Descargar todo en Excel</b>.</p>
         <div class="form-actions">
-          <button class="btn green" id="aj-xls">📊 Exportar todo a Excel</button>
+          <button class="btn green" id="aj-xls">⬇ Descargar todo en Excel</button>
           <button class="btn" id="aj-backup">⬇ Descargar copia (.json)</button>
           <label class="btn">⬆ Restaurar copia<input type="file" id="aj-restore" accept="application/json,.json" hidden></label>
         </div>
@@ -925,11 +1103,17 @@
     });
     $('#aj-login').addEventListener('submit', async (e) => {
       e.preventDefault();
-      c.user = $('#aj-user').value.trim();
-      c.passHash = await hash($('#aj-pass').value);
-      save();
-      $('#aj-pass').value = '';
-      toast('Usuario y contraseña actualizados');
+      try {
+        const r = await api('POST', 'password', { user: $('#aj-user').value.trim(), pass: $('#aj-pass').value });
+        token = r.token;
+        ls.set(TOKEN_KEY, token);
+        ls.set('simtec_user', r.user);
+        $('#aj-pass').value = '';
+        toast('Usuario y contraseña actualizados');
+      } catch (err) {
+        if (err instanceof AuthError) return handleSyncError(err);
+        toast(navigator.onLine ? err.message : 'Sin conexión: no se pudo cambiar la contraseña');
+      }
     });
     $('#aj-xls').addEventListener('click', () =>
       exportXLSX(`SIMTEC_Completo_${today()}.xlsx`, {
@@ -956,11 +1140,17 @@
         try {
           const data = JSON.parse(r.result);
           if (!data || !Array.isArray(data.clientes)) throw new Error('formato');
-          if (!confirm('Esto reemplazará todos los datos actuales. ¿Continuar?')) return;
-          localStorage.setItem(STORE_KEY, JSON.stringify(data));
-          db = load();
-          toast('Copia restaurada');
-          route();
+          if (!confirm('Esto reemplazará TODOS los datos de la nube (en todas las computadoras) por los de la copia. ¿Continuar?')) return;
+          api('POST', 'data', { replace: normalize(data) })
+            .then((res) => {
+              synced = normalize(res.data);
+              db = clone(synced);
+              version = res.version;
+              cacheLocal();
+              toast('Copia restaurada');
+              route();
+            })
+            .catch((err) => (err instanceof AuthError ? handleSyncError(err) : toast('No se pudo restaurar: ' + err.message)));
         } catch (err) {
           toast('El archivo no es una copia válida de SIMTEC');
         }
@@ -970,6 +1160,9 @@
   };
 
   // ------------------------------------------------------------------ inicio
-  if (isLogged()) showApp();
-  else showLogin();
+  if (isLogged()) {
+    showApp();
+    if (hasPending()) push();
+    else pull({ rerender: true });
+  } else showLogin();
 })();

@@ -1,6 +1,6 @@
 # SIMTEC – Tecnología Informática
 
-App web para el local de servicio técnico. Es una sola página: se abre `index.html` en el navegador (PC o celular) y funciona sin internet.
+App web para el local de servicio técnico, publicada en Vercel. Los datos se guardan en la nube (Vercel Blob privado) y se ven iguales en todas las computadoras y celulares donde se entre con el usuario.
 
 **Acceso inicial:** usuario `admin` · contraseña `simtec` (cámbiela en ⚙ Ajustes).
 
@@ -18,16 +18,33 @@ App web para el local de servicio técnico. Es una sola página: se abre `index.
 
 ## Datos
 
-Los datos se guardan en el navegador del equipo donde se usa. En **Ajustes** se puede descargar una copia de seguridad (`.json`), restaurarla en otro equipo o exportar todo a un Excel con varias hojas.
+- Cada cambio se guarda solo en la nube (indicador **☁ Guardado** arriba). Si se cae el internet, se guarda en el navegador y se sube al volver.
+- Las otras computadoras ven los cambios al cambiar de sección o en máximo 20 segundos.
+- Cada día se guarda una copia de seguridad automática en la nube (`simtec/copias/AAAA-MM-DD.json` en el Blob store `simtec-datos`).
+- **⬇ Descargar Excel** en cada sección (o **Descargar todo en Excel** en Ajustes) baja los datos a la PC.
+- El usuario y la contraseña los valida el servidor; al cambiarlos se cierran las demás sesiones.
 
-> El usuario y la contraseña protegen la pantalla, pero los datos no están cifrados. No es un sistema multiusuario en línea.
+## Servidor (`/api`)
+
+| Ruta | Qué hace |
+|---|---|
+| `POST /api/login` | Usuario y contraseña → sesión de 30 días |
+| `GET /api/data` | Trae todos los datos |
+| `POST /api/data` | Guarda los cambios (solo lo que cambió) o reemplaza todo al restaurar una copia |
+| `POST /api/password` | Cambia usuario y contraseña |
+
+Necesita la variable `BLOB_READ_WRITE_TOKEN` (ya configurada al conectar el Blob store al proyecto).
+
+Para probar en local sin Vercel: `npm install && npm run dev` (guarda en `datos-local.json`, puerto 3000).
 
 ## Estructura
 
 ```
 index.html        pantalla de acceso + contenedor de la app
 css/styles.css    estilo (negro, bordes blancos, colores del logo)
-js/app.js         toda la lógica
+js/app.js         toda la lógica de la pantalla y la sincronización
+api/              servidor en Vercel (login, datos, contraseña)
+scripts/          servidor local de pruebas
 assets/           logo y botones del menú
 fonts/            fuentes Anton y Roboto Condensed (locales)
 vendor/           SheetJS para generar archivos de Excel
