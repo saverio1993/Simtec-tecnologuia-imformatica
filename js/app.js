@@ -792,7 +792,7 @@
 
   // ================================================================== ORDEN DE INGRESO
   const ESTADOS = ['Recibido', 'En reparación', 'Listo', 'Entregado'];
-  const FALLAS = ['FRP', 'KG', 'Software', 'Cuenta Mi'];
+  const FALLAS = ['FRP', 'KG', 'PayJoy', 'Software', 'Cuenta Mi'];
   const MARCAS = ['Samsung', 'iPhone', 'Xiaomi', 'Honor', 'Huawei', 'Motorola', 'Oppo', 'Tecno', 'Infinix', 'ZTE'];
   // modelos más comunes por marca (se pueden escribir otros)
   const MODELOS = {
@@ -846,29 +846,77 @@
     return db.ordenes.find((o) => o.numero.toUpperCase() === numero) || null;
   }
 
+  // comprobante con el formato de la hoja de "orden de servicio" en papel
   function receiptHTML(o) {
     const c = clienteById(o.clienteId) || {};
     const cfg = db.config;
-    const row = (k, v) => `<tr><th>${k}</th><td>${esc(v) || '&nbsp;'}</td></tr>`;
-    const opt = (k, v) => (v ? row(k, v) : ''); // campos que solo tienen las órdenes antiguas
-    return `<div class="receipt">
-      <div class="r-head">
-        <img src="assets/logo.jpg" alt="">
-        <div><h3>${esc(cfg.negocio)}</h3><div>${esc(cfg.direccion)}</div><div>${cfg.telefono ? 'Tel/WhatsApp: ' + esc(cfg.telefono) : ''}</div></div>
-        <div class="r-num">ORDEN DE INGRESO<br><b>${esc(o.numero)}</b><br>${fmtDate(o.fecha)}</div>
-        <div class="r-qr">${qrSVG(orderLink(o))}</div>
+    const [y, m, d] = (o.fecha || today()).split('-');
+    const nro = o.numero.replace(/^SIM-/, '');
+    const imei = String(o.imei || '').replace(/\D/g, '').padEnd(15, ' ').slice(0, 15).split('');
+    const lineas = [
+      o.falla && 'Falla: ' + o.falla,
+      o.trabajo && 'Nota: ' + o.trabajo,
+      o.equipo && o.equipo !== 'Celular' && 'Equipo: ' + o.equipo,
+      o.accesorios && 'Accesorios: ' + o.accesorios,
+      o.clave && 'Clave / patrón: ' + o.clave,
+      'Estado: ' + o.estado,
+    ].filter(Boolean);
+    while (lineas.length < 6) lineas.push('');
+    const entregado = (o.historial || []).filter((x) => x.estado === 'Entregado').pop();
+    const [ey, em, ed] = entregado ? entregado.fecha.slice(0, 10).split('-') : ['', '', ''];
+    const sino = (t) => `<div class="f-sn"><span>${t}</span><span>SI <i></i></span><span>NO <i></i></span></div>`;
+    return `<div class="receipt fact">
+      <div class="f-head">
+        <div class="f-title">SERVICIO TÉCNICO<br>DE CELULARES</div>
+        <img class="f-logo" src="assets/logo.jpg" alt="">
+        <div class="f-contact">
+          ${cfg.telefono ? `<div><b class="wa">✆</b> ${esc(cfg.telefono)}</div>` : ''}
+          ${cfg.direccion ? `<div><b class="pin">⦿</b> ${esc(cfg.direccion)}</div>` : ''}
+        </div>
+        <div class="f-box">
+          <div class="f-brand">SIMTEC</div>
+          <div class="f-os"><div class="f-os-t">ORDEN DE SERVICIO</div><div class="f-date">${d} / ${m} / ${y.slice(2)}</div><div class="f-nro">N°${esc(nro)}</div></div>
+        </div>
+        <div class="f-qr">${qrSVG(orderLink(o))}</div>
       </div>
-      <table>
-        ${row('Cliente', c.nombre)}${row('Tienda', c.tienda)}${row('WhatsApp', c.whatsapp)}
-        ${row('Equipo', o.equipo)}${row('Marca / Modelo', [o.marca, o.modelo].filter(Boolean).join(' '))}
-        ${opt('IMEI / Serie', o.imei)}${opt('Color', o.color)}${opt('Clave / Patrón', o.clave)}${opt('Accesorios recibidos', o.accesorios)}
-        ${row('Falla', o.falla)}${opt('Nota', o.trabajo)}${opt('Técnico', o.tecnico)}${opt('Fecha estimada de entrega', fmtDate(o.entrega))}
-        ${row('Estado', o.estado)}
-        ${row('Costo', money(o.costo))}${row('Abono', money(num(o.abono) + abonosOrden(o)))}
-        <tr><th>SALDO PENDIENTE</th><td><b>${money(saldoOrden(o))}</b></td></tr>
-      </table>
-      <div class="r-sign"><div>Firma del cliente</div><div>Recibido por SIMTEC</div></div>
-      <p class="r-note">Conserve esta orden para retirar su equipo (se escanea el código QR). Equipos no retirados en 30 días después de notificados no son responsabilidad del local. El local no se responsabiliza por la información almacenada en el equipo.</p>
+
+      <div class="f-row f-round">
+        <div style="flex:2.2"><small>CLIENTE:</small> ${esc(c.nombre || '')}${c.tienda ? ' <span class="f-soft">(' + esc(c.tienda) + ')</span>' : ''}</div>
+        <div style="flex:1.2"><small>TELF.:</small> ${esc(c.whatsapp || '')}</div>
+        <div style="flex:1.2"><small>C.C./NIT:</small></div>
+      </div>
+
+      <div class="f-round f-equipo">
+        <div class="f-bar"><span style="flex:1">MARCA</span><span style="flex:1.3">MODELO</span><span style="flex:2.2">IMEI</span></div>
+        <div class="f-row f-cells">
+          <div style="flex:1">${esc(o.marca || o.equipo || '')}</div>
+          <div style="flex:1.3">${esc(o.modelo || '')}</div>
+          <div class="f-imei" style="flex:2.2">${imei.map((ch) => `<span>${ch.trim() ? esc(ch) : ''}</span>`).join('')}</div>
+        </div>
+      </div>
+
+      <div class="f-mid">
+        <div class="f-round f-diag">
+          <div class="f-bar"><span>DIAGNÓSTICO DEL CELULAR</span></div>
+          ${lineas.map((l) => `<div class="f-line">${esc(l)}</div>`).join('')}
+        </div>
+        <div class="f-round f-side">
+          ${sino('SIM CARD')}${sino('MEMORIA')}${sino('BATERÍA')}${sino('AUTORIZA REPARACIÓN')}
+          <div class="f-money"><span>Abono $</span><b>${num(o.abono) + abonosOrden(o) ? money(num(o.abono) + abonosOrden(o)).replace(cfg.moneda, '').trim() : ''}</b></div>
+          <div class="f-money"><span>Debe $</span><b>${money(saldoOrden(o)).replace(cfg.moneda, '').trim()}</b></div>
+          <div class="f-money"><span>TOTAL$</span><b>${money(o.costo).replace(cfg.moneda, '').trim()}</b></div>
+        </div>
+      </div>
+
+      <div class="f-row f-round f-labelrow"><div class="f-lab">RECIBE</div><div style="flex:1">${esc(cfg.negocio)}</div></div>
+      <div class="f-row f-round f-labelrow">
+        <div class="f-lab">GARANTÍA</div><div style="flex:1.3"></div>
+        <div class="f-lab f-small">FECHA<br>DE ENTREGA</div>
+        <div class="f-dmy"><small>DÍA</small>${ed}</div><div class="f-dmy"><small>MES</small>${em}</div><div class="f-dmy"><small>AÑO</small>${ey}</div>
+      </div>
+      <div class="f-row f-round f-firma"><div style="flex:1.6"><small>FIRMA:</small><span class="f-blank"></span></div><div style="flex:1"><small>C.C.:</small><span class="f-blank"></span></div></div>
+
+      <div class="f-foot"><span class="f-sim"></span> Recuerde sacar siempre su <b class="r">SIM CARD</b> y su <b>MEMORIA</b> <b class="r">del celular</b></div>
     </div>`;
   }
 
@@ -1426,9 +1474,10 @@
 
     $('#aj-negocio').addEventListener('submit', (e) => {
       e.preventDefault();
-      Object.assign(c, {
+      // db.config (no `c`): al sincronizar con la nube los datos se reemplazan por copias nuevas
+      Object.assign(db.config, {
         negocio: $('#aj-neg').value.trim() || 'SIMTEC', telefono: $('#aj-tel').value.trim(), direccion: $('#aj-dir').value.trim(),
-        moneda: $('#aj-mon').value.trim() || '$', dgiUrl: $('#aj-dgi').value.trim() || c.dgiUrl,
+        moneda: $('#aj-mon').value.trim() || '$', dgiUrl: $('#aj-dgi').value.trim() || db.config.dgiUrl,
       });
       save();
       toast('Datos guardados');
