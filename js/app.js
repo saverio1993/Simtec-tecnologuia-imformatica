@@ -331,13 +331,21 @@
   });
 
   function route({ keepScroll = false } = {}) {
-    const name = location.hash.replace('#', '') || 'menu';
+    let name = location.hash.replace('#', '') || 'menu';
+    let scanCode = null;
+    if (name.startsWith('scan')) {
+      // link del código QR: abre Orden de ingreso con esa orden
+      scanCode = decodeURIComponent(name.split('/')[1] || '');
+      name = 'orden';
+      history.replaceState(null, '', '#orden');
+    }
     const view = views[name] || views.menu;
     const main = $('#view');
     const y = window.scrollY;
     main.innerHTML = '';
     view(main);
     window.scrollTo(0, keepScroll ? y : 0);
+    if (scanCode !== null) openScanner(scanCode);
   }
 
   const head = (title, cls, extra = '') => `
@@ -785,6 +793,44 @@
   // ================================================================== ORDEN DE INGRESO
   const ESTADOS = ['Recibido', 'En reparación', 'Listo', 'Entregado'];
 
+  // abonos hechos después desde Cartera o al entregar
+  const abonosOrden = (o) => {
+    const d = db.cartera.find((x) => x.ordenId === o.id);
+    return d ? abonado(d) : 0;
+  };
+  const saldoOrden = (o) => Math.max(0, num(o.costo) - num(o.abono) - abonosOrden(o));
+  const equipoTxt = (o) => [o.equipo, o.marca, o.modelo].filter(Boolean).join(' ');
+  const estadoTag = (e) => `<span class="tag ${e === 'Listo' ? 'ok' : e === 'Entregado' ? 'gray' : e === 'En reparación' ? 'in' : 'due'}">${esc(e)}</span>`;
+
+  function setEstado(o, estado) {
+    if (o.estado === estado) return;
+    o.estado = estado;
+    o.historial = (o.historial || []).concat({ estado, fecha: new Date().toISOString() });
+    save();
+  }
+  const fechaEstado = (o, estado) => {
+    const h = (o.historial || []).filter((x) => x.estado === estado).pop();
+    return h ? fmtDate(h.fecha.slice(0, 10)) : '';
+  };
+
+  // ---- código QR: es un link que abre la orden en SIMTEC (sirve con la cámara normal del celular)
+  const orderLink = (o) => `${location.origin}${location.pathname}#scan/${o.numero}`;
+  function qrSVG(text) {
+    if (!window.qrcode) return '';
+    const q = qrcode(0, 'M');
+    q.addData(text);
+    q.make();
+    return q.createSvgTag({ cellSize: 4, margin: 8, scalable: true, alt: text });
+  }
+  // lee lo escaneado (link, "SIM-0004", "sim 4" o solo "4") y busca la orden
+  function findOrder(text) {
+    const t = String(text || '').trim();
+    const m = t.match(/SIM[-\s]?0*(\d+)/i) || t.match(/^0*(\d+)$/);
+    if (!m) return null;
+    const numero = 'SIM-' + String(m[1]).padStart(4, '0');
+    return db.ordenes.find((o) => o.numero.toUpperCase() === numero) || null;
+  }
+
   function receiptHTML(o) {
     const c = clienteById(o.clienteId) || {};
     const cfg = db.config;
@@ -794,6 +840,7 @@
         <img src="assets/logo.jpg" alt="">
         <div><h3>${esc(cfg.negocio)}</h3><div>${esc(cfg.direccion)}</div><div>${cfg.telefono ? 'Tel/WhatsApp: ' + esc(cfg.telefono) : ''}</div></div>
         <div class="r-num">ORDEN DE INGRESO<br><b>${esc(o.numero)}</b><br>${fmtDate(o.fecha)}</div>
+        <div class="r-qr">${qrSVG(orderLink(o))}</div>
       </div>
       <table>
         ${row('Cliente', c.nombre)}${row('Tienda', c.tienda)}${row('WhatsApp', c.whatsapp)}
@@ -802,38 +849,260 @@
         ${row('Accesorios recibidos', o.accesorios)}${row('Falla reportada', o.falla)}
         ${row('Trabajo a realizar', o.trabajo)}${row('Técnico', o.tecnico)}
         ${row('Fecha estimada de entrega', fmtDate(o.entrega))}${row('Estado', o.estado)}
-        ${row('Costo', money(o.costo))}${row('Abono', money(o.abono))}
-        <tr><th>SALDO PENDIENTE</th><td><b>${money(Math.max(0, num(o.costo) - num(o.abono)))}</b></td></tr>
+        ${row('Costo', money(o.costo))}${row('Abono', money(num(o.abono) + abonosOrden(o)))}
+        <tr><th>SALDO PENDIENTE</th><td><b>${money(saldoOrden(o))}</b></td></tr>
       </table>
       <div class="r-sign"><div>Firma del cliente</div><div>Recibido por SIMTEC</div></div>
-      <p class="r-note">Conserve esta orden para retirar su equipo. Equipos no retirados en 30 días después de notificados no son responsabilidad del local. El local no se responsabiliza por la información almacenada en el equipo.</p>
+      <p class="r-note">Conserve esta orden para retirar su equipo (se escanea el código QR). Equipos no retirados en 30 días después de notificados no son responsabilidad del local. El local no se responsabiliza por la información almacenada en el equipo.</p>
     </div>`;
+  }
+
+  function labelHTML(o) {
+    const c = clienteById(o.clienteId) || {};
+    return `<div class="label">
+      <div class="l-qr">${qrSVG(orderLink(o))}</div>
+      <div class="l-info">
+        <div class="l-num">${esc(o.numero)}</div>
+        <div class="l-cli">${esc(c.nombre || '')}</div>
+        <div>${esc(equipoTxt(o))}</div>
+        <div class="l-falla">${esc((o.falla || '').slice(0, 60))}</div>
+        <div>${fmtDate(o.fecha)}</div>
+      </div>
+    </div>`;
+  }
+
+  // ventana con botones encima de un contenido (comprobante, etiqueta, escáner)
+  function openModal(html, onClick, onClose) {
+    const m = document.createElement('div');
+    m.className = 'modal-back';
+    m.innerHTML = `<div class="modal-inner">${html}</div>`;
+    const close = () => { m.remove(); if (onClose) onClose(); };
+    m.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-act]');
+      if (e.target === m || (a && a.dataset.act === 'close')) return close();
+      if (onClick) onClick(e, a, close);
+    });
+    document.body.appendChild(m);
+    return { el: m, close };
+  }
+
+  function printWithPage(pageCss) {
+    // tamaño de página solo para esta impresión (p. ej. etiqueta 50 x 30 mm)
+    const st = document.createElement('style');
+    st.textContent = pageCss;
+    document.head.appendChild(st);
+    const done = () => { st.remove(); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    window.print();
+    setTimeout(done, 1500);
+  }
+
+  function openLabel(o) {
+    const render = (n) => Array.from({ length: n }, () => labelHTML(o)).join('');
+    const { el } = openModal(`
+      <div class="modal-actions">
+        <button class="btn primary" data-act="print">🖨 Imprimir etiqueta</button>
+        <label class="btn">Copias <select id="lb-copias" style="background:#000;color:#fff;border:0;font:inherit;margin-left:6px"><option>1</option><option selected>2</option><option>3</option></select></label>
+        <button class="btn" data-act="close">Cerrar</button>
+      </div>
+      <p class="modal-hint">Pegue una etiqueta en el equipo (y otra en la bolsa o cargador). Tamaño 50 × 30 mm: sirve impresora térmica de etiquetas o una normal.</p>
+      <div class="labels" id="lb-list">${render(2)}</div>`,
+    (e, a) => { if (a && a.dataset.act === 'print') printWithPage('@page { size: 50mm 30mm; margin: 0; }'); });
+    $('#lb-copias', el).addEventListener('change', (e) => ($('#lb-list', el).innerHTML = render(Number(e.target.value))));
   }
 
   function openReceipt(o) {
     const c = clienteById(o.clienteId) || {};
-    const msg = `Hola ${c.nombre || ''}, le saluda ${db.config.negocio}.\nOrden de ingreso: ${o.numero}\nEquipo: ${[o.equipo, o.marca, o.modelo].filter(Boolean).join(' ')}\nFalla: ${o.falla}\nCosto: ${money(o.costo)} | Abono: ${money(o.abono)} | Saldo: ${money(Math.max(0, num(o.costo) - num(o.abono)))}\nEstado: ${o.estado}`;
-    const m = document.createElement('div');
-    m.className = 'modal-back';
-    m.innerHTML = `<div style="width:100%">
+    const msg = `Hola ${c.nombre || ''}, le saluda ${db.config.negocio}.\nOrden de ingreso: ${o.numero}\nEquipo: ${equipoTxt(o)}\nFalla: ${o.falla}\nCosto: ${money(o.costo)} | Abono: ${money(num(o.abono) + abonosOrden(o))} | Saldo: ${money(saldoOrden(o))}\nEstado: ${o.estado}`;
+    openModal(`
       <div class="modal-actions">
         <button class="btn primary" data-act="print">🖨 Imprimir / PDF</button>
+        <button class="btn yellow" data-act="label">🏷 Etiqueta QR</button>
         ${c.whatsapp ? `<a class="btn green" target="_blank" rel="noopener" href="${waLink(c.whatsapp, msg)}">💬 Enviar por WhatsApp</a>` : ''}
         <button class="btn" data-act="close">Cerrar</button>
       </div>
-      ${receiptHTML(o)}
-    </div>`;
-    m.addEventListener('click', (e) => {
-      const a = e.target.closest('[data-act]');
-      if (e.target === m || (a && a.dataset.act === 'close')) m.remove();
-      if (a && a.dataset.act === 'print') window.print();
+      ${receiptHTML(o)}`,
+    (e, a) => {
+      if (!a) return;
+      if (a.dataset.act === 'print') printWithPage('@page { size: auto; margin: 12mm; }');
+      if (a.dataset.act === 'label') openLabel(o);
     });
-    document.body.appendChild(m);
   }
+
+  // ---- escáner: cámara (celular o laptop) o lector de código USB (escribe y da Enter)
+  let jsQRPromise;
+  const loadJsQR = () =>
+    jsQRPromise || (jsQRPromise = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'vendor/jsQR.js';
+      s.onload = () => res(window.jsQR);
+      s.onerror = rej;
+      document.head.appendChild(s);
+    }));
+
+  function openScanner(initialCode) {
+    let stream = null, timer = null, stopped = false;
+    const { el, close } = openModal(`
+      <div class="scan-box">
+        <div class="modal-actions"><button class="btn" data-act="close">Cerrar</button></div>
+        <h2 class="scan-title">📷 ESCANEAR EQUIPO</h2>
+        <div class="scan-cam" id="sc-cam"><video id="sc-video" playsinline muted></video><div class="scan-frame"></div><p id="sc-msg">Abriendo cámara…</p></div>
+        <form id="sc-form" class="scan-manual">
+          <input id="sc-input" placeholder="Lector USB o escriba el número (ej. SIM-0004 o 4)" autocomplete="off">
+          <button class="btn primary" type="submit">Buscar</button>
+        </form>
+        <div id="sc-result"></div>
+      </div>`,
+    (e, a) => a && handleAction(a),
+    () => stopCamera());
+
+    const video = $('#sc-video', el);
+    const msg = (t) => ($('#sc-msg', el).textContent = t);
+
+    function stopCamera() {
+      stopped = true;
+      clearTimeout(timer);
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      stream = null;
+    }
+
+    async function startCamera() {
+      stopped = false;
+      $('#sc-cam', el).hidden = false;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        msg('Esta pantalla no tiene cámara disponible: use el lector USB o escriba el número.');
+        return;
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        if (stopped) return stopCamera();
+        video.srcObject = stream;
+        await video.play();
+        msg('Apunte la cámara al código QR de la etiqueta');
+        loop();
+      } catch (err) {
+        msg('No se pudo abrir la cámara (permiso denegado o sin cámara). Use el lector USB o escriba el número.');
+      }
+    }
+
+    async function loop() {
+      let detector = null;
+      if ('BarcodeDetector' in window) {
+        try { detector = new BarcodeDetector({ formats: ['qr_code', 'code_128'] }); } catch (e) { detector = null; }
+      }
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const tick = async () => {
+        if (stopped || !stream) return;
+        try {
+          let text = null;
+          if (video.readyState >= 2) {
+            if (detector) {
+              const codes = await detector.detect(video);
+              if (codes.length) text = codes[0].rawValue;
+            } else {
+              const jsQR = await loadJsQR();
+              const w = Math.min(640, video.videoWidth);
+              const h = Math.round((video.videoHeight / video.videoWidth) * w);
+              canvas.width = w; canvas.height = h;
+              ctx.drawImage(video, 0, 0, w, h);
+              const r = jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' });
+              if (r) text = r.data;
+            }
+          }
+          if (text && handleCode(text)) return;
+        } catch (e) { /* sigue intentando */ }
+        timer = setTimeout(tick, 180);
+      };
+      tick();
+    }
+
+    // se guarda el id (no el objeto): al sincronizar con la nube los datos se reemplazan por copias nuevas
+    let currentId = null;
+    const currentOrder = () => db.ordenes.find((x) => x.id === currentId);
+    function handleCode(text) {
+      const o = findOrder(text);
+      if (!o) {
+        msg('Código no reconocido: ' + String(text).slice(0, 40));
+        return false;
+      }
+      if (navigator.vibrate) navigator.vibrate(80);
+      stopCamera();
+      $('#sc-cam', el).hidden = true;
+      currentId = o.id;
+      showResult();
+      return true;
+    }
+
+    function showResult(note = '') {
+      const o = currentOrder();
+      if (!o) { $('#sc-result', el).innerHTML = '<p class="empty">Esta orden ya no existe.</p>'; return; }
+      const c = clienteById(o.clienteId) || {};
+      const s = saldoOrden(o);
+      const listoMsg = `Hola ${c.nombre || ''}, le saluda ${db.config.negocio}. ✅ Su equipo ${equipoTxt(o)} (orden ${o.numero}) ya está LISTO para retirar.${s > 0 ? ` Saldo pendiente: ${money(s)}.` : ''} ¡Gracias!`;
+      $('#sc-result', el).innerHTML = `
+        <div class="scan-card">
+          ${note ? `<div class="scan-note">${note}</div>` : ''}
+          <div class="scan-num">${esc(o.numero)} ${estadoTag(o.estado)}</div>
+          <div class="scan-cli">${esc(c.nombre || '(cliente borrado)')}${c.tienda ? ' — ' + esc(c.tienda) : ''}</div>
+          <div>${esc(equipoTxt(o))}${o.imei ? ' · IMEI ' + esc(o.imei) : ''}</div>
+          <div class="scan-falla">Falla: ${esc(o.falla)}</div>
+          <div>Ingresó: ${fmtDate(o.fecha)} · Saldo: ${s > 0 ? `<b class="debe">${money(s)}</b>` : '<b class="pagado">PAGADO</b>'}</div>
+          <div class="scan-actions">
+            ${o.estado !== 'Listo' && o.estado !== 'Entregado' ? '<button class="btn green big" data-act="listo">✅ MARCAR LISTO</button>' : ''}
+            ${o.estado === 'Listo' && c.whatsapp ? `<a class="btn green" target="_blank" rel="noopener" href="${waLink(c.whatsapp, listoMsg)}">💬 Avisar al cliente que está listo</a>` : ''}
+            ${o.estado !== 'Entregado' && s > 0 ? `<button class="btn yellow big" data-act="cobrar">📦 COBRAR ${money(s)} Y ENTREGAR</button><button class="btn" data-act="entregar">Entregar sin cobrar (queda en cartera)</button>` : ''}
+            ${o.estado !== 'Entregado' && s <= 0 ? '<button class="btn yellow big" data-act="entregar">📦 MARCAR ENTREGADO</button>' : ''}
+            ${o.estado === 'Recibido' ? '<button class="btn" data-act="reparacion">🔧 En reparación</button>' : ''}
+            <button class="btn" data-act="ver">Ver orden</button>
+            <button class="btn primary" data-act="otro">📷 Escanear otro</button>
+          </div>
+        </div>`;
+    }
+
+    function handleAction(a) {
+      const o = currentOrder();
+      if (!o && a.dataset.act !== 'otro') return;
+      switch (a.dataset.act) {
+        case 'listo': setEstado(o, 'Listo'); toast(`${o.numero} marcado LISTO`); showResult('✅ Marcado como LISTO'); break;
+        case 'reparacion': setEstado(o, 'En reparación'); showResult('🔧 Pasó a reparación'); break;
+        case 'cobrar': {
+          const s = saldoOrden(o);
+          const d = db.cartera.find((x) => x.ordenId === o.id);
+          if (d) d.abonos.push({ fecha: today(), monto: s });
+          db.movimientos.push({ id: uid(), origen: 'abono', ordenId: o.id, fecha: today(), tipo: 'ingreso', concepto: `Pago al entregar ${o.numero}`, clienteId: o.clienteId, monto: s });
+          setEstado(o, 'Entregado');
+          toast(`Cobrado ${money(s)} y entregado`);
+          showResult(`📦 Entregado y cobrado ${money(s)} (sumado al reporte diario)`);
+          break;
+        }
+        case 'entregar': setEstado(o, 'Entregado'); toast(`${o.numero} entregado`); showResult('📦 Marcado como ENTREGADO'); break;
+        case 'ver': openReceipt(o); break;
+        case 'otro': currentId = null; $('#sc-result', el).innerHTML = ''; $('#sc-input', el).value = ''; startCamera(); $('#sc-input', el).focus(); break;
+        default:
+      }
+      if (location.hash.startsWith('#orden')) refreshOrdenList();
+    }
+
+    $('#sc-form', el).addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = $('#sc-input', el).value;
+      if (!handleCode(v)) toast('No se encontró la orden "' + v + '"');
+      $('#sc-input', el).select();
+    });
+
+    if (initialCode) {
+      if (!handleCode(initialCode)) { startCamera(); toast('No se encontró la orden ' + initialCode); }
+    } else {
+      startCamera();
+      $('#sc-input', el).focus();
+    }
+  }
+  let refreshOrdenList = () => {};
 
   views.orden = (el) => {
     el.innerHTML = `
-      ${head('ORDEN DE INGRESO', 'h-blue', `<button class="btn green" id="or-xls">⬇ Descargar Excel</button>`)}
+      ${head('ORDEN DE INGRESO', 'h-blue', `<button class="btn primary big" id="or-scan">📷 ESCANEAR</button><button class="btn green" id="or-xls">⬇ Descargar Excel</button>`)}
       <form class="card" id="or-form">
         <h2>Plantilla de servicio técnico</h2>
         <div class="form-grid">
@@ -857,7 +1126,10 @@
         </div>
         <div class="form-actions"><button class="btn primary big" type="submit">GUARDAR E IMPRIMIR</button></div>
       </form>
-      <div class="toolbar"><div class="search"><input id="or-q" placeholder="Buscar por número, cliente, marca, IMEI…"></div></div>
+      <div class="toolbar">
+        <div class="search"><input id="or-q" placeholder="Buscar por número, cliente, marca, IMEI…"></div>
+        <div class="seg" id="or-filtro"><button class="on" data-f="taller">En taller</button><button data-f="Listo">Listos</button><button data-f="Entregado">Entregados</button><button data-f="all">Todas</button></div>
+      </div>
       <div class="table-wrap"><table>
         <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th class="num">Saldo</th><th></th></tr></thead>
         <tbody id="or-body"></tbody>
@@ -867,14 +1139,19 @@
     $('#or-cli').addEventListener('change', toggleNuevo);
     toggleNuevo();
 
+    let filtro = 'taller';
+    const pasaFiltro = (o) => filtro === 'all' || (filtro === 'taller' ? o.estado !== 'Listo' && o.estado !== 'Entregado' : o.estado === filtro);
     function render() {
       const q = $('#or-q').value.toLowerCase();
       const rows = db.ordenes
+        .filter((o) => (q ? true : pasaFiltro(o)))
         .filter((o) => !q || [o.numero, clienteNombre(o.clienteId), o.marca, o.modelo, o.imei, o.falla].join(' ').toLowerCase().includes(q))
         .slice().reverse();
+      const cuenta = (f) => db.ordenes.filter((o) => (f === 'taller' ? o.estado !== 'Listo' && o.estado !== 'Entregado' : f === 'all' || o.estado === f)).length;
+      $$('#or-filtro button', el).forEach((b) => (b.textContent = b.textContent.replace(/ \(\d+\)$/, '') + ` (${cuenta(b.dataset.f)})`));
       $('#or-body').innerHTML = rows.length
         ? rows.map((o) => {
-          const s = Math.max(0, num(o.costo) - num(o.abono) - abonosOrden(o));
+          const s = saldoOrden(o);
           return `<tr>
             <td><b>${esc(o.numero)}</b></td>
             <td>${fmtDate(o.fecha)}</td>
@@ -882,16 +1159,18 @@
             <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === o.estado ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : '<span class="tag ok">PAGADO</span>'}</td>
-            <td class="actions"><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
+            <td class="actions"><button class="btn sm" data-label="${o.id}" title="Imprimir etiqueta QR">🏷</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
-        : `<tr><td colspan="7" class="empty">Aún no hay órdenes de ingreso</td></tr>`;
+        : `<tr><td colspan="7" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
     }
-    // abonos hechos después desde Cartera
-    const abonosOrden = (o) => {
-      const d = db.cartera.find((x) => x.ordenId === o.id);
-      return d ? abonado(d) : 0;
-    };
+    refreshOrdenList = render;
+    $('#or-scan').addEventListener('click', () => openScanner());
+    $$('#or-filtro button', el).forEach((b) => b.addEventListener('click', () => {
+      $$('#or-filtro button', el).forEach((x) => x.classList.toggle('on', x === b));
+      filtro = b.dataset.f;
+      render();
+    }));
 
     $('#or-form').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -914,6 +1193,7 @@
         accesorios: $('#or-acc').value.trim(), falla: $('#or-falla').value.trim(), trabajo: $('#or-trab').value.trim(),
         tecnico: $('#or-tec').value.trim(), entrega: $('#or-ent').value,
         costo: num($('#or-costo').value), abono: num($('#or-abono').value), estado: 'Recibido',
+        historial: [{ estado: 'Recibido', fecha: new Date().toISOString() }],
       };
       o.abono = Math.min(o.abono, o.costo || o.abono);
       db.ordenes.push(o);
@@ -936,12 +1216,14 @@
     $('#or-body').addEventListener('change', (e) => {
       const s = e.target.closest('[data-estado]');
       if (s) {
-        db.ordenes.find((o) => o.id === s.dataset.estado).estado = s.value;
-        save();
+        setEstado(db.ordenes.find((o) => o.id === s.dataset.estado), s.value);
         toast('Estado actualizado');
+        render();
       }
     });
     $('#or-body').addEventListener('click', (e) => {
+      const lab = e.target.closest('[data-label]');
+      if (lab) openLabel(db.ordenes.find((o) => o.id === lab.dataset.label));
       const ver = e.target.closest('[data-ver]');
       const del = e.target.closest('[data-del]');
       if (ver) openReceipt(db.ordenes.find((o) => o.id === ver.dataset.ver));
@@ -961,8 +1243,8 @@
         Ordenes: db.ordenes.map((o) => ({
           'N°': o.numero, Fecha: fmtDate(o.fecha), Cliente: clienteNombre(o.clienteId), Equipo: o.equipo, Marca: o.marca, Modelo: o.modelo,
           'IMEI/Serie': o.imei, Color: o.color, Accesorios: o.accesorios, Falla: o.falla, Trabajo: o.trabajo, Técnico: o.tecnico,
-          Entrega: fmtDate(o.entrega), Estado: o.estado, Costo: num(o.costo), Abono: num(o.abono) + abonosOrden(o),
-          Saldo: Math.max(0, num(o.costo) - num(o.abono) - abonosOrden(o)),
+          Entrega: fmtDate(o.entrega), Estado: o.estado, 'Listo el': fechaEstado(o, 'Listo'), 'Entregado el': fechaEstado(o, 'Entregado'),
+          Costo: num(o.costo), Abono: num(o.abono) + abonosOrden(o), Saldo: saldoOrden(o),
         })),
       })
     );

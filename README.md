@@ -13,7 +13,7 @@ App web para el local de servicio técnico, publicada en Vercel. Los datos se gu
 | **Estadística** | Ranking animado de clientes, del que más trabajos trae (o más consume) al que menos. |
 | **Reporte diario** | Ingresos y gastos del día, con acumulado y total al final. Exporta el día o todo a Excel. |
 | **Factura DGI** | Abre el portal web de facturación de la DGI (el enlace se cambia en Ajustes). |
-| **Orden de ingreso** | Plantilla de servicio técnico (equipo, IMEI, falla, costo, abono…). Imprime o guarda en PDF y la envía por WhatsApp. El saldo pasa solo a Cartera. |
+| **Orden de ingreso** | Plantilla de servicio técnico (equipo, IMEI, falla, costo, abono…). Imprime o guarda en PDF y la envía por WhatsApp. El saldo pasa solo a Cartera. Cada orden tiene **etiqueta con código QR** (50 × 30 mm) para pegar en el equipo; con **📷 Escanear** (cámara o lector USB) se marca *Listo* (y se avisa por WhatsApp) o *Entregado* (cobrando el saldo). Filtro En taller / Listos / Entregados. |
 | **Inventario** | Producto y cantidad, con botones + / −, alerta de agotados y exportación a Excel. |
 
 ## Datos
@@ -47,5 +47,5 @@ api/              servidor en Vercel (login, datos, contraseña)
 scripts/          servidor local de pruebas
 assets/           logo y botones del menú
 fonts/            fuentes Anton y Roboto Condensed (locales)
-vendor/           SheetJS para generar archivos de Excel
+vendor/           SheetJS (Excel), qrcode-generator (crear QR) y jsQR (leer QR con la cámara)
 ```
