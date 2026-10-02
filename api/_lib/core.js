@@ -79,6 +79,7 @@ export async function load() {
 export async function update(mutate) {
   for (let i = 0; i < 6; i++) {
     const { doc, etag } = await load();
+    const loadedVersion = doc.version || 0;
     const now = new Date().toISOString();
     const day = now.slice(0, 10);
     // primer guardado del día: se guarda una copia de cómo estaba todo antes
@@ -88,7 +89,7 @@ export async function update(mutate) {
     doc.updatedAt = now;
     doc.lastBackup = day;
     try {
-      await writeDoc(doc, etag);
+      await writeDoc(doc, etag, loadedVersion);
     } catch (e) {
       if (e instanceof ConflictError) continue;
       throw e;

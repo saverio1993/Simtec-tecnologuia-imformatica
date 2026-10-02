@@ -2,21 +2,31 @@
 // En Vercel: un archivo JSON privado en Vercel Blob (necesita BLOB_READ_WRITE_TOKEN).
 // En local (pruebas): un archivo en disco indicado por SIMTEC_DATA_FILE.
 import { promises as fs } from 'node:fs';
-import { get, put } from '@vercel/blob';
+import { get, head, put } from '@vercel/blob';
 
 const DB_PATH = 'simtec/db.json';
 
 export class ConflictError extends Error {}
 
 const useBlob = () => !!process.env.BLOB_READ_WRITE_TOKEN;
+const isNotFound = (e) => /not ?found|404/i.test(`${e && e.name} ${e && e.message}`);
 
 // Devuelve { doc, etag } (doc = null si todavía no existe).
 export async function readDoc() {
   if (useBlob()) {
-    const res = await get(DB_PATH, { access: 'private', useCache: false });
+    // El etag se toma de head() (el mismo que usa put con ifMatch). El de get() viene de la
+    // cabecera HTTP de descarga y tiene otro formato, por eso nunca coincidía.
+    let meta;
+    try {
+      meta = await head(DB_PATH);
+    } catch (e) {
+      if (isNotFound(e)) return { doc: null, etag: null };
+      throw e;
+    }
+    const res = await get(meta.url, { access: 'private', useCache: false });
     if (!res || res.statusCode !== 200) return { doc: null, etag: null };
     const text = await new Response(res.stream).text();
-    return { doc: JSON.parse(text), etag: res.blob.etag };
+    return { doc: JSON.parse(text), etag: meta.etag };
   }
   const file = localFile();
   try {
@@ -29,21 +39,24 @@ export async function readDoc() {
   }
 }
 
-// Escribe solo si nadie más escribió desde que se leyó (etag). Si no, lanza ConflictError.
-export async function writeDoc(doc, etag) {
+// Escribe solo si nadie más escribió desde que se leyó. Si no, lanza ConflictError.
+// expectedVersion = versión que tenía el documento al leerlo.
+export async function writeDoc(doc, etag, expectedVersion) {
   const body = JSON.stringify(doc);
   if (useBlob()) {
+    const opts = { access: 'private', addRandomSuffix: false, contentType: 'application/json' };
     try {
-      await put(DB_PATH, body, {
-        access: 'private',
-        addRandomSuffix: false,
-        contentType: 'application/json',
-        ...(etag ? { ifMatch: etag } : { allowOverwrite: false }),
-      });
+      await put(DB_PATH, body, etag ? { ...opts, ifMatch: etag } : { ...opts, allowOverwrite: false });
+      return;
     } catch (e) {
-      if (/precondition|already exists/i.test(`${e.name} ${e.message}`)) throw new ConflictError(e.message);
-      throw e;
+      if (!/precondition|already exists|etag|412|409/i.test(`${e.name} ${e.message}`)) throw e;
+      console.warn('[simtec] escritura condicional rechazada:', e.name, e.message);
     }
+    // Respaldo: si la versión guardada sigue siendo la que se leyó, nadie más escribió
+    // (el rechazo fue por el etag), así que se guarda igual en vez de quedar bloqueado.
+    const { doc: now } = await readDoc();
+    if ((now ? now.version || 0 : 0) !== (expectedVersion || 0)) throw new ConflictError('otra computadora guardó primero');
+    await put(DB_PATH, body, { ...opts, allowOverwrite: true });
     return;
   }
   // en local, comparar y escribir sin que otro guardado se meta en medio (igual que ifMatch en Blob)

@@ -465,6 +465,14 @@ tfoot td { font-weight: 700; background: #1a1a1f; font-size: 18px; }
 .scan-actions .big { flex: 1 1 100%; }
 @keyframes pulse { 50% { border-color: #fff; } }
 
+/* ================= AVISO DE VERSIÓN NUEVA ================= */
+.update-bar {
+  position: fixed; left: 50%; top: 70px; transform: translateX(-50%); z-index: 120;
+  background: var(--yellow); color: #000; border: 3px solid #fff; border-radius: 14px;
+  padding: 12px 20px; font-weight: 700; font-size: 16px; box-shadow: 0 8px 30px #000a;
+  animation: rise .3s ease-out; max-width: calc(100% - 32px);
+}
+
 /* ================= TOAST ================= */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);

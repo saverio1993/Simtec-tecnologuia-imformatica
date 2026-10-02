@@ -186,6 +186,28 @@
     route({ keepScroll: true });
   }
   setInterval(() => document.visibilityState === 'visible' && pull({ rerender: true }), 20000);
+
+  // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
+  const APP_VERSION = '20261002c'; // igual que version.json y los ?v= de index.html
+  async function checkVersion() {
+    try {
+      const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+      const { v } = await r.json();
+      if (v && v !== APP_VERSION && !document.getElementById('update-bar')) {
+        const bar = document.createElement('button');
+        bar.id = 'update-bar';
+        bar.className = 'update-bar';
+        bar.textContent = '✨ Hay una versión nueva de SIMTEC — toque aquí para actualizar';
+        bar.addEventListener('click', async () => {
+          if (hasPending()) await push();
+          location.reload();
+        });
+        document.body.appendChild(bar);
+      }
+    } catch (e) { /* sin conexión */ }
+  }
+  setInterval(checkVersion, 120000);
+  window.addEventListener('focus', checkVersion);
   window.addEventListener('focus', () => pull({ rerender: true }));
   window.addEventListener('online', () => (hasPending() ? push() : pull({ rerender: true })));
 

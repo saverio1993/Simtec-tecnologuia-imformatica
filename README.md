@@ -49,3 +49,7 @@ assets/           logo y botones del menú
 fonts/            fuentes Anton y Roboto Condensed (locales)
 vendor/           SheetJS (Excel), qrcode-generator (crear QR) y jsQR (leer QR con la cámara)
 ```
+
+## Publicar una versión nueva
+
+Al cambiar la página, subir el mismo número de versión en `version.json`, en `APP_VERSION` de `js/app.js` y en los `?v=` de `index.html`. Las pantallas abiertas muestran un aviso para actualizar.
