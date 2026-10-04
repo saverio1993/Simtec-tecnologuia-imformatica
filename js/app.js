@@ -187,8 +187,32 @@
   }
   setInterval(() => document.visibilityState === 'visible' && pull({ rerender: true }), 20000);
 
+  // ---- instalar como aplicación (PWA): ícono en el escritorio / pantalla de inicio, ventana propia
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  let installPrompt = null;
+  const installButtons = () => $$('[data-install]');
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault(); // se muestra nuestro botón en lugar del aviso del navegador
+    installPrompt = e;
+    installButtons().forEach((b) => (b.hidden = false));
+  });
+  window.addEventListener('appinstalled', () => {
+    installPrompt = null;
+    installButtons().forEach((b) => (b.hidden = true));
+    toast('SIMTEC quedó instalado ✅ Búsquelo en el escritorio o en sus aplicaciones');
+  });
+  document.addEventListener('click', async (e) => {
+    if (!e.target.closest('[data-install]') || !installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice.catch(() => {});
+    installPrompt = null;
+    installButtons().forEach((b) => (b.hidden = true));
+  });
+
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261004a'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261004b'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });

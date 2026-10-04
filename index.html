@@ -5,9 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SIMTEC</title>
   <meta name="theme-color" content="#000000">
-  <link rel="icon" href="assets/icon.png">
-  <link rel="apple-touch-icon" href="assets/icon.png">
-  <link rel="stylesheet" href="css/styles.css?v=20261004a">
+  <link rel="icon" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SIMTEC">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <link rel="stylesheet" href="css/styles.css?v=20261004b">
 </head>
 <body>
 
@@ -36,6 +41,7 @@
           ENTRAR
         </button>
       </form>
+      <button class="btn install-btn" data-install hidden>📲 Instalar SIMTEC en este equipo</button>
     </div>
   </section>
 
@@ -47,6 +53,7 @@
       </button>
       <span id="sync-status" class="sync ok" aria-live="polite">☁ Guardado</span>
       <div class="top-actions">
+        <button class="btn ghost install-btn" data-install hidden title="Instalar como aplicación">📲 Instalar</button>
         <button class="btn ghost" data-go="ajustes" title="Ajustes">⚙ Ajustes</button>
         <button class="btn ghost" id="btn-logout">Salir</button>
       </div>
@@ -58,7 +65,7 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="vendor/xlsx.full.min.js"></script>
-  <script src="vendor/qrcode.js?v=20261004a"></script>
-  <script src="js/app.js?v=20261004a"></script>
+  <script src="vendor/qrcode.js?v=20261004b"></script>
+  <script src="js/app.js?v=20261004b"></script>
 </body>
 </html>

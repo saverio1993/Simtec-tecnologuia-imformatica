@@ -16,6 +16,10 @@ App web para el local de servicio técnico, publicada en Vercel. Los datos se gu
 | **Orden de ingreso** | Plantilla simple: cliente, equipo, marca (botones) y modelo (lista de los más comunes), falla con botones (FRP, KG, PayJoy, Software, Cuenta Mi u otra), nota opcional, costo y abono. La fecha es la de hoy. El comprobante tiene el formato de hoja de orden de servicio (marca, modelo, IMEI, diagnóstico, SIM/memoria/batería, abono/debe/total, garantía, firma). Imprime o guarda en PDF y la envía por WhatsApp. El saldo pasa solo a Cartera. Cada orden tiene **etiqueta con código QR** (50 × 30 mm) para pegar en el equipo; con **📷 Escanear** (cámara o lector USB) se marca *Listo* (y se avisa por WhatsApp) o *Entregado* (cobrando el saldo). Filtro En taller / Listos / Entregados. |
 | **Inventario** | Producto y cantidad, con botones + / −, alerta de agotados y exportación a Excel. |
 
+## Instalar como aplicación
+
+Es una PWA (`manifest.webmanifest` + `sw.js`): en Chrome/Edge de PC o en Chrome de Android aparece el botón **📲 Instalar** (o en el menú ⋮ → *Instalar SIMTEC* / *Agregar a la pantalla principal*). Queda un ícono con el logo y abre en su propia ventana. En iPhone: Safari → Compartir → *Agregar a inicio*.
+
 ## Datos
 
 - Cada cambio se guarda solo en la nube (indicador **☁ Guardado** arriba). Si se cae el internet, se guarda en el navegador y se sube al volver.
