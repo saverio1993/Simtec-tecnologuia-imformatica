@@ -188,7 +188,7 @@
   setInterval(() => document.visibilityState === 'visible' && pull({ rerender: true }), 20000);
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261002c'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261004a'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
