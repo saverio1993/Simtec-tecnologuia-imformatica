@@ -14,6 +14,7 @@ export const emptyData = () => ({
     telefono: '',
     direccion: '',
     moneda: '$',
+    paisWa: '507',
   },
   seq: { orden: 0 },
   clientes: [],

@@ -18,6 +18,7 @@
       telefono: '',
       direccion: '',
       moneda: '$',
+      paisWa: '507',
     },
     seq: { orden: 0 },
     clientes: [],
@@ -212,7 +213,7 @@
   });
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261004f'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261004g'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -251,7 +252,12 @@
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const clienteById = (id) => db.clientes.find((c) => c.id === id);
   const clienteNombre = (id) => (clienteById(id) || {}).nombre || '';
-  const waDigits = (s) => String(s || '').replace(/\D/g, '');
+  // número para WhatsApp: si se anotó sin código de país (p. ej. 6123-4567) se le agrega el de Ajustes (507 = Panamá)
+  const waDigits = (s) => {
+    const d = String(s || '').replace(/\D/g, '');
+    const pais = String(db.config.paisWa || '').replace(/\D/g, '');
+    return d && pais && d.length <= 8 ? pais + d : d;
+  };
   const waLink = (phone, text) => `https://wa.me/${waDigits(phone)}${text ? '?text=' + encodeURIComponent(text) : ''}`;
 
   let toastTimer;
@@ -906,6 +912,48 @@
     return n;
   }
 
+  // ---- reporte de trabajo LISTO para el cliente por WhatsApp
+  function reporteListoTexto(o) {
+    const c = clienteById(o.clienteId) || {};
+    const cfg = db.config;
+    const pagado = num(o.abono) + abonosOrden(o);
+    const s = saldoOrden(o);
+    return [
+      `Hola ${c.nombre || ''} 👋, le saluda *${cfg.negocio}*.`,
+      '',
+      `✅ *Su equipo ya está LISTO para retirar*`,
+      '',
+      `📄 Orden: *${o.numero}*`,
+      `📱 Equipo: ${equipoTxt(o) || '-'}`,
+      o.falla ? `🔧 Trabajo: ${o.falla}` : null,
+      o.trabajo ? `📝 Nota: ${o.trabajo}` : null,
+      `📅 Ingresó: ${fmtDate(o.fecha)} · Listo: ${fmtDate(today())}`,
+      '',
+      `💵 Total: ${money(o.costo)}`,
+      pagado > 0 ? `💳 Abonado: ${money(pagado)}` : null,
+      s > 0 ? `👉 *Saldo a pagar: ${money(s)}*` : `👉 *Pagado completo* ✔`,
+      '',
+      cfg.direccion ? `📍 Retírelo en: ${cfg.direccion}` : null,
+      'Recuerde traer su comprobante (o el número de orden). ¡Gracias por su confianza!',
+    ].filter((l) => l !== null).join('\n');
+  }
+  // abre WhatsApp con el reporte (debe llamarse desde un toque/clic para que el navegador lo permita)
+  function enviarReporteListo(o) {
+    if (!o) return false;
+    const c = clienteById(o.clienteId);
+    if (!c) { toast('Esta orden no tiene cliente'); return false; }
+    if (!waDigits(c.whatsapp)) {
+      const num = prompt(`${c.nombre} no tiene WhatsApp guardado.\nEscriba su número para enviarle el reporte:`, '');
+      if (!num || !num.replace(/\D/g, '')) { toast('Reporte no enviado: falta el WhatsApp del cliente'); return false; }
+      c.whatsapp = num.trim();
+    }
+    window.open(waLink(c.whatsapp, reporteListoTexto(o)), '_blank', 'noopener');
+    o.avisadoListo = new Date().toISOString();
+    save();
+    toast('💬 WhatsApp abierto con el reporte: toque Enviar');
+    return true;
+  }
+
   // comprobante con el formato de la hoja de "orden de servicio" en papel
   function receiptHTML(o) {
     const c = clienteById(o.clienteId) || {};
@@ -1165,7 +1213,6 @@
       if (!o) { $('#sc-result', el).innerHTML = '<p class="empty">Esta orden ya no existe.</p>'; return; }
       const c = clienteById(o.clienteId) || {};
       const s = saldoOrden(o);
-      const listoMsg = `Hola ${c.nombre || ''}, le saluda ${db.config.negocio}. ✅ Su equipo ${equipoTxt(o)} (orden ${o.numero}) ya está LISTO para retirar.${s > 0 ? ` Saldo pendiente: ${money(s)}.` : ''} ¡Gracias!`;
       $('#sc-result', el).innerHTML = `
         <div class="scan-card">
           ${note ? `<div class="scan-note">${note}</div>` : ''}
@@ -1176,7 +1223,7 @@
           <div>Ingresó: ${fmtDate(o.fecha)} · Saldo: ${s > 0 ? `<b class="debe">${money(s)}</b>` : '<b class="pagado">PAGADO</b>'}</div>
           <div class="scan-actions">
             ${o.estado !== 'Listo' && o.estado !== 'Entregado' ? '<button class="btn green big" data-act="listo">✅ MARCAR LISTO</button>' : ''}
-            ${o.estado === 'Listo' && c.whatsapp ? `<a class="btn green" target="_blank" rel="noopener" href="${waLink(c.whatsapp, listoMsg)}">💬 Avisar al cliente que está listo</a>` : ''}
+            ${o.estado === 'Listo' ? `<button class="btn green" data-act="avisar">💬 ${o.avisadoListo ? 'Reenviar reporte por WhatsApp' : 'Enviar reporte por WhatsApp'}</button>` : ''}
             ${o.estado !== 'Entregado' && s > 0 ? `<button class="btn yellow big" data-act="cobrar">📦 COBRAR ${money(s)} Y ENTREGAR</button><button class="btn" data-act="entregar">Entregar sin cobrar (queda en cartera)</button>` : ''}
             ${o.estado !== 'Entregado' && s <= 0 ? '<button class="btn yellow big" data-act="entregar">📦 MARCAR ENTREGADO</button>' : ''}
             ${o.estado === 'Recibido' ? '<button class="btn" data-act="reparacion">🔧 En reparación</button>' : ''}
@@ -1190,7 +1237,11 @@
       const o = currentOrder();
       if (!o && a.dataset.act !== 'otro') return;
       switch (a.dataset.act) {
-        case 'listo': setEstado(o, 'Listo'); toast(`${o.numero} marcado LISTO`); showResult('✅ Marcado como LISTO'); break;
+        case 'listo':
+          setEstado(o, 'Listo');
+          showResult(enviarReporteListo(o) ? '✅ Marcado LISTO y se abrió WhatsApp con el reporte para el cliente' : '✅ Marcado como LISTO');
+          break;
+        case 'avisar': enviarReporteListo(o); showResult('💬 Reporte abierto en WhatsApp'); break;
         case 'reparacion': setEstado(o, 'En reparación'); showResult('🔧 Pasó a reparación'); break;
         case 'cobrar': {
           const s = saldoOrden(o);
@@ -1285,7 +1336,7 @@
             <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === o.estado ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : '<span class="tag ok">PAGADO</span>'}</td>
-            <td class="actions"><button class="btn sm" data-label="${o.id}" title="Imprimir etiqueta QR">🏷</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
+            <td class="actions">${o.estado === 'Listo' ? `<button class="btn sm green" data-avisar="${o.id}" title="Enviar reporte de LISTO por WhatsApp">💬${o.avisadoListo ? ' ✓' : ''}</button>` : ''}<button class="btn sm" data-label="${o.id}" title="Imprimir etiqueta QR">🏷</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
         : `<tr><td colspan="7" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
@@ -1377,12 +1428,16 @@
     $('#or-body').addEventListener('change', (e) => {
       const s = e.target.closest('[data-estado]');
       if (s) {
-        setEstado(db.ordenes.find((o) => o.id === s.dataset.estado), s.value);
-        toast('Estado actualizado');
+        const o = db.ordenes.find((x) => x.id === s.dataset.estado);
+        setEstado(o, s.value);
+        if (s.value === 'Listo') enviarReporteListo(o);
+        else toast('Estado actualizado');
         render();
       }
     });
     $('#or-body').addEventListener('click', (e) => {
+      const av = e.target.closest('[data-avisar]');
+      if (av) { enviarReporteListo(db.ordenes.find((o) => o.id === av.dataset.avisar)); render(); }
       const lab = e.target.closest('[data-label]');
       if (lab) openLabel(db.ordenes.find((o) => o.id === lab.dataset.label));
       const ver = e.target.closest('[data-ver]');
@@ -1511,6 +1566,7 @@
           <div class="field"><label for="aj-tel">Teléfono / WhatsApp</label><input id="aj-tel" value="${esc(c.telefono)}"></div>
           <div class="field"><label for="aj-dir">Dirección</label><input id="aj-dir" value="${esc(c.direccion)}"></div>
           <div class="field"><label for="aj-mon">Símbolo de moneda</label><input id="aj-mon" value="${esc(c.moneda)}" maxlength="4"></div>
+          <div class="field"><label for="aj-pais">Código de país para WhatsApp</label><input id="aj-pais" value="${esc(c.paisWa)}" maxlength="4" inputmode="numeric" placeholder="507"></div>
           <div class="field full"><label for="aj-dgi">Enlace del portal de facturación DGI</label><input id="aj-dgi" type="url" value="${esc(c.dgiUrl)}"></div>
         </div>
         <div class="form-actions"><button class="btn primary" type="submit">Guardar datos</button></div>
@@ -1540,6 +1596,7 @@
       Object.assign(db.config, {
         negocio: $('#aj-neg').value.trim() || 'SIMTEC', telefono: $('#aj-tel').value.trim(), direccion: $('#aj-dir').value.trim(),
         moneda: $('#aj-mon').value.trim() || '$', dgiUrl: $('#aj-dgi').value.trim() || db.config.dgiUrl,
+        paisWa: $('#aj-pais').value.replace(/\D/g, ''),
       });
       save();
       toast('Datos guardados');
