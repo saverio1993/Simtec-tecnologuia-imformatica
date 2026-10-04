@@ -212,7 +212,7 @@
   });
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261004b'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261004c'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -966,16 +966,20 @@
     </div>`;
   }
 
+  // etiqueta naranja de SIMTEC (60 x 30 mm): QR a la izquierda, logo de fondo, cliente / modelo / falla
   function labelHTML(o) {
     const c = clienteById(o.clienteId) || {};
+    const modelo = [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || '';
     return `<div class="label">
-      <div class="l-qr">${qrSVG(orderLink(o))}</div>
-      <div class="l-info">
+      <img class="l-bg" src="assets/logo-circulo.png" alt="">
+      <div class="l-left">
+        <div class="l-qr">${qrSVG(orderLink(o))}</div>
         <div class="l-num">${esc(o.numero)}</div>
-        <div class="l-cli">${esc(c.nombre || '')}</div>
-        <div>${esc(equipoTxt(o))}</div>
-        <div class="l-falla">${esc((o.falla || '').slice(0, 60))}</div>
-        <div>${fmtDate(o.fecha)}</div>
+      </div>
+      <div class="l-fields">
+        <div class="l-row"><span class="l-lab">CLIENTE:</span><span class="l-box">${esc(c.nombre || '')}</span></div>
+        <div class="l-row"><span class="l-lab">MODELO:</span><span class="l-box">${esc(modelo)}</span></div>
+        <div class="l-row"><span class="l-lab">FALLA:</span><span class="l-box l-falla">${esc(o.falla || '')}</span></div>
       </div>
     </div>`;
   }
@@ -1014,9 +1018,9 @@
         <label class="btn">Copias <select id="lb-copias" style="background:#000;color:#fff;border:0;font:inherit;margin-left:6px"><option>1</option><option selected>2</option><option>3</option></select></label>
         <button class="btn" data-act="close">Cerrar</button>
       </div>
-      <p class="modal-hint">Pegue una etiqueta en el equipo (y otra en la bolsa o cargador). Tamaño 50 × 30 mm: sirve impresora térmica de etiquetas o una normal.</p>
+      <p class="modal-hint">Pegue una etiqueta en el equipo (y otra en la bolsa o cargador). Tamaño 60 × 30 mm: sirve impresora de etiquetas a color, térmica o una normal en papel adhesivo.</p>
       <div class="labels" id="lb-list">${render(2)}</div>`,
-    (e, a) => { if (a && a.dataset.act === 'print') printWithPage('@page { size: 50mm 30mm; margin: 0; }'); });
+    (e, a) => { if (a && a.dataset.act === 'print') printWithPage('@page { size: 60mm 30mm; margin: 0; }'); });
     $('#lb-copias', el).addEventListener('change', (e) => ($('#lb-list', el).innerHTML = render(Number(e.target.value))));
   }
 
