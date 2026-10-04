@@ -436,8 +436,6 @@ tfoot td { font-weight: 700; background: #1a1a1f; font-size: 18px; }
   display: flex; align-items: center; gap: 1.6mm; padding: 1.2mm 1.6mm;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-/* logo de fondo transparente (marca de agua) */
-.label .l-bg { position: absolute; right: -4mm; top: 50%; width: 30mm; height: 30mm; transform: translateY(-50%); opacity: .22; pointer-events: none; }
 .label .l-left { position: relative; flex: 0 0 20mm; display: flex; flex-direction: column; align-items: center; gap: .5mm; }
 .label .l-qr { width: 20mm; height: 20mm; background: #fff; border: .5mm solid #000; border-radius: 1.2mm; padding: .6mm; box-sizing: border-box; }
 .label .l-qr svg { width: 100%; height: 100%; display: block; }

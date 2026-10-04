@@ -212,7 +212,7 @@
   });
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261004c'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261004d'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -966,12 +966,11 @@
     </div>`;
   }
 
-  // etiqueta naranja de SIMTEC (60 x 30 mm): QR a la izquierda, logo de fondo, cliente / modelo / falla
+  // etiqueta naranja de SIMTEC (60 x 30 mm): QR a la izquierda, cliente / modelo / falla
   function labelHTML(o) {
     const c = clienteById(o.clienteId) || {};
     const modelo = [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || '';
     return `<div class="label">
-      <img class="l-bg" src="assets/logo-circulo.png" alt="">
       <div class="l-left">
         <div class="l-qr">${qrSVG(orderLink(o))}</div>
         <div class="l-num">${esc(o.numero)}</div>
