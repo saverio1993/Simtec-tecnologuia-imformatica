@@ -212,7 +212,7 @@
   });
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261004d'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261004e'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -886,10 +886,24 @@
   // lee lo escaneado (link, "SIM-0004", "sim 4" o solo "4") y busca la orden
   function findOrder(text) {
     const t = String(text || '').trim();
-    const m = t.match(/SIM[-\s]?0*(\d+)/i) || t.match(/^0*(\d+)$/);
+    const m = t.match(/SIM[-\s]?(\d+)/i) || t.match(/^(\d+)$/);
     if (!m) return null;
-    const numero = 'SIM-' + String(m[1]).padStart(4, '0');
-    return db.ordenes.find((o) => o.numero.toUpperCase() === numero) || null;
+    const digits = m[1];
+    const same = (numero) => db.ordenes.find((o) => o.numero.toUpperCase() === numero);
+    // número aleatorio (SIM-583201) o de las órdenes antiguas en secuencia (SIM-0004, se puede escribir "4")
+    return same('SIM-' + digits) || same('SIM-' + String(Number(digits)).padStart(4, '0')) || null;
+  }
+  // número de orden aleatorio de 6 dígitos, que no se repite
+  function nuevoNumeroOrden() {
+    const usados = new Set(db.ordenes.map((o) => o.numero));
+    const rnd = () => {
+      const a = new Uint32Array(1);
+      (window.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : (a[0] = Math.floor(Math.random() * 4294967295));
+      return 100000 + (a[0] % 900000);
+    };
+    let n;
+    do n = 'SIM-' + rnd(); while (usados.has(n));
+    return n;
   }
 
   // comprobante con el formato de la hoja de "orden de servicio" en papel
@@ -1060,7 +1074,7 @@
         <h2 class="scan-title">📷 ESCANEAR EQUIPO</h2>
         <div class="scan-cam" id="sc-cam"><video id="sc-video" playsinline muted></video><div class="scan-frame"></div><p id="sc-msg">Abriendo cámara…</p></div>
         <form id="sc-form" class="scan-manual">
-          <input id="sc-input" placeholder="Lector USB o escriba el número (ej. SIM-0004 o 4)" autocomplete="off">
+          <input id="sc-input" placeholder="Lector USB o escriba el número (ej. SIM-583201)" autocomplete="off">
           <button class="btn primary" type="submit">Buscar</button>
         </form>
         <div id="sc-result"></div>
@@ -1335,9 +1349,8 @@
         clienteId = uid();
         db.clientes.push({ id: clienteId, fecha: today(), nombre, tienda: $('#or-tie').value.trim(), whatsapp: $('#or-wa').value.trim() });
       }
-      db.seq.orden += 1;
       const o = {
-        id: uid(), numero: 'SIM-' + String(db.seq.orden).padStart(4, '0'), fecha: today(), clienteId,
+        id: uid(), numero: nuevoNumeroOrden(), fecha: today(), clienteId,
         equipo: $('#or-eq').value, marca, modelo: $('#or-modelo').value.trim(), falla, trabajo: $('#or-trab').value.trim(),
         costo: num($('#or-costo').value), abono: num($('#or-abono').value), estado: 'Recibido',
         historial: [{ estado: 'Recibido', fecha: new Date().toISOString() }],
