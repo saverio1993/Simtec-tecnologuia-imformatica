@@ -453,7 +453,6 @@ tfoot td { font-weight: 700; background: #1a1a1f; font-size: 18px; }
   height: 6.2mm; box-sizing: border-box; align-content: center;
 }
 .label .l-box { font-size: 2.25mm; }
-.label .l-falla { height: 7mm; }
 
 /* ================= ESCÁNER ================= */
 .scan-box { max-width: 560px; margin: 0 auto; }

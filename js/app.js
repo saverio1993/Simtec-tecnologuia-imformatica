@@ -212,7 +212,7 @@
   });
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261004e'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261004f'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -980,7 +980,7 @@
     </div>`;
   }
 
-  // etiqueta naranja de SIMTEC (60 x 30 mm): QR a la izquierda, cliente / modelo / falla
+  // etiqueta naranja de SIMTEC (60 x 30 mm): QR a la izquierda, cliente / modelo / fecha
   function labelHTML(o) {
     const c = clienteById(o.clienteId) || {};
     const modelo = [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || '';
@@ -992,7 +992,7 @@
       <div class="l-fields">
         <div class="l-row"><span class="l-lab">CLIENTE:</span><span class="l-box">${esc(c.nombre || '')}</span></div>
         <div class="l-row"><span class="l-lab">MODELO:</span><span class="l-box">${esc(modelo)}</span></div>
-        <div class="l-row"><span class="l-lab">FALLA:</span><span class="l-box l-falla">${esc(o.falla || '')}</span></div>
+        <div class="l-row"><span class="l-lab">FECHA:</span><span class="l-box">${fmtDate(o.fecha)}</span></div>
       </div>
     </div>`;
   }
