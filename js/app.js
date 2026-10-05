@@ -1467,7 +1467,7 @@
   };
 
   // ================================================================== ORDEN DE INGRESO
-  const ESTADOS = ['Recibido', 'En reparación', 'Listo', 'Entregado'];
+  const ESTADOS = ['Recibido', 'Entregado']; // Recibido = en el taller · Entregado = ya se lo llevó
   const FALLAS = ['FRP', 'KG', 'PayJoy', 'Software', 'Cuenta Mi'];
   const MARCAS = ['Samsung', 'iPhone', 'Xiaomi', 'Honor', 'Huawei', 'Motorola', 'Oppo', 'Tecno', 'Infinix', 'ZTE'];
   // modelos más comunes por marca (se pueden escribir otros)
@@ -1684,25 +1684,6 @@
     const blob = await tarjetaOrden(o);
     const caption = `${o.estado === 'Listo' ? '✅ Su equipo está LISTO. ' : ''}Orden ${o.numero} · ${db.config.negocio}`;
     return compartirImagen(blob, `SIMTEC_${o.numero}.png`, caption, c.whatsapp);
-  }
-
-  // abre WhatsApp con el reporte en imagen (debe llamarse desde un toque/clic para que el navegador lo permita)
-  function enviarReporteListo(o) {
-    if (!o) return false;
-    const c = clienteById(o.clienteId);
-    if (!c) { toast('Esta orden no tiene cliente'); return false; }
-    if (!waDigits(c.whatsapp)) {
-      const num = prompt(`${c.nombre} no tiene WhatsApp guardado.\nEscriba su número para enviarle el reporte:`, '');
-      if (!num || !num.replace(/\D/g, '')) { toast('Reporte no enviado: falta el WhatsApp del cliente'); return false; }
-      c.whatsapp = num.trim();
-    }
-    const id = o.id;
-    enviarImagenOrden(o).then((ok) => {
-      if (!ok) return;
-      const x = db.ordenes.find((y) => y.id === id); // los datos pudieron cambiar al sincronizar
-      if (x) { x.avisadoListo = new Date().toISOString(); save(); }
-    });
-    return true;
   }
 
   // comprobante con el formato de la hoja de "orden de servicio" en papel
@@ -1973,11 +1954,9 @@
           <div class="scan-falla">Falla: ${esc(o.falla)}</div>
           <div>Ingresó: ${fmtDate(o.fecha)} · Saldo: ${s > 0 ? `<b class="debe">${money(s)}</b>` : !num(o.costo) ? '<b>SIN PRECIO</b>' : '<b class="pagado">PAGADO</b>'}</div>
           <div class="scan-actions">
-            ${o.estado !== 'Listo' && o.estado !== 'Entregado' ? '<button class="btn green big" data-act="listo">✅ MARCAR LISTO</button>' : ''}
-            ${o.estado === 'Listo' ? `<button class="btn green" data-act="avisar">💬 ${o.avisadoListo ? 'Reenviar reporte por WhatsApp' : 'Enviar reporte por WhatsApp'}</button>` : ''}
             ${o.estado !== 'Entregado' && s > 0 ? `<button class="btn yellow big" data-act="cobrar">📦 COBRAR ${money(s)} Y ENTREGAR</button><button class="btn" data-act="entregar">Entregar sin cobrar (queda en cartera)</button>` : ''}
             ${o.estado !== 'Entregado' && s <= 0 ? '<button class="btn yellow big" data-act="entregar">📦 MARCAR ENTREGADO</button>' : ''}
-            ${o.estado === 'Recibido' ? '<button class="btn" data-act="reparacion">🔧 En reparación</button>' : ''}
+            <button class="btn green" data-act="avisar">🖼 Enviar por WhatsApp</button>
             <button class="btn" data-act="ver">Ver orden</button>
             <button class="btn primary" data-act="otro">📷 Escanear otro</button>
           </div>
@@ -1988,12 +1967,7 @@
       const o = currentOrder();
       if (!o && a.dataset.act !== 'otro') return;
       switch (a.dataset.act) {
-        case 'listo':
-          setEstado(o, 'Listo');
-          showResult(enviarReporteListo(o) ? '✅ Marcado LISTO y se abrió WhatsApp con el reporte para el cliente' : '✅ Marcado como LISTO');
-          break;
-        case 'avisar': enviarReporteListo(o); showResult('💬 Reporte abierto en WhatsApp'); break;
-        case 'reparacion': setEstado(o, 'En reparación'); showResult('🔧 Pasó a reparación'); break;
+        case 'avisar': enviarImagenOrden(o); break;
         case 'cobrar': {
           const s = saldoOrden(o);
           const d = db.cartera.find((x) => x.ordenId === o.id);
@@ -2122,9 +2096,9 @@
             <td>${fmtDate(o.fecha)}</td>
             <td>${esc(clienteNombre(o.clienteId))}</td>
             <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
-            <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === o.estado ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
+            <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === (o.estado === 'Entregado' ? 'Entregado' : 'Recibido') ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
-            <td class="actions">${o.estado === 'Listo' ? `<button class="btn sm green" data-avisar="${o.id}" title="Enviar reporte de LISTO por WhatsApp">💬${o.avisadoListo ? ' ✓' : ''}</button>` : ''}${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al reporte diario y al cierre)">💵 Pagar</button>` : ''}<button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
+            <td class="actions">${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al reporte diario y al cierre)">💵 Pagar</button>` : ''}<button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
         : `<tr><td colspan="7" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
@@ -2357,14 +2331,11 @@
       if (s) {
         const o = db.ordenes.find((x) => x.id === s.dataset.estado);
         setEstado(o, s.value);
-        if (s.value === 'Listo') enviarReporteListo(o);
-        else toast('Estado actualizado');
+        toast(s.value === 'Entregado' ? '📦 Entregado' : 'Volvió al taller');
         render();
       }
     });
     $('#or-body').addEventListener('click', (e) => {
-      const av = e.target.closest('[data-avisar]');
-      if (av) { enviarReporteListo(db.ordenes.find((o) => o.id === av.dataset.avisar)); render(); }
       const pag = e.target.closest('[data-pagar]');
       if (pag) pagarOrden(pag.dataset.pagar);
       const img = e.target.closest('[data-img]');
