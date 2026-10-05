@@ -229,7 +229,7 @@
   });
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261005e'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261005f'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -772,33 +772,36 @@
   // ================================================================== ESTADÍSTICA
   views.estadistica = (el) => {
     el.innerHTML = `
-      ${head('ESTADÍSTICA', 'h-blue', `<div class="seg"><button class="on" data-m="trabajos">Por trabajos</button><button data-m="dinero">Por consumo $</button></div>`)}
+      ${head('ESTADÍSTICA', 'h-blue')}
       <div class="stats-row" id="es-stats"></div>
-      <div class="card"><h2 id="es-title">Ranking de clientes</h2><div class="rank" id="es-rank"></div></div>`;
+      <div class="es-grid">
+        <div class="card"><h2>🔧 Por trabajos</h2><p class="es-sub">Del que más trabajos trae al que menos</p><div class="rank" id="es-rank-trabajos"></div></div>
+        <div class="card"><h2>💵 Por consumo</h2><p class="es-sub">Del que más consume al que menos</p><div class="rank" id="es-rank-dinero"></div></div>
+      </div>`;
 
     // Trabajos: órdenes de ingreso + ventas manuales del reporte + deudas manuales de cartera.
     // Consumo: costo de órdenes + ventas manuales + deudas manuales (los abonos no cuentan doble).
     function compute() {
       const m = new Map();
-      const add = (id, monto) => {
+      const add = (id, monto, n = 1) => {
         if (!id) return;
         const r = m.get(id) || { id, trabajos: 0, dinero: 0 };
-        r.trabajos += 1;
+        r.trabajos += n;
         r.dinero += num(monto);
         m.set(id, r);
       };
       db.ordenes.forEach((o) => add(o.clienteId, o.costo));
-      db.movimientos.filter((x) => x.origen === 'manual' && x.tipo === 'ingreso').forEach((x) => add(x.clienteId, x.total != null ? x.total : x.monto));
+      db.movimientos.filter((x) => x.origen === 'manual' && x.tipo === 'ingreso').forEach((x) => add(x.clienteId, x.total != null ? x.total : x.monto, num(x.cantidad) || 1));
       db.cartera.filter((x) => x.origen === 'manual').forEach((x) => add(x.clienteId, x.monto));
       return Array.from(m.values()).filter((r) => clienteById(r.id));
     }
 
-    function render(modo) {
-      const data = compute().sort((a, b) => b[modo] - a[modo] || b.trabajos - a.trabajos);
-      const max = Math.max(1, ...data.map((r) => r[modo]));
-      $('#es-title').textContent = modo === 'trabajos' ? 'Del que más trabajos trae al que menos' : 'Del que más consume al que menos';
-      $('#es-rank').innerHTML = data.length
-        ? data.map((r, i) => {
+    // muestra los dos rankings a la vez: por trabajos y por consumo
+    function ranking(data, modo) {
+      const lista = data.slice().sort((a, b) => b[modo] - a[modo] || b.trabajos - a.trabajos);
+      const max = Math.max(1, ...lista.map((r) => r[modo]));
+      $('#es-rank-' + modo).innerHTML = lista.length
+        ? lista.map((r, i) => {
           const c = clienteById(r.id);
           return `<div class="rank-row" style="animation-delay:${i * 0.06}s">
             <div class="rank-pos">${i + 1}</div>
@@ -806,16 +809,22 @@
             <div class="bar-track"><div class="bar c${i % 5}" data-w="${Math.max(6, (r[modo] / max) * 100)}">${modo === 'trabajos' ? r.trabajos + (r.trabajos === 1 ? ' trabajo' : ' trabajos') : money(r.dinero)}</div></div>
           </div>`;
         }).join('')
-        : `<p class="empty">Todavía no hay trabajos registrados. Cree órdenes de ingreso o ventas en el reporte diario.</p>`;
+        : `<p class="empty">Todavía no hay trabajos registrados.</p>`;
+      return lista[0];
+    }
+    function render() {
+      const data = compute();
+      const topT = ranking(data, 'trabajos');
+      const topD = ranking(data, 'dinero');
       requestAnimationFrame(() => requestAnimationFrame(() => $$('.bar', el).forEach((b) => (b.style.width = b.dataset.w + '%'))));
-
       const totalT = data.reduce((s, r) => s + r.trabajos, 0);
       const totalD = data.reduce((s, r) => s + r.dinero, 0);
+      const nombre = (r) => (r ? esc(clienteById(r.id).nombre) : '—');
       $('#es-stats').innerHTML = `
         <div class="stat blue"><div class="label">Clientes registrados</div><div class="value" data-count="${db.clientes.length}">0</div></div>
         <div class="stat green"><div class="label">Trabajos totales</div><div class="value" data-count="${totalT}">0</div></div>
         <div class="stat yellow"><div class="label">Consumo total</div><div class="value" data-count="${totalD}" data-money="1">0</div></div>
-        <div class="stat red"><div class="label">Mejor cliente</div><div class="value" style="font-size:24px">${data[0] ? esc(clienteById(data[0].id).nombre) : '—'}</div></div>`;
+        <div class="stat red"><div class="label">Más trabajos / más consumo</div><div class="value" style="font-size:22px">${nombre(topT)} / ${nombre(topD)}</div></div>`;
       countUp();
     }
 
@@ -834,11 +843,7 @@
       });
     }
 
-    $$('.seg button', el).forEach((b) => b.addEventListener('click', () => {
-      $$('.seg button', el).forEach((x) => x.classList.toggle('on', x === b));
-      render(b.dataset.m);
-    }));
-    render('trabajos');
+    render();
   };
 
   // ================================================================== REPORTE DIARIO

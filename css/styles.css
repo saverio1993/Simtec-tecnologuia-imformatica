@@ -308,7 +308,7 @@ tfoot td { font-weight: 700; background: #1a1a1f; font-size: 18px; }
 .rank-name small { display: block; color: var(--muted); font-weight: 400; }
 .bar-track { background: #1a1a1f; border-radius: 12px; height: 40px; overflow: hidden; border: 2px solid #ffffff22; }
 .bar {
-  height: 100%; width: 0;
+  height: 100%; width: 0; min-width: max-content; /* el texto nunca queda cortado */
   border-radius: 10px;
   display: flex; align-items: center; justify-content: flex-end;
   padding: 0 12px;
@@ -330,6 +330,12 @@ tfoot td { font-weight: 700; background: #1a1a1f; font-size: 18px; }
 .seg { display: inline-flex; border: 2px solid #fff; border-radius: 12px; overflow: hidden; }
 .seg button { background: transparent; color: #fff; border: 0; padding: 8px 14px; font-weight: 700; }
 .seg button.on { background: #fff; color: #000; }
+
+.es-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+.es-grid .card { margin-bottom: 0; }
+.es-sub { color: var(--muted); margin: -6px 0 14px; }
+.es-grid .rank-row { grid-template-columns: 44px minmax(90px, 150px) 1fr; }
+@media (max-width: 900px) { .es-grid { grid-template-columns: 1fr; } }
 
 /* ================= FACTURA DGI ================= */
 .dgi-box { text-align: center; padding: 30px 18px; }
