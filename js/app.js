@@ -640,10 +640,15 @@
     const o = d.ordenId && ordenById(d.ordenId);
     return o ? [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || 'Equipo' : d.concepto;
   };
+  // modelo con su número de factura: "Samsung A36 (N°009)"
+  const modeloFact = (d) => {
+    const o = d.ordenId && ordenById(d.ordenId);
+    return modeloDe(d) + (o && o.factura != null ? ` (N°${o.factura})` : '');
+  };
   // "4 × Honor 400 Lite, 1 × Samsung A15"
   const resumenModelos = (deudas) => {
     const m = new Map();
-    deudas.forEach((d) => m.set(modeloDe(d), (m.get(modeloDe(d)) || 0) + 1));
+    deudas.forEach((d) => m.set(modeloFact(d), (m.get(modeloFact(d)) || 0) + 1));
     return [...m].map(([k, n]) => (n > 1 ? `${n} × ${k}` : k)).join(', ');
   };
   // agrupa deudas por cliente
@@ -742,11 +747,11 @@
             <div class="stat blue"><div class="label">Total histórico</div><div class="value">${money(total)}</div></div>
           </div>
           <div class="table-wrap"><table>
-            <thead><tr><th>Fecha</th><th>Equipo / modelo</th><th>Orden</th><th class="num">Monto</th><th class="num">Abonado</th><th class="num">Debe</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Equipo / modelo</th><th>Factura</th><th class="num">Monto</th><th class="num">Abonado</th><th class="num">Debe</th></tr></thead>
             <tbody>${todas.map((d) => {
               const o = d.ordenId && ordenById(d.ordenId);
               const s = saldo(d);
-              return `<tr><td>${fmtDate(d.fecha)}</td><td>${esc(modeloDe(d))}</td><td>${o ? `${esc(o.numero)}${o.factura != null ? ` · N°${esc(o.factura)}` : ''}` : '—'}</td>
+              return `<tr><td>${fmtDate(d.fecha)}</td><td>${esc(modeloDe(d))}</td><td>${o && o.factura != null ? `N°${esc(o.factura)}` : '—'}</td>
                 <td class="num">${money(d.monto)}</td><td class="num">${money(abonado(d))}</td>
                 <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : '<span class="tag ok">PAGADO</span>'}</td></tr>`;
             }).join('') || '<tr><td colspan="6" class="empty">Sin deudas</td></tr>'}</tbody>
@@ -807,7 +812,7 @@
             return `<tr>
               <td>${fmtDate(d.fecha)}</td>
               <td><b>${esc(c.nombre || '(cliente borrado)')}</b></td>
-              <td>${esc(modeloDe(d))}${d.ordenId ? `<br><small style="color:var(--muted)">${esc(d.concepto.split(' - ')[0])}</small>` : ''}</td>
+              <td>${esc(modeloDe(d))}${d.ordenId && ordenById(d.ordenId) && ordenById(d.ordenId).factura != null ? `<br><small style="color:var(--muted)">Factura N°${esc(ordenById(d.ordenId).factura)}</small>` : ''}</td>
               <td class="num">${money(d.monto)}</td>
               <td class="num">${money(abonado(d))}</td>
               <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : '<span class="tag ok">PAGADO</span>'}</td>
