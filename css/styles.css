@@ -247,8 +247,21 @@ main { max-width: 1200px; margin: 0 auto; padding: 18px 16px 60px; }
 
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
 .toolbar .search { flex: 1; min-width: 180px; }
-.search input { width: 100%; background: #000; color: #fff; border: 2px solid #ffffff55; border-radius: 12px; padding: 10px 12px; outline: none; }
-.search input:focus { border-color: var(--blue); }
+.search { position: relative; }
+.search::before { content: '🔎'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 20px; pointer-events: none; }
+/* buscador resaltado con brillo neón */
+.search input {
+  --neon: #00e5ff;
+  width: 100%; background: #000; color: #fff; font-size: 18px; font-weight: 700;
+  border: 3px solid var(--neon); border-radius: 14px; padding: 13px 14px 13px 50px; outline: none;
+  animation: neonBusca 2s ease-in-out infinite;
+}
+.search input::placeholder { color: #9fefff; font-weight: 400; }
+.search input:focus { animation: none; box-shadow: 0 0 0 3px #fff, 0 0 22px var(--neon); }
+@keyframes neonBusca {
+  0%, 100% { box-shadow: 0 0 6px var(--neon), 0 0 18px #00e5ff66; }
+  50% { box-shadow: 0 0 2px var(--neon); }
+}
 
 .table-wrap { overflow-x: auto; border-radius: 12px; border: 2px solid #ffffff33; }
 table { width: 100%; border-collapse: collapse; min-width: 560px; }
@@ -545,7 +558,9 @@ html[data-tema="rojo"] .field input, html[data-tema="rojo"] .field select, html[
 html[data-tema="rojo"] .search input, html[data-tema="rojo"] .scan-manual input { background: #fff; color: #000; border: 3px solid #000; }
 html[data-tema="rojo"] .field input:focus, html[data-tema="rojo"] .field select:focus, html[data-tema="rojo"] .field textarea:focus,
 html[data-tema="rojo"] .search input:focus { border-color: #000; box-shadow: 0 0 0 3px #fff; }
-html[data-tema="rojo"] .field input::placeholder, html[data-tema="rojo"] .search input::placeholder { color: #777; }
+html[data-tema="rojo"] .field input::placeholder { color: #777; }
+html[data-tema="rojo"] .search input { --neon: #fff; border-color: #000; }
+html[data-tema="rojo"] .search input::placeholder { color: #c00000; }
 
 html[data-tema="rojo"] .btn { background: #000; color: #fff; border-color: #fff; }
 html[data-tema="rojo"] .btn:hover { background: #2a2a2a; }

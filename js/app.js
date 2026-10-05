@@ -409,6 +409,35 @@
     route();
   }
 
+  // ---- buscadores: el texto de ejemplo se va escribiendo solo, como animación
+  const EJEMPLOS = {
+    'or-q': ['Buscar por factura, cliente, marca o modelo…', 'Ej: 004', 'Ej: Katia', 'Ej: Samsung A15', 'Ej: Honor'],
+    'cl-q': ['Buscar cliente, tienda o número…', 'Ej: Jesica', 'Ej: Cel Plaza', 'Ej: 6000'],
+    'ca-q': ['Buscar cliente o modelo…', 'Ej: Ramon', 'Ej: Honor 400 Lite'],
+    'in-q': ['Buscar producto…', 'Ej: Pantalla', 'Ej: Batería'],
+  };
+  function escribirEjemplos(input) {
+    const frases = EJEMPLOS[input.id] || [input.placeholder];
+    let f = 0, i = 0, borrando = false;
+    const paso = () => {
+      if (!document.body.contains(input)) return; // se cambió de sección
+      if (document.activeElement === input || input.value) { input.placeholder = frases[0]; setTimeout(paso, 600); return; }
+      const t = frases[f];
+      if (!borrando) {
+        i++;
+        input.placeholder = t.slice(0, i) + (i < t.length ? '▌' : '');
+        if (i >= t.length) { borrando = true; return setTimeout(paso, 1600); }
+        return setTimeout(paso, 55);
+      }
+      i--;
+      input.placeholder = t.slice(0, i) + '▌';
+      if (i <= 0) { borrando = false; f = (f + 1) % frases.length; return setTimeout(paso, 300); }
+      setTimeout(paso, 25);
+    };
+    input.placeholder = '';
+    setTimeout(paso, 400);
+  }
+
   // ------------------------------------------------------------------ router
   const views = {};
   let excelSeccion = null; // descarga en Excel de la sección abierta (botón de arriba, al lado de Ajustes)
@@ -442,6 +471,7 @@
     excelSeccion = null;
     view(main);
     $('#top-xls').hidden = !excelSeccion; // botón de Excel arriba, solo en las secciones que lo tienen
+    $$('.search input', main).forEach(escribirEjemplos);
     window.scrollTo(0, keepScroll ? y : 0);
     if (scanCode !== null) openScanner(scanCode);
   }
