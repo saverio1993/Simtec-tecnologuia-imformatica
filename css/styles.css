@@ -345,6 +345,22 @@ tfoot td { font-weight: 700; background: #1a1a1f; font-size: 18px; }
 .falla-n { background: #fff; color: #000; font-family: var(--font-title); font-size: 56px; line-height: 1; padding: 14px 4px 16px; }
 @media (max-width: 600px) { .falla-k { font-size: 24px; } .falla-n { font-size: 40px; padding: 10px 4px 12px; } .fallas-row { gap: 8px; } .falla-box { border-width: 3px; } }
 
+/* ================= ORDEN DE INGRESO POR PASOS ================= */
+.paso-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.paso-top h2 { margin: 0; }
+.paso-dots { display: flex; gap: 8px; }
+.paso-dots span { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-title); font-size: 18px; border: 2px solid #ffffff55; color: #ffffffaa; }
+.paso-dots span.on { background: #fff; color: #000; border-color: #fff; }
+.paso-dots span.ok { background: #22c55e; color: #000; border-color: #22c55e; }
+.paso-resumen { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+.paso-resumen .chip { font-size: 15px; }
+.paso { margin-top: 14px; animation: rise .25s ease-out; }
+.paso-t { margin: 0 0 10px; font-family: var(--font-title); font-weight: 400; font-size: 24px; letter-spacing: .5px; }
+.paso-nav { justify-content: flex-start; }
+html[data-tema="rojo"] .paso-dots span { border-color: #fff; color: #fff; }
+html[data-tema="rojo"] .paso-dots span.on { background: #fff; color: #000; }
+html[data-tema="rojo"] .paso-dots span.ok { background: #000; color: #fff; }
+
 /* ================= FACTURA DGI ================= */
 .dgi-box { text-align: center; padding: 30px 18px; }
 .dgi-box img { width: 100%; max-width: 420px; border-radius: var(--radius); margin-bottom: 18px; }

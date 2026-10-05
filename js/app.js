@@ -2030,28 +2030,59 @@
   views.orden = (el) => {
     el.innerHTML = `
       ${head('ORDEN DE INGRESO', 'h-blue', `<button class="btn primary big" id="or-scan">📷 ESCANEAR</button><button class="btn green" id="or-xls">⬇ Descargar Excel</button>`)}
-      <form class="card" id="or-form">
-        <h2>Plantilla de servicio técnico</h2>
-        <div class="form-grid">
-          <div class="field"><label for="or-cli">Cliente registrado</label><select id="or-cli">${clienteOptions('', '— Cliente nuevo (llenar abajo) —')}</select></div>
-          <div class="field nuevo"><label for="or-nom">Nombre (cliente nuevo)</label><input id="or-nom"></div>
-          <div class="field nuevo"><label for="or-tie">Tienda</label><input id="or-tie"></div>
-          <div class="field nuevo"><label for="or-wa">WhatsApp</label><input id="or-wa" type="tel"></div>
-          <div class="field"><label for="or-eq">Equipo</label><select id="or-eq"><option>Celular</option><option>Tablet</option><option>Laptop</option><option>PC</option><option>Otro</option></select></div>
-          <div class="field full"><label>Marca</label>
-            <div class="chips" id="or-marcas">${MARCAS.map((m) => `<button type="button" class="chip" data-marca="${m}">${m}</button>`).join('')}<button type="button" class="chip" data-marca="">Otra…</button></div>
-            <input id="or-marca-otra" placeholder="Escriba la marca" hidden>
-          </div>
-          <div class="field"><label for="or-modelo">Modelo</label><input id="or-modelo" list="or-modelos" placeholder="Toque para ver la lista o escriba"><datalist id="or-modelos"></datalist></div>
-          <div class="field full"><label>Falla (toque una o varias)</label>
-            <div class="chips" id="or-fallas">${FALLAS.map((f) => `<button type="button" class="chip big" data-falla="${f}">${f}</button>`).join('')}<button type="button" class="chip big" data-falla="otra">Otra…</button></div>
-            <input id="or-falla-otra" placeholder="Describa la falla" hidden>
-          </div>
-          <div class="field full"><label for="or-trab">Nota (opcional)</label><input id="or-trab" placeholder="Algo que quiera recordar del equipo"></div>
-          <div class="field"><label for="or-costo">Costo</label><input id="or-costo" type="number" step="0.01" min="0" value="0"></div>
-          <div class="field"><label for="or-abono">Abono</label><input id="or-abono" type="number" step="0.01" min="0" value="0"></div>
+      <form class="card" id="or-form" novalidate>
+        <div class="paso-top">
+          <h2>Plantilla de servicio técnico</h2>
+          <div class="paso-dots" id="or-dots">${[1, 2, 3, 4].map((n) => `<span data-dot="${n}">${n}</span>`).join('')}</div>
         </div>
-        <div class="form-actions"><button class="btn primary big" type="submit">GUARDAR E IMPRIMIR</button></div>
+        <div class="paso-resumen" id="or-resumen" hidden></div>
+
+        <div class="paso" data-paso="1">
+          <h3 class="paso-t">👤 ¿De quién es el equipo?</h3>
+          <div class="form-grid">
+            <div class="field full"><label for="or-cli">Cliente registrado</label><select id="or-cli">${clienteOptions('', '— Cliente nuevo (escribir el nombre) —')}</select></div>
+            <div class="field nuevo full"><label for="or-nom">Nombre del cliente nuevo</label><input id="or-nom" placeholder="Nombre"></div>
+            <div class="field nuevo"><label for="or-tie">Tienda</label><input id="or-tie" placeholder="Opcional"></div>
+            <div class="field nuevo"><label for="or-wa">WhatsApp</label><input id="or-wa" type="tel" placeholder="Opcional"></div>
+          </div>
+        </div>
+
+        <div class="paso" data-paso="2" hidden>
+          <h3 class="paso-t">📱 ¿Qué equipo es?</h3>
+          <div class="form-grid">
+            <div class="field"><label for="or-eq">Equipo</label><select id="or-eq"><option>Celular</option><option>Tablet</option><option>Laptop</option><option>PC</option><option>Otro</option></select></div>
+            <div class="field full"><label>Marca (toque una)</label>
+              <div class="chips" id="or-marcas">${MARCAS.map((m) => `<button type="button" class="chip big" data-marca="${m}">${m}</button>`).join('')}<button type="button" class="chip big" data-marca="">Otra…</button></div>
+              <input id="or-marca-otra" placeholder="Escriba la marca" hidden>
+            </div>
+          </div>
+        </div>
+
+        <div class="paso" data-paso="3" hidden>
+          <h3 class="paso-t">🔧 Modelo y falla</h3>
+          <div class="form-grid">
+            <div class="field full"><label for="or-modelo">Modelo</label><input id="or-modelo" list="or-modelos" placeholder="Toque para ver la lista o escriba"><datalist id="or-modelos"></datalist></div>
+            <div class="field full"><label>Falla (toque una o varias)</label>
+              <div class="chips" id="or-fallas">${FALLAS.map((f) => `<button type="button" class="chip big" data-falla="${f}">${f}</button>`).join('')}<button type="button" class="chip big" data-falla="otra">Otra…</button></div>
+              <input id="or-falla-otra" placeholder="Describa la falla" hidden>
+            </div>
+          </div>
+        </div>
+
+        <div class="paso" data-paso="4" hidden>
+          <h3 class="paso-t">💵 Precio</h3>
+          <div class="form-grid">
+            <div class="field"><label for="or-costo">Costo</label><input id="or-costo" type="number" step="0.01" min="0" value="0"></div>
+            <div class="field"><label for="or-abono">Abono</label><input id="or-abono" type="number" step="0.01" min="0" value="0"></div>
+            <div class="field full"><label for="or-trab">Nota (opcional)</label><input id="or-trab" placeholder="Algo que quiera recordar del equipo"></div>
+          </div>
+        </div>
+
+        <div class="form-actions paso-nav">
+          <button class="btn" type="button" id="or-atras" hidden>← Atrás</button>
+          <button class="btn primary big" type="button" id="or-sig">SIGUIENTE →</button>
+          <button class="btn primary big" type="submit" id="or-guardar" hidden>GUARDAR E IMPRIMIR</button>
+        </div>
       </form>
       <div class="toolbar">
         <div class="search"><input id="or-q" placeholder="Buscar por número, cliente, marca o modelo…"></div>
@@ -2132,8 +2163,54 @@
       fillModelos();
     };
 
+    // ---- la plantilla va por pasos: cliente → equipo y marca → modelo y falla → precio
+    let paso = 1;
+    const marcaTxt = () => (marcaSel === '' ? $('#or-marca-otra').value.trim() : marcaSel || '');
+    const fallaTxt = () => [...fallasSel].map((f) => (f === 'otra' ? $('#or-falla-otra').value.trim() : f)).filter(Boolean).join(', ');
+    const clienteTxt = () => ($('#or-cli').value ? clienteNombre($('#or-cli').value) : $('#or-nom').value.trim());
+    function validarPaso(n) {
+      if (n === 1 && !clienteTxt()) { toast('Elija un cliente de la lista o escriba el nombre del cliente nuevo'); $('#or-nom').focus(); return false; }
+      if (n === 2 && marcaSel === null) { toast('Toque la marca del equipo'); return false; }
+      if (n === 2 && marcaSel === '' && !marcaTxt()) { toast('Escriba la marca'); $('#or-marca-otra').focus(); return false; }
+      if (n === 3 && !fallaTxt()) { toast('Toque la falla del equipo'); return false; }
+      return true;
+    }
+    function irPaso(n) {
+      paso = n;
+      $$('.paso', el).forEach((d) => (d.hidden = Number(d.dataset.paso) !== n));
+      $$('#or-dots [data-dot]', el).forEach((d) => {
+        d.classList.toggle('on', Number(d.dataset.dot) === n);
+        d.classList.toggle('ok', Number(d.dataset.dot) < n);
+      });
+      $('#or-atras').hidden = n === 1;
+      $('#or-sig').hidden = n === 4;
+      $('#or-guardar').hidden = n !== 4;
+      const partes = [
+        n > 1 && `👤 ${esc(clienteTxt())}`,
+        n > 2 && `📱 ${esc([$('#or-eq').value !== 'Celular' ? $('#or-eq').value : '', marcaTxt()].filter(Boolean).join(' '))}`,
+        n > 3 && `${esc($('#or-modelo').value.trim())} · 🔧 ${esc(fallaTxt())}`,
+      ].filter(Boolean);
+      $('#or-resumen').hidden = !partes.length;
+      $('#or-resumen').innerHTML = partes.map((p, i) => `<button type="button" class="chip" data-volver="${i + 1}" title="Cambiar">${p} ✎</button>`).join('');
+      const foco = { 1: $('#or-cli').value ? null : '#or-nom', 3: '#or-modelo', 4: '#or-costo' }[n];
+      if (foco) setTimeout(() => $(foco).focus(), 50);
+    }
+    const siguiente = () => { if (validarPaso(paso)) irPaso(Math.min(4, paso + 1)); };
+    $('#or-sig').addEventListener('click', siguiente);
+    $('#or-atras').addEventListener('click', () => irPaso(Math.max(1, paso - 1)));
+    $('#or-resumen').addEventListener('click', (e) => { const b = e.target.closest('[data-volver]'); if (b) irPaso(Number(b.dataset.volver)); });
+    // elegir un cliente de la lista o una marca pasa solo al siguiente paso
+    $('#or-cli').addEventListener('change', () => { if ($('#or-cli').value) irPaso(2); });
+    $('#or-marcas').addEventListener('click', (e) => { const b = e.target.closest('[data-marca]'); if (b && b.dataset.marca) setTimeout(() => irPaso(3), 150); });
+    // Enter en los pasos 1 a 3 avanza en vez de guardar
+    $('#or-form').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && paso < 4 && e.target.tagName === 'INPUT') { e.preventDefault(); siguiente(); }
+    });
+    irPaso(1);
+
     $('#or-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (paso < 4) { siguiente(); return; }
       const marca = marcaSel === '' ? $('#or-marca-otra').value.trim() : marcaSel || '';
       const falla = [...fallasSel].map((f) => (f === 'otra' ? $('#or-falla-otra').value.trim() : f)).filter(Boolean).join(', ');
       if (!falla) {
@@ -2169,8 +2246,9 @@
       save();
       $('#or-form').reset();
       resetChips();
-      $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo (llenar abajo) —');
+      $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo (escribir el nombre) —');
       toggleNuevo();
+      irPaso(1);
       render();
       // esperar a que el servidor confirme el número de factura antes de mostrar el comprobante
       const btn = $('#or-form button[type=submit]');
