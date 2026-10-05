@@ -411,6 +411,8 @@
 
   // ------------------------------------------------------------------ router
   const views = {};
+  let excelSeccion = null; // descarga en Excel de la sección abierta (botón de arriba, al lado de Ajustes)
+  document.getElementById('top-xls').addEventListener('click', () => excelSeccion && excelSeccion());
   document.addEventListener('click', (e) => {
     const go = e.target.closest('[data-go]');
     if (go) {
@@ -437,7 +439,9 @@
     const main = $('#view');
     const y = window.scrollY;
     main.innerHTML = '';
+    excelSeccion = null;
     view(main);
+    $('#top-xls').hidden = !excelSeccion; // botón de Excel arriba, solo en las secciones que lo tienen
     window.scrollTo(0, keepScroll ? y : 0);
     if (scanCode !== null) openScanner(scanCode);
   }
@@ -500,7 +504,7 @@
   views.clientes = (el) => {
     let editId = null;
     el.innerHTML = `
-      ${head('CLIENTES', 'h-blue', `<button class="btn green" id="cl-xls">⬇ Descargar Excel</button>`)}
+      ${head('CLIENTES', 'h-blue')}
       <form class="card" id="cl-form">
         <h2 id="cl-title">Crear cliente</h2>
         <div class="form-grid">
@@ -587,7 +591,7 @@
         }
       }
     });
-    $('#cl-xls').addEventListener('click', () =>
+    excelSeccion = (() =>
       exportXLSX(`Clientes_SIMTEC_${today()}.xlsx`, {
         Clientes: db.clientes.map((c) => ({ Nombre: c.nombre, Tienda: c.tienda, WhatsApp: c.whatsapp, 'Fecha registro': fmtDate(c.fecha), Trabajos: trabajos(c.id) })),
       })
@@ -640,7 +644,7 @@
 
   views.cartera = (el) => {
     el.innerHTML = `
-      ${head('CARTERA', 'h-yellow', `<button class="btn green" id="ca-xls">⬇ Descargar Excel</button>`)}
+      ${head('CARTERA', 'h-yellow')}
       <div class="stats-row" id="ca-stats"></div>
       <div class="toolbar">
         <div class="search"><input id="ca-q" placeholder="Buscar cliente o modelo…"></div>
@@ -864,7 +868,7 @@
         }
       }
     });
-    $('#ca-xls').addEventListener('click', () => {
+    excelSeccion = (() => {
       const visibles = db.cartera.filter(enCartera);
       exportXLSX(`Cartera_SIMTEC_${today()}.xlsx`, {
         'Por cliente': porCliente(visibles.filter((d) => saldo(d) > 0)).map((g) => {
@@ -2026,7 +2030,7 @@
 
   views.orden = (el) => {
     el.innerHTML = `
-      ${head('ORDEN DE INGRESO', 'h-blue', `<button class="btn primary big" id="or-scan">📷 ESCANEAR</button><button class="btn green" id="or-xls">⬇ Descargar Excel</button>`)}
+      ${head('ORDEN DE INGRESO', 'h-blue', `<button class="btn primary big" id="or-scan">📷 ESCANEAR</button>`)}
       <form class="card" id="or-form" novalidate>
         <div class="paso-top">
           <h2>Plantilla de servicio técnico</h2>
@@ -2087,7 +2091,7 @@
       </form>
       <div class="toolbar">
         <div class="search"><input id="or-q" placeholder="Buscar por número, cliente, marca o modelo…"></div>
-        <div class="seg" id="or-filtro"><button class="on" data-f="taller">En taller</button><button data-f="Listo">Listos</button><button data-f="Entregado">Entregados</button><button data-f="all">Todas</button></div>
+        <div class="seg" id="or-filtro"><button class="on" data-f="taller">En taller</button><button data-f="Entregado">Entregados</button></div>
       </div>
       <div class="table-wrap"><table>
         <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th class="num">Saldo</th><th></th></tr></thead>
@@ -2100,14 +2104,15 @@
     toggleNuevo();
 
     let filtro = 'taller';
-    const pasaFiltro = (o) => filtro === 'all' || (filtro === 'taller' ? o.estado !== 'Listo' && o.estado !== 'Entregado' : o.estado === filtro);
+    // En taller = todo lo que no se ha entregado (recibido, en reparación o listo)
+    const pasaFiltro = (o) => (filtro === 'taller' ? o.estado !== 'Entregado' : o.estado === filtro);
     function render() {
       const q = $('#or-q').value.toLowerCase();
       const rows = db.ordenes
         .filter((o) => (q ? true : pasaFiltro(o)))
         .filter((o) => !q || [o.numero, o.factura != null ? 'N°' + o.factura : '', clienteNombre(o.clienteId), o.marca, o.modelo, o.imei, o.falla].join(' ').toLowerCase().includes(q))
         .slice().sort((a, b) => (Number(a.factura) || 0) - (Number(b.factura) || 0));
-      const cuenta = (f) => db.ordenes.filter((o) => (f === 'taller' ? o.estado !== 'Listo' && o.estado !== 'Entregado' : f === 'all' || o.estado === f)).length;
+      const cuenta = (f) => db.ordenes.filter((o) => (f === 'taller' ? o.estado !== 'Entregado' : o.estado === f)).length;
       $$('#or-filtro button', el).forEach((b) => (b.textContent = b.textContent.replace(/ \(\d+\)$/, '') + ` (${cuenta(b.dataset.f)})`));
       $('#or-body').innerHTML = rows.length
         ? rows.map((o) => {
@@ -2380,7 +2385,7 @@
         }
       }
     });
-    $('#or-xls').addEventListener('click', () =>
+    excelSeccion = (() =>
       exportXLSX(`Ordenes_Ingreso_SIMTEC_${today()}.xlsx`, {
         Ordenes: db.ordenes.map((o) => ({
           Factura: o.factura != null ? o.factura : '', Orden: o.numero, Fecha: fmtDate(o.fecha), Cliente: clienteNombre(o.clienteId), Equipo: o.equipo, Marca: o.marca, Modelo: o.modelo,
@@ -2395,7 +2400,7 @@
   // ================================================================== INVENTARIO
   views.inventario = (el) => {
     el.innerHTML = `
-      ${head('INVENTARIO', 'h-yellow', `<button class="btn green" id="in-xls">⬇ Descargar Excel</button>`)}
+      ${head('INVENTARIO', 'h-yellow')}
       <form class="card" id="in-form">
         <h2>Agregar producto</h2>
         <div class="form-grid">
@@ -2472,7 +2477,7 @@
       save();
       render();
     });
-    $('#in-xls').addEventListener('click', () =>
+    excelSeccion = (() =>
       exportXLSX(`Inventario_SIMTEC_${today()}.xlsx`, {
         Inventario: db.inventario.map((p) => ({ Producto: p.producto, Cantidad: p.cantidad })),
       })
