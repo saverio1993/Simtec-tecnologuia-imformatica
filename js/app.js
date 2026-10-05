@@ -1549,8 +1549,9 @@
   const COLORES = {
     azul: ['#1e9bff', '#0b6fd8', '#fff'], rosa: ['#ff2fa8', '#c8137e', '#fff'], amarillo: ['#ffd500', '#f5b700', '#000'],
     verde: ['#22c55e', '#15803d', '#fff'], morado: ['#8b5cf6', '#6d28d9', '#fff'], naranja: ['#ff7a1a', '#ea580c', '#fff'],
+    cian: ['#22d3ee', '#0891b2', '#000'], turquesa: ['#2dd4bf', '#0f766e', '#000'], lima: ['#a3e635', '#65a30d', '#000'], ambar: ['#fbbf24', '#d97706', '#000'],
   };
-  async function tarjetaImagen({ nombre, aviso, filas }) {
+  async function tarjetaImagen({ nombre, aviso, filas, acento = '#ff2fa8', acento2 = '#1e9bff', avisoColor = ['#4ade80', '#22c55e'] }) {
     try { await Promise.all(['700 40px "Roboto Condensed"', '40px Anton'].map((f) => document.fonts.load(f))); } catch (e) { /* sin fuentes */ }
     if (!logoImg.complete) await new Promise((r) => { logoImg.onload = r; logoImg.onerror = r; });
     const W = 1080, X = 60, RW = W - 2 * X, LW = 400;
@@ -1581,8 +1582,8 @@
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     // franjas de las esquinas
     const franja = (x1, y1, x2, y2, c) => { ctx.strokeStyle = c; ctx.lineWidth = 34; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); };
-    franja(-40, H - 200, 160, H + 20, '#ff2fa8'); franja(-40, H - 110, 90, H + 20, '#1e9bff');
-    franja(W + 40, H - 200, W - 160, H + 20, '#ff2fa8'); franja(W + 40, H - 110, W - 90, H + 20, '#1e9bff');
+    franja(-40, H - 200, 160, H + 20, acento); franja(-40, H - 110, 90, H + 20, acento2);
+    franja(W + 40, H - 200, W - 160, H + 20, acento); franja(W + 40, H - 110, W - 90, H + 20, acento2);
     // logo redondo con brillo
     ctx.save(); ctx.shadowColor = '#7cc4ff'; ctx.shadowBlur = 40;
     ctx.beginPath(); ctx.arc(W / 2, 200, 170, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
@@ -1596,11 +1597,11 @@
       trozos.forEach(([t, c]) => { ctx.fillStyle = c; ctx.fillText(t, x, y); x += ctx.measureText(t).width; });
     };
     ctx.textBaseline = 'alphabetic';
-    partes(495 - 40, [['Hola, ', '#fff'], [`${nombre || 'cliente'}`, '#ff2fa8'], ['.', '#fff']], 76, '400');
-    partes(495 + 20, [['Le saluda ', '#fff'], ['SIMTEC', '#ff2fa8'], [' Tecnología Informática.', '#fff']], 44, '700');
+    partes(495 - 40, [['Hola, ', '#fff'], [`${nombre || 'cliente'}`, acento], ['.', '#fff']], 76, '400');
+    partes(495 + 20, [['Le saluda ', '#fff'], ['SIMTEC', acento], [' Tecnología Informática.', '#fff']], 44, '700');
     if (aviso) {
-      ctx.font = `400 54px Anton, Impact, sans-serif`; ctx.fillStyle = '#4ade80'; ctx.textAlign = 'center';
-      ctx.shadowColor = '#22c55e'; ctx.shadowBlur = 18; ctx.fillText(aviso, W / 2, 495 + 105); ctx.shadowBlur = 0; ctx.textAlign = 'left';
+      ctx.font = `400 54px Anton, Impact, sans-serif`; ctx.fillStyle = avisoColor[0]; ctx.textAlign = 'center';
+      ctx.shadowColor = avisoColor[1]; ctx.shadowBlur = 18; ctx.fillText(aviso, W / 2, 495 + 105); ctx.shadowBlur = 0; ctx.textAlign = 'left';
     }
     // filas
     const redondo = (x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); };
@@ -1633,27 +1634,30 @@
     const t1 = 'SIMTEC', t2 = ' Tecnología Informática.';
     const w1 = ctx.measureText(t1).width; ctx.font = `italic 700 46px ${BODY}`; const w2 = ctx.measureText(t2).width;
     let px = W / 2 - (w1 + w2) / 2; ctx.textAlign = 'left';
-    ctx.font = `400 50px Anton, Impact, sans-serif`; ctx.fillStyle = '#ff2fa8'; ctx.fillText(t1, px, y + 140);
+    ctx.font = `400 50px Anton, Impact, sans-serif`; ctx.fillStyle = acento; ctx.fillText(t1, px, y + 140);
     ctx.font = `italic 700 46px ${BODY}`; ctx.fillStyle = '#fff'; ctx.fillText(t2, px + w1, y + 140);
-    ctx.fillStyle = '#ff2fa8'; ctx.fillRect(px - 90, y + 124, 64, 8); ctx.fillRect(px + w1 + w2 + 26, y + 124, 64, 8);
+    ctx.fillStyle = acento; ctx.fillRect(px - 90, y + 124, 64, 8); ctx.fillRect(px + w1 + w2 + 26, y + 124, 64, 8);
     return new Promise((r) => cv.toBlob(r, 'image/png'));
   }
+  // aviso al cliente de su orden: sencillo, en tonos celeste / verde, solo lo necesario
   const tarjetaOrden = (o) => {
     const c = clienteById(o.clienteId) || {};
-    const pagado = num(o.abono) + abonosOrden(o);
-    return tarjetaImagen({
-      nombre: c.nombre,
-      aviso: o.estado === 'Listo' ? '✅ ¡SU EQUIPO ESTÁ LISTO PARA RETIRAR!' : o.estado === 'Entregado' ? '📦 EQUIPO ENTREGADO' : '',
-      filas: [
-        { icono: '📄', etiqueta: 'Orden:', valor: `${o.numero}${o.factura != null ? ` · N°${o.factura}` : ''}`, color: 'azul' },
-        { icono: '📱', etiqueta: 'Equipo:', valor: equipoTxt(o) || '-', color: 'rosa' },
-        { icono: '🔧', etiqueta: 'Falla:', valor: o.falla || '-', color: 'amarillo' },
-        { icono: '💵', etiqueta: 'Costo:', valor: num(o.costo) ? money(o.costo) : 'Por definir', color: 'verde' },
-        { icono: '💳', etiqueta: 'Abono:', valor: money(pagado), color: 'morado' },
-        { icono: '👛', etiqueta: 'Saldo:', valor: money(saldoOrden(o)), color: 'naranja' },
-        { icono: '✅', etiqueta: 'Estado:', valor: o.estado, color: 'azul' },
-      ],
-    });
+    const s = saldoOrden(o);
+    const avisos = {
+      Recibido: ['📥 RECIBIMOS SU EQUIPO', ['#22d3ee', '#0891b2']],
+      'En reparación': ['🔧 SU EQUIPO ESTÁ EN REPARACIÓN', ['#fbbf24', '#d97706']],
+      Listo: ['✅ ¡SU EQUIPO ESTÁ LISTO!', ['#a3e635', '#65a30d']],
+      Entregado: ['📦 EQUIPO ENTREGADO', ['#2dd4bf', '#0f766e']],
+    };
+    const [aviso, avisoColor] = avisos[o.estado] || avisos.Recibido;
+    const filas = [
+      { icono: '📄', etiqueta: 'Orden:', valor: o.numero, color: 'cian' },
+      { icono: '📱', etiqueta: 'Equipo:', valor: [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || '-', color: 'turquesa' },
+    ];
+    if (o.estado === 'Listo' || o.estado === 'Entregado') {
+      filas.push(s > 0 ? { icono: '👛', etiqueta: 'A pagar:', valor: money(s), color: 'ambar' } : { icono: '✅', etiqueta: 'Pago:', valor: 'Completo', color: 'lima' });
+    }
+    return tarjetaImagen({ nombre: c.nombre, aviso, avisoColor, acento: '#22d3ee', acento2: '#a3e635', filas });
   };
   // comparte la imagen: en celular / Windows abre el menú de compartir (WhatsApp con la foto);
   // si el equipo no puede, descarga la imagen y abre el chat para adjuntarla
