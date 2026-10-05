@@ -451,7 +451,7 @@
         Array.from(tr.cells).forEach((td) => {
           const span = td.colSpan || 1;
           const lab = span === 1 ? cols[i] || '' : '';
-          if (td.dataset.label !== lab) td.dataset.label = lab;
+          if (td.dataset.col !== lab) td.dataset.col = lab;
           i += span;
         });
       });
@@ -688,11 +688,26 @@
         '¡Gracias por su preferencia!',
       ].join('\n');
     }
-    function enviarResumen(id) {
+    // resumen de la cuenta en imagen (mismo diseño que la orden)
+    async function enviarResumen(id) {
       const c = clienteById(id) || {};
-      const texto = resumenCuenta(id);
-      window.open(c.whatsapp ? waLink(c.whatsapp, texto) : 'https://wa.me/?text=' + encodeURIComponent(texto), '_blank', 'noopener');
-      if (!c.whatsapp) toast('El cliente no tiene WhatsApp guardado: elija el contacto en WhatsApp');
+      const ds = deudasDe(id);
+      const debe = ds.reduce((t, d) => t + saldo(d), 0);
+      const total = ds.reduce((t, d) => t + num(d.monto), 0);
+      toast('Preparando imagen…');
+      const blob = await tarjetaImagen({
+        nombre: c.nombre,
+        aviso: 'ESTADO DE CUENTA',
+        filas: [
+          { icono: '📌', etiqueta: 'Fecha:', valor: fmtDate(today()), color: 'azul' },
+          { icono: '📱', etiqueta: 'Equipos:', valor: resumenModelos(ds) || '-', color: 'rosa' },
+          { icono: '🧾', etiqueta: 'Deudas:', valor: `${ds.length} ${ds.length === 1 ? 'pendiente' : 'pendientes'}`, color: 'amarillo' },
+          { icono: '💵', etiqueta: 'Total:', valor: money(total), color: 'verde' },
+          { icono: '💳', etiqueta: 'Abonado:', valor: money(total - debe), color: 'morado' },
+          { icono: '👛', etiqueta: 'A pagar:', valor: money(debe), color: 'naranja' },
+        ],
+      });
+      compartirImagen(blob, `SIMTEC_cuenta_${(c.nombre || 'cliente').replace(/\W+/g, '_')}.png`, `Estado de cuenta · ${db.config.negocio}`, c.whatsapp);
     }
     function verCuenta(id) {
       const c = clienteById(id) || {};
@@ -726,12 +741,16 @@
           ${abonos.length ? `<p class="hint-line"><b>Abonos:</b> ${abonos.map((a) => `${fmtDate(a.fecha)} ${money(a.monto)} (${esc(a.modelo)})`).join(' · ')}</p>` : ''}
           ${debe > 0 ? `<h2 style="margin-top:16px;font-size:20px">Resumen para WhatsApp</h2><pre class="cierre-resumen">${esc(resumenCuenta(id).replace(/\*/g, ''))}</pre>` : ''}
           <div class="modal-actions">
-            ${debe > 0 ? `<button class="btn green" data-act="wa">💬 Enviar resumen por WhatsApp</button><button class="btn" data-act="copiar">📄 Copiar resumen</button><button class="btn yellow" data-act="abonar">Abonar</button>` : ''}
+            ${debe > 0 ? `<button class="btn green" data-act="wa">🖼 Enviar resumen en imagen</button><button class="btn" data-act="watexto">💬 Enviar solo texto</button><button class="btn" data-act="copiar">📄 Copiar resumen</button><button class="btn yellow" data-act="abonar">Abonar</button>` : ''}
             <button class="btn" data-act="close">Cerrar</button>
           </div>
         </div>`, (e, a, close) => {
         if (!a) return;
         if (a.dataset.act === 'wa') enviarResumen(id);
+        if (a.dataset.act === 'watexto') {
+          const c = clienteById(id) || {};
+          window.open(waDigits(c.whatsapp) ? waLink(c.whatsapp, resumenCuenta(id)) : 'https://wa.me/?text=' + encodeURIComponent(resumenCuenta(id)), '_blank', 'noopener');
+        }
         if (a.dataset.act === 'copiar') {
           const t = resumenCuenta(id).replace(/\*/g, '');
           (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Resumen copiado'), () => toast('No se pudo copiar'));
@@ -1552,31 +1571,145 @@
   }
 
   // ---- reporte de trabajo LISTO para el cliente por WhatsApp
-  function reporteListoTexto(o) {
-    const c = clienteById(o.clienteId) || {};
-    const cfg = db.config;
-    const pagado = num(o.abono) + abonosOrden(o);
-    const s = saldoOrden(o);
-    return [
-      `Hola ${c.nombre || ''} 👋, le saluda *${cfg.negocio}*.`,
-      '',
-      `✅ *Su equipo ya está LISTO para retirar*`,
-      '',
-      `📄 Orden: *${o.numero}*`,
-      `📱 Equipo: ${equipoTxt(o) || '-'}`,
-      o.falla ? `🔧 Trabajo: ${o.falla}` : null,
-      o.trabajo ? `📝 Nota: ${o.trabajo}` : null,
-      `📅 Ingresó: ${fmtDate(o.fecha)} · Listo: ${fmtDate(today())}`,
-      '',
-      `💵 Total: ${money(o.costo)}`,
-      pagado > 0 ? `💳 Abonado: ${money(pagado)}` : null,
-      s > 0 ? `👉 *Saldo a pagar: ${money(s)}*` : `👉 *Pagado completo* ✔`,
-      '',
-      cfg.direccion ? `📍 Retírelo en: ${cfg.direccion}` : null,
-      'Recuerde traer su comprobante (o el número de orden). ¡Gracias por su confianza!',
-    ].filter((l) => l !== null).join('\n');
+  // ---- tarjeta en imagen para WhatsApp (logo, saludo y filas de colores)
+  const logoImg = new Image();
+  logoImg.src = 'assets/logo.jpg';
+  const COLORES = {
+    azul: ['#1e9bff', '#0b6fd8', '#fff'], rosa: ['#ff2fa8', '#c8137e', '#fff'], amarillo: ['#ffd500', '#f5b700', '#000'],
+    verde: ['#22c55e', '#15803d', '#fff'], morado: ['#8b5cf6', '#6d28d9', '#fff'], naranja: ['#ff7a1a', '#ea580c', '#fff'],
+  };
+  async function tarjetaImagen({ nombre, aviso, filas }) {
+    try { await Promise.all(['700 40px "Roboto Condensed"', '40px Anton'].map((f) => document.fonts.load(f))); } catch (e) { /* sin fuentes */ }
+    if (!logoImg.complete) await new Promise((r) => { logoImg.onload = r; logoImg.onerror = r; });
+    const W = 1080, X = 60, RW = W - 2 * X, LW = 400;
+    const cv = document.createElement('canvas');
+    const ctx = cv.getContext('2d');
+    const BODY = '"Roboto Condensed", Arial, sans-serif';
+    // texto del valor en varias líneas si no cabe
+    const lineas = (txt, maxW, size) => {
+      ctx.font = `700 ${size}px ${BODY}`;
+      const out = [];
+      let cur = '';
+      String(txt).split(' ').forEach((w) => {
+        const t = cur ? cur + ' ' + w : w;
+        if (ctx.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t;
+      });
+      if (cur) out.push(cur);
+      return out;
+    };
+    const filasMed = filas.map((f) => {
+      let size = 54, ls = lineas(f.valor, RW - LW - 50, size);
+      while (ls.length > 1 && size > 38) { size -= 4; ls = lineas(f.valor, RW - LW - 50, size); }
+      ls = ls.slice(0, 4);
+      return { ...f, size, ls, h: Math.max(104, ls.length * size * 1.15 + 40) };
+    });
+    const top = 520 + (aviso ? 90 : 0);
+    const H = top + filasMed.reduce((t, f) => t + f.h + 22, 0) + 230;
+    cv.width = W; cv.height = H;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    // franjas de las esquinas
+    const franja = (x1, y1, x2, y2, c) => { ctx.strokeStyle = c; ctx.lineWidth = 34; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); };
+    franja(-40, H - 200, 160, H + 20, '#ff2fa8'); franja(-40, H - 110, 90, H + 20, '#1e9bff');
+    franja(W + 40, H - 200, W - 160, H + 20, '#ff2fa8'); franja(W + 40, H - 110, W - 90, H + 20, '#1e9bff');
+    // logo redondo con brillo
+    ctx.save(); ctx.shadowColor = '#7cc4ff'; ctx.shadowBlur = 40;
+    ctx.beginPath(); ctx.arc(W / 2, 200, 170, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.arc(W / 2, 200, 170, 0, Math.PI * 2); ctx.clip();
+    try { ctx.drawImage(logoImg, W / 2 - 170, 30, 340, 340); } catch (e) { /* sin logo */ }
+    ctx.restore();
+    // saludo
+    const partes = (y, trozos, size, font) => {
+      ctx.font = `${font} ${size}px ${font === '400' ? 'Anton, Impact, sans-serif' : BODY}`;
+      let x = X;
+      trozos.forEach(([t, c]) => { ctx.fillStyle = c; ctx.fillText(t, x, y); x += ctx.measureText(t).width; });
+    };
+    ctx.textBaseline = 'alphabetic';
+    partes(495 - 40, [['Hola, ', '#fff'], [`${nombre || 'cliente'}`, '#ff2fa8'], ['.', '#fff']], 76, '400');
+    partes(495 + 20, [['Le saluda ', '#fff'], ['SIMTEC', '#ff2fa8'], [' Tecnología Informática.', '#fff']], 44, '700');
+    if (aviso) {
+      ctx.font = `400 54px Anton, Impact, sans-serif`; ctx.fillStyle = '#4ade80'; ctx.textAlign = 'center';
+      ctx.shadowColor = '#22c55e'; ctx.shadowBlur = 18; ctx.fillText(aviso, W / 2, 495 + 105); ctx.shadowBlur = 0; ctx.textAlign = 'left';
+    }
+    // filas
+    const redondo = (x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); };
+    let y = top + 10;
+    filasMed.forEach((f) => {
+      const [c1, c2, tx] = COLORES[f.color] || COLORES.azul;
+      // marco con brillo
+      ctx.save(); ctx.shadowColor = c1; ctx.shadowBlur = 16; ctx.strokeStyle = c1; ctx.lineWidth = 5;
+      redondo(X, y, RW, f.h, 26); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = '#050505'; redondo(X + 3, y + 3, RW - 6, f.h - 6, 24); ctx.fill();
+      // etiqueta de color
+      const g = ctx.createLinearGradient(X, 0, X + LW, 0); g.addColorStop(0, c2); g.addColorStop(1, c1);
+      ctx.fillStyle = g; redondo(X, y, LW, f.h, 26); ctx.fill();
+      ctx.fillStyle = c2; redondo(X, y, 120, f.h, 26); ctx.fill();
+      ctx.font = '58px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff'; ctx.fillText(f.icono, X + 60, y + f.h / 2 + 3);
+      ctx.font = `700 44px ${BODY}`; ctx.fillStyle = tx; ctx.textAlign = 'left';
+      ctx.fillText(f.etiqueta, X + 145, y + f.h / 2 + 2);
+      // valor
+      ctx.fillStyle = '#fff'; ctx.font = `700 ${f.size}px ${BODY}`;
+      const lh = f.size * 1.15, y0 = y + f.h / 2 - ((f.ls.length - 1) * lh) / 2;
+      f.ls.forEach((l, i) => ctx.fillText(l, X + LW + 35, y0 + i * lh + 2));
+      ctx.textBaseline = 'alphabetic';
+      y += f.h + 22;
+    });
+    // pie
+    ctx.textAlign = 'center';
+    ctx.font = `italic 700 46px ${BODY}`; ctx.fillStyle = '#fff'; ctx.fillText('Gracias por confiar en', W / 2, y + 70);
+    ctx.font = `400 50px Anton, Impact, sans-serif`;
+    const t1 = 'SIMTEC', t2 = ' Tecnología Informática.';
+    const w1 = ctx.measureText(t1).width; ctx.font = `italic 700 46px ${BODY}`; const w2 = ctx.measureText(t2).width;
+    let px = W / 2 - (w1 + w2) / 2; ctx.textAlign = 'left';
+    ctx.font = `400 50px Anton, Impact, sans-serif`; ctx.fillStyle = '#ff2fa8'; ctx.fillText(t1, px, y + 140);
+    ctx.font = `italic 700 46px ${BODY}`; ctx.fillStyle = '#fff'; ctx.fillText(t2, px + w1, y + 140);
+    ctx.fillStyle = '#ff2fa8'; ctx.fillRect(px - 90, y + 124, 64, 8); ctx.fillRect(px + w1 + w2 + 26, y + 124, 64, 8);
+    return new Promise((r) => cv.toBlob(r, 'image/png'));
   }
-  // abre WhatsApp con el reporte (debe llamarse desde un toque/clic para que el navegador lo permita)
+  const tarjetaOrden = (o) => {
+    const c = clienteById(o.clienteId) || {};
+    const pagado = num(o.abono) + abonosOrden(o);
+    return tarjetaImagen({
+      nombre: c.nombre,
+      aviso: o.estado === 'Listo' ? '✅ ¡SU EQUIPO ESTÁ LISTO PARA RETIRAR!' : o.estado === 'Entregado' ? '📦 EQUIPO ENTREGADO' : '',
+      filas: [
+        { icono: '📄', etiqueta: 'Orden:', valor: `${o.numero}${o.factura != null ? ` · N°${o.factura}` : ''}`, color: 'azul' },
+        { icono: '📱', etiqueta: 'Equipo:', valor: equipoTxt(o) || '-', color: 'rosa' },
+        { icono: '🔧', etiqueta: 'Falla:', valor: o.falla || '-', color: 'amarillo' },
+        { icono: '💵', etiqueta: 'Costo:', valor: num(o.costo) ? money(o.costo) : 'Por definir', color: 'verde' },
+        { icono: '💳', etiqueta: 'Abono:', valor: money(pagado), color: 'morado' },
+        { icono: '👛', etiqueta: 'Saldo:', valor: money(saldoOrden(o)), color: 'naranja' },
+        { icono: '✅', etiqueta: 'Estado:', valor: o.estado, color: 'azul' },
+      ],
+    });
+  };
+  // comparte la imagen: en celular / Windows abre el menú de compartir (WhatsApp con la foto);
+  // si el equipo no puede, descarga la imagen y abre el chat para adjuntarla
+  async function compartirImagen(blob, nombreArchivo, texto, telefono) {
+    const file = new File([blob], nombreArchivo, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], text: texto });
+        return true;
+      } catch (err) {
+        if (err.name === 'AbortError') return false;
+      }
+    }
+    descargar(file);
+    window.open(waDigits(telefono) ? waLink(telefono, texto) : 'https://wa.me/?text=' + encodeURIComponent(texto), '_blank', 'noopener');
+    toast('Imagen descargada: adjúntela en el chat de WhatsApp y toque Enviar');
+    return true;
+  }
+  async function enviarImagenOrden(o) {
+    if (!o) return false;
+    const c = clienteById(o.clienteId) || {};
+    toast('Preparando imagen…');
+    const blob = await tarjetaOrden(o);
+    const caption = `${o.estado === 'Listo' ? '✅ Su equipo está LISTO. ' : ''}Orden ${o.numero} · ${db.config.negocio}`;
+    return compartirImagen(blob, `SIMTEC_${o.numero}.png`, caption, c.whatsapp);
+  }
+
+  // abre WhatsApp con el reporte en imagen (debe llamarse desde un toque/clic para que el navegador lo permita)
   function enviarReporteListo(o) {
     if (!o) return false;
     const c = clienteById(o.clienteId);
@@ -1586,10 +1719,12 @@
       if (!num || !num.replace(/\D/g, '')) { toast('Reporte no enviado: falta el WhatsApp del cliente'); return false; }
       c.whatsapp = num.trim();
     }
-    window.open(waLink(c.whatsapp, reporteListoTexto(o)), '_blank', 'noopener');
-    o.avisadoListo = new Date().toISOString();
-    save();
-    toast('💬 WhatsApp abierto con el reporte: toque Enviar');
+    const id = o.id;
+    enviarImagenOrden(o).then((ok) => {
+      if (!ok) return;
+      const x = db.ordenes.find((y) => y.id === id); // los datos pudieron cambiar al sincronizar
+      if (x) { x.avisadoListo = new Date().toISOString(); save(); }
+    });
     return true;
   }
 
@@ -1976,7 +2111,7 @@
             <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === o.estado ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
-            <td class="actions">${o.estado === 'Listo' ? `<button class="btn sm green" data-avisar="${o.id}" title="Enviar reporte de LISTO por WhatsApp">💬${o.avisadoListo ? ' ✓' : ''}</button>` : ''}<button class="btn sm" data-label="${o.id}" title="Imprimir etiqueta QR">🏷</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
+            <td class="actions">${o.estado === 'Listo' ? `<button class="btn sm green" data-avisar="${o.id}" title="Enviar reporte de LISTO por WhatsApp">💬${o.avisadoListo ? ' ✓' : ''}</button>` : ''}<button class="btn sm" data-label="${o.id}" title="Imprimir etiqueta QR">🏷</button><button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
         : `<tr><td colspan="8" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
@@ -2085,6 +2220,8 @@
     $('#or-body').addEventListener('click', (e) => {
       const av = e.target.closest('[data-avisar]');
       if (av) { enviarReporteListo(db.ordenes.find((o) => o.id === av.dataset.avisar)); render(); }
+      const img = e.target.closest('[data-img]');
+      if (img) enviarImagenOrden(db.ordenes.find((o) => o.id === img.dataset.img));
       const lab = e.target.closest('[data-label]');
       if (lab) openLabel(db.ordenes.find((o) => o.id === lab.dataset.label));
       const ver = e.target.closest('[data-ver]');

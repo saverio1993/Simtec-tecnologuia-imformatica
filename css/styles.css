@@ -619,8 +619,8 @@ html[data-tema="rojo"] .login-wrap .install-btn { background: #ff1a1a; }
   .table-wrap tbody tr { display: block; background: var(--panel-2); border: 2px solid #ffffff55; border-radius: 14px; padding: 6px 2px; margin-bottom: 10px; }
   .table-wrap tbody tr:hover td { background: transparent; }
   .table-wrap td { display: block; text-align: right; border: 0; padding: 6px 12px; min-height: 0; overflow: hidden; }
-  .table-wrap td::before { content: attr(data-label); float: left; margin: 3px 12px 0 0; max-width: 45%; text-align: left; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
-  .table-wrap td[data-label=""]::before, .table-wrap td:not([data-label])::before { content: none; }
+  .table-wrap td::before { content: attr(data-col); float: left; margin: 3px 12px 0 0; max-width: 45%; text-align: left; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+  .table-wrap td[data-col=""]::before, .table-wrap td:not([data-col])::before { content: none; }
   .table-wrap td:empty { display: none; }
   .table-wrap td[colspan] { display: block; text-align: center; }
   .table-wrap tbody td:first-child { font-size: 18px; font-weight: 700; }
