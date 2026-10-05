@@ -2153,24 +2153,31 @@
     };
   }
 
-  // La contabilidad que se llevaba a mano (1–5 de octubre) se carga sola, una única vez para todos los equipos.
+  // La contabilidad que se llevaba a mano se carga sola, una única vez para todos los equipos:
+  // clientes, la cartera al día y los trabajos de HOY (5 de octubre). Los días 1 al 4 no se cargan.
+  // config.importOct2026: '' = falta cargar · '1' = cargado con los días 1–4 (hay que quitarlos) · '2' = listo
   const IMPORT_OCT = 'importOct2026';
+  const VIEJOS_OCT = /^imp-mov-2026-10-0[1-4]-/;
   let importOctIntentado = false;
   async function importarOctubre() {
-    if (importOctIntentado || db.config[IMPORT_OCT] === '1') return;
+    if (importOctIntentado || db.config[IMPORT_OCT] === '2') return;
     importOctIntentado = true;
     try {
-      const r = await fetch('data/contabilidad-oct-2026.json', { cache: 'no-store' });
-      const data = await r.json();
-      if (hasPending() || db.config[IMPORT_OCT] === '1') return;
-      const imp = prepararImport(data);
-      imp.aplicar();
-      db.config[IMPORT_OCT] = '1';
-      save();
-      if (imp.total) {
-        toast(`Se cargó la contabilidad de octubre: ${imp.nC} clientes, ${imp.nM} trabajos y ${imp.nD} deudas`);
-        refreshView();
+      let msg = '';
+      if (db.config[IMPORT_OCT] !== '1') {
+        const r = await fetch('data/contabilidad-oct-2026.json', { cache: 'no-store' });
+        const data = await r.json();
+        if (hasPending() || db.config[IMPORT_OCT] === '2') return;
+        const imp = prepararImport(data);
+        imp.aplicar();
+        if (imp.total) msg = `Se cargó la contabilidad: ${imp.nC} clientes, ${imp.nM} trabajos de hoy y ${imp.nD} deudas`;
       }
+      const antes = db.movimientos.length;
+      db.movimientos = db.movimientos.filter((m) => !VIEJOS_OCT.test(m.id));
+      if (!msg && antes !== db.movimientos.length) msg = 'Listo: quedaron solo los trabajos de hoy';
+      db.config[IMPORT_OCT] = '2';
+      save();
+      if (msg) { toast(msg); refreshView(); }
     } catch (e) {
       importOctIntentado = false; // sin conexión: se intenta en la próxima sincronización
     }
