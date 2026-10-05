@@ -2037,7 +2037,11 @@
         <div class="paso" data-paso="1">
           <h3 class="paso-t">👤 ¿De quién es el equipo?</h3>
           <div class="form-grid">
-            <div class="field full"><label for="or-cli">Cliente registrado</label><select id="or-cli">${clienteOptions('', '— Cliente nuevo (escribir el nombre) —')}</select></div>
+            <div class="field full"><label for="or-buscar">Cliente</label>
+              <input id="or-buscar" placeholder="🔎 Escriba el nombre para buscar…" autocomplete="off">
+              <div class="cli-sug" id="or-sug"></div>
+              <select id="or-cli" hidden>${clienteOptions('', '— Cliente nuevo —')}</select>
+            </div>
             <div class="field nuevo full"><label for="or-nom">Nombre del cliente nuevo</label><input id="or-nom" placeholder="Nombre"></div>
             <div class="field nuevo"><label for="or-tie">Tienda</label><input id="or-tie" placeholder="Opcional"></div>
             <div class="field nuevo"><label for="or-wa">WhatsApp</label><input id="or-wa" type="tel" placeholder="Opcional"></div>
@@ -2090,7 +2094,8 @@
         <tbody id="or-body"></tbody>
       </table></div>`;
 
-    const toggleNuevo = () => $$('.field.nuevo', el).forEach((f) => (f.hidden = !!$('#or-cli').value));
+    let modoNuevo = false; // los datos del cliente nuevo solo aparecen al elegir "Cliente nuevo"
+    const toggleNuevo = () => $$('.field.nuevo', el).forEach((f) => (f.hidden = !modoNuevo || !!$('#or-cli').value));
     $('#or-cli').addEventListener('change', toggleNuevo);
     toggleNuevo();
 
@@ -2114,12 +2119,46 @@
             <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === o.estado ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
-            <td class="actions">${o.estado === 'Listo' ? `<button class="btn sm green" data-avisar="${o.id}" title="Enviar reporte de LISTO por WhatsApp">💬${o.avisadoListo ? ' ✓' : ''}</button>` : ''}<button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
+            <td class="actions">${o.estado === 'Listo' ? `<button class="btn sm green" data-avisar="${o.id}" title="Enviar reporte de LISTO por WhatsApp">💬${o.avisadoListo ? ' ✓' : ''}</button>` : ''}${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al reporte diario y al cierre)">💵 Pagar</button>` : ''}<button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
         : `<tr><td colspan="7" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
     }
     refreshOrdenList = render;
+
+    // pago de una orden: baja su saldo, se anota en el reporte diario (entra a caja) y sale en el cierre del día
+    function pagarOrden(id) {
+      const o = db.ordenes.find((x) => x.id === id);
+      if (!o) return;
+      const modelo = [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo;
+      const titulo = `${clienteNombre(o.clienteId)} · N°${o.factura} ${modelo}`;
+      if (!num(o.costo)) {
+        const p = prompt(`${titulo}\nEsta orden no tiene precio. ¿Cuánto cuesta el trabajo?`, '');
+        if (p === null) return;
+        const c = num(p);
+        if (c <= 0) return;
+        o.costo = c;
+      }
+      let d = db.cartera.find((x) => x.ordenId === o.id);
+      const pendiente = Math.max(0, num(o.costo) - num(o.abono) - (d ? abonado(d) : 0));
+      if (!d && pendiente > 0) {
+        d = { id: uid(), origen: 'orden', ordenId: o.id, clienteId: o.clienteId, concepto: `Orden ${o.numero} - ${equipoTxt(o)}`, monto: num(o.costo) - num(o.abono), fecha: today(), abonos: [] };
+        db.cartera.push(d);
+      } else if (d) {
+        d.monto = num(o.costo) - num(o.abono); // por si se le acaba de poner precio
+      }
+      const saldoAct = saldoOrden(o);
+      if (saldoAct <= 0) { save(); toast('Esta orden ya está pagada'); render(); return; }
+      const v = prompt(`${titulo}\nSaldo: ${money(saldoAct)}\n¿Cuánto pagó?`, saldoAct.toFixed(2));
+      if (v === null) { save(); render(); return; }
+      const m = Math.min(num(v), saldoAct);
+      if (m <= 0) { save(); render(); return; }
+      d.abonos.push({ fecha: today(), monto: m });
+      db.movimientos.push({ id: uid(), origen: 'abono', ordenId: o.id, fecha: today(), tipo: 'ingreso', concepto: `Pago factura N°${o.factura} - ${modelo}`, clienteId: o.clienteId, monto: m });
+      save();
+      toast(m >= saldoAct ? `✅ Pagado completo ${money(m)} · sumado al reporte del día` : `Abono de ${money(m)} · queda ${money(saldoAct - m)}`);
+      render();
+    }
     $('#or-scan').addEventListener('click', () => openScanner());
     $$('#or-filtro button', el).forEach((b) => b.addEventListener('click', () => {
       $$('#or-filtro button', el).forEach((x) => x.classList.toggle('on', x === b));
@@ -2163,9 +2202,57 @@
     let paso = 1;
     const marcaTxt = () => (marcaSel === '' ? $('#or-marca-otra').value.trim() : marcaSel || '');
     const fallaTxt = () => [...fallasSel].map((f) => (f === 'otra' ? $('#or-falla-otra').value.trim() : f)).filter(Boolean).join(', ');
-    const clienteTxt = () => ($('#or-cli').value ? clienteNombre($('#or-cli').value) : $('#or-nom').value.trim());
+    const clienteTxt = () => ($('#or-cli').value ? clienteNombre($('#or-cli').value) : modoNuevo ? $('#or-nom').value.trim() : '');
+    // buscador de clientes: se escribe y salen los que coinciden; si no está, se crea nuevo
+    const llaveCli = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    function sugerir() {
+      const q = llaveCli($('#or-buscar').value.trim());
+      if (!q) { $('#or-sug').innerHTML = ''; return; }
+      const lista = db.clientes
+        .filter((c) => llaveCli(`${c.nombre} ${c.tienda || ''} ${c.whatsapp || ''}`).includes(q))
+        .sort((a, b) => (llaveCli(a.nombre).startsWith(q) ? 0 : 1) - (llaveCli(b.nombre).startsWith(q) ? 0 : 1) || a.nombre.localeCompare(b.nombre))
+        .slice(0, 6);
+      $('#or-sug').innerHTML = lista.map((c) => `<button type="button" class="cli-op" data-cli="${c.id}"><b>${esc(c.nombre)}</b>${c.tienda ? `<small>${esc(c.tienda)}</small>` : ''}</button>`).join('')
+        + `<button type="button" class="cli-op nuevo-op" data-cli-nuevo>➕ Cliente nuevo: <b>${esc($('#or-buscar').value.trim())}</b></button>`;
+    }
+    function elegirCliente(id) {
+      if (![...$('#or-cli').options].some((op) => op.value === id)) $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo —');
+      $('#or-cli').value = id;
+      modoNuevo = false;
+      $('#or-buscar').value = clienteNombre(id);
+      $('#or-sug').innerHTML = '';
+      toggleNuevo();
+      irPaso(2);
+    }
+    function clienteNuevo() {
+      $('#or-cli').value = '';
+      modoNuevo = true;
+      $('#or-nom').value = $('#or-buscar').value.trim();
+      $('#or-sug').innerHTML = '';
+      toggleNuevo();
+      $('#or-tie').focus();
+    }
+    $('#or-buscar').addEventListener('input', () => {
+      $('#or-cli').value = '';
+      modoNuevo = false;
+      toggleNuevo();
+      sugerir();
+    });
+    $('#or-sug').addEventListener('click', (e) => {
+      const c = e.target.closest('[data-cli]');
+      if (c) elegirCliente(c.dataset.cli);
+      if (e.target.closest('[data-cli-nuevo]')) clienteNuevo();
+    });
+    $('#or-buscar').addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      e.stopPropagation();
+      const ops = $$('#or-sug [data-cli]', el);
+      if (ops.length) elegirCliente(ops[0].dataset.cli); // Enter elige el primero de la lista
+      else if ($('#or-buscar').value.trim()) clienteNuevo();
+    });
     function validarPaso(n) {
-      if (n === 1 && !clienteTxt()) { toast('Elija un cliente de la lista o escriba el nombre del cliente nuevo'); $('#or-nom').focus(); return false; }
+      if (n === 1 && !clienteTxt()) { toast('Busque y toque el cliente, o elija "Cliente nuevo"'); $('#or-buscar').focus(); return false; }
       if (n === 2 && marcaSel === null) { toast('Toque la marca del equipo'); return false; }
       if (n === 2 && marcaSel === '' && !marcaTxt()) { toast('Escriba la marca'); $('#or-marca-otra').focus(); return false; }
       if (n === 3 && !fallaTxt()) { toast('Toque la falla del equipo'); return false; }
@@ -2188,7 +2275,7 @@
       ].filter(Boolean);
       $('#or-resumen').hidden = !partes.length;
       $('#or-resumen').innerHTML = partes.map((p, i) => `<button type="button" class="chip" data-volver="${i + 1}" title="Cambiar">${p} ✎</button>`).join('');
-      const foco = { 1: $('#or-cli').value ? null : '#or-nom', 3: '#or-modelo', 4: '#or-costo' }[n];
+      const foco = { 1: $('#or-cli').value ? null : modoNuevo ? '#or-nom' : '#or-buscar', 3: '#or-modelo', 4: '#or-costo' }[n];
       if (foco) setTimeout(() => $(foco).focus(), 50);
     }
     const siguiente = () => { if (validarPaso(paso)) irPaso(Math.min(4, paso + 1)); };
@@ -2242,7 +2329,10 @@
       save();
       $('#or-form').reset();
       resetChips();
-      $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo (escribir el nombre) —');
+      $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo —');
+      $('#or-buscar').value = '';
+      $('#or-sug').innerHTML = '';
+      modoNuevo = false;
       toggleNuevo();
       irPaso(1);
       render();
@@ -2270,6 +2360,8 @@
     $('#or-body').addEventListener('click', (e) => {
       const av = e.target.closest('[data-avisar]');
       if (av) { enviarReporteListo(db.ordenes.find((o) => o.id === av.dataset.avisar)); render(); }
+      const pag = e.target.closest('[data-pagar]');
+      if (pag) pagarOrden(pag.dataset.pagar);
       const img = e.target.closest('[data-img]');
       if (img) enviarImagenOrden(db.ordenes.find((o) => o.id === img.dataset.img));
       const lab = e.target.closest('[data-label]');

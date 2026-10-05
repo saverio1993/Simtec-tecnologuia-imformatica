@@ -361,6 +361,17 @@ html[data-tema="rojo"] .paso-dots span { border-color: #fff; color: #fff; }
 html[data-tema="rojo"] .paso-dots span.on { background: #fff; color: #000; }
 html[data-tema="rojo"] .paso-dots span.ok { background: #000; color: #fff; }
 
+/* buscador de clientes (orden de ingreso) */
+.cli-sug { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.cli-sug:empty { display: none; }
+.cli-op { display: flex; align-items: baseline; gap: 10px; text-align: left; padding: 12px 14px; border-radius: 12px; border: 2px solid #ffffff55; background: #111; color: #fff; font-size: 17px; }
+.cli-op:hover, .cli-op:focus-visible { border-color: #fff; background: #1e9bff33; }
+.cli-op small { color: var(--muted); }
+.cli-op.nuevo-op { border-style: dashed; color: #4ade80; }
+html[data-tema="rojo"] .cli-op { background: #fff; color: #000; border-color: #000; }
+html[data-tema="rojo"] .cli-op small { color: #555; }
+html[data-tema="rojo"] .cli-op.nuevo-op { background: #000; color: #fff; border-color: #fff; }
+
 /* ================= FACTURA DGI ================= */
 .dgi-box { text-align: center; padding: 30px 18px; }
 .dgi-box img { width: 100%; max-width: 420px; border-radius: var(--radius); margin-bottom: 18px; }
