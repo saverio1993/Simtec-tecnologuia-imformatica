@@ -639,6 +639,22 @@ html[data-tema="rojo"] .login-wrap .install-btn { background: #ff1a1a; }
   html[data-tema="rojo"] .table-wrap tbody tr:hover td { background: transparent; }
 }
 
+/* fecha del Reporte diario: luz neón que parpadea para resaltarla */
+#rd-fecha {
+  --neon: #00e5ff;
+  color: #fff; font-weight: 700; letter-spacing: .5px;
+  border-color: var(--neon); border-width: 3px;
+  text-shadow: 0 0 6px var(--neon);
+  animation: neon 1.4s ease-in-out infinite;
+}
+#rd-fecha::-webkit-calendar-picker-indicator { filter: invert(1) drop-shadow(0 0 3px #00e5ff); cursor: pointer; }
+#rd-fecha:focus { animation: none; box-shadow: 0 0 6px var(--neon), 0 0 18px var(--neon), inset 0 0 8px var(--neon); outline: none; }
+html[data-tema="rojo"] #rd-fecha { --neon: #ff2a2a; background: #000; }
+@keyframes neon {
+  0%, 100% { box-shadow: 0 0 4px var(--neon), 0 0 12px var(--neon), 0 0 24px var(--neon), inset 0 0 6px var(--neon); border-color: var(--neon); }
+  50% { box-shadow: 0 0 1px var(--neon), inset 0 0 1px transparent; border-color: #ffffff55; }
+}
+
 /* ================= AVISO DE VERSIÓN NUEVA ================= */
 .update-bar {
   position: fixed; left: 50%; top: 70px; transform: translateX(-50%); z-index: 120;
