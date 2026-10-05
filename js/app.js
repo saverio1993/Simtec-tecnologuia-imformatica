@@ -669,25 +669,6 @@
     let vista = 'cliente';
     // ---- cuenta de un cliente: lista completa de lo que debe y resumen para WhatsApp
     const deudasDe = (id) => db.cartera.filter((d) => enCartera(d) && d.clienteId === id && saldo(d) > 0).sort((a, b) => a.fecha.localeCompare(b.fecha));
-    function resumenCuenta(id) {
-      const c = clienteById(id) || {};
-      const ds = deudasDe(id);
-      const debe = ds.reduce((t, d) => t + saldo(d), 0);
-      const abon = ds.reduce((t, d) => t + abonado(d), 0);
-      return [
-        `*${db.config.negocio}*`,
-        `Estado de cuenta: *${c.nombre || ''}*`,
-        `Fecha: ${fmtDate(today())}`,
-        '',
-        ...ds.map((d) => `• ${fmtDate(d.fecha)} · ${modeloDe(d)} · ${money(saldo(d))}${abonado(d) > 0 ? ` (abonó ${money(abonado(d))})` : ''}`),
-        '',
-        `Equipos: ${resumenModelos(ds)}`,
-        ...(abon > 0 ? [`Ya abonado: ${money(abon)}`] : []),
-        `*TOTAL A PAGAR: ${money(debe)}*`,
-        '',
-        '¡Gracias por su preferencia!',
-      ].join('\n');
-    }
     // resumen de la cuenta en imagen (mismo diseño que la orden)
     async function enviarResumen(id) {
       const c = clienteById(id) || {};
@@ -739,22 +720,13 @@
             <tfoot><tr><td colspan="5">TOTAL A PAGAR</td><td class="num">${money(debe)}</td></tr></tfoot>
           </table></div>
           ${abonos.length ? `<p class="hint-line"><b>Abonos:</b> ${abonos.map((a) => `${fmtDate(a.fecha)} ${money(a.monto)} (${esc(a.modelo)})`).join(' · ')}</p>` : ''}
-          ${debe > 0 ? `<h2 style="margin-top:16px;font-size:20px">Resumen para WhatsApp</h2><pre class="cierre-resumen">${esc(resumenCuenta(id).replace(/\*/g, ''))}</pre>` : ''}
           <div class="modal-actions">
-            ${debe > 0 ? `<button class="btn green" data-act="wa">🖼 Enviar resumen en imagen</button><button class="btn" data-act="watexto">💬 Enviar solo texto</button><button class="btn" data-act="copiar">📄 Copiar resumen</button><button class="btn yellow" data-act="abonar">Abonar</button>` : ''}
+            ${debe > 0 ? `<button class="btn green" data-act="wa">🖼 Enviar por WhatsApp</button><button class="btn yellow" data-act="abonar">Abonar</button>` : ''}
             <button class="btn" data-act="close">Cerrar</button>
           </div>
         </div>`, (e, a, close) => {
         if (!a) return;
         if (a.dataset.act === 'wa') enviarResumen(id);
-        if (a.dataset.act === 'watexto') {
-          const c = clienteById(id) || {};
-          window.open(waDigits(c.whatsapp) ? waLink(c.whatsapp, resumenCuenta(id)) : 'https://wa.me/?text=' + encodeURIComponent(resumenCuenta(id)), '_blank', 'noopener');
-        }
-        if (a.dataset.act === 'copiar') {
-          const t = resumenCuenta(id).replace(/\*/g, '');
-          (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Resumen copiado'), () => toast('No se pudo copiar'));
-        }
         if (a.dataset.act === 'abonar') {
           close();
           abonarDe(id);
@@ -784,7 +756,7 @@
               <td class="actions">
                 ${g.debe > 0 ? `<button class="btn sm green" data-abono-cli="${g.clienteId}">Abonar</button>` : ''}
                 <button class="btn sm" data-cuenta="${g.clienteId}">📋 Ver cuenta</button>
-                ${g.debe > 0 ? `<button class="btn sm" data-wa-cli="${g.clienteId}">💬 Resumen</button>` : ''}
+                ${g.debe > 0 ? `<button class="btn sm green" data-wa-cli="${g.clienteId}">🖼 WhatsApp</button>` : ''}
               </td></tr>`;
           }).join('')
           : `<tr><td colspan="6" class="empty">Nadie le debe 🎉</td></tr>`;
