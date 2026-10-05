@@ -9,9 +9,9 @@ App web para el local de servicio técnico, publicada en Vercel. Los datos se gu
 | Sección | Qué hace |
 |---|---|
 | **Clientes** | Crear cliente (Nombre, Tienda, WhatsApp) → Guardar. Buscar, editar, borrar y escribir por WhatsApp. |
-| **Cartera** | Lista de quién debe. Abonos (se suman al reporte diario), recordatorio de cobro por WhatsApp y botón **Abrir en Excel**. |
+| **Cartera** | Quién debe, agrupado por cliente con sus modelos ("4 × Honor 400 Lite"). Abono por cliente (se reparte de la deuda más vieja a la más nueva y se suma al reporte diario), cobro por WhatsApp con el detalle y Excel. Las deudas de hoy llegan con el **cierre del día**. |
 | **Estadística** | Ranking animado de clientes, del que más trabajos trae (o más consume) al que menos. |
-| **Reporte diario** | Ingresos y gastos del día, con acumulado y total al final. Exporta el día o todo a Excel. |
+| **Reporte diario** | Trabajos/ventas (cliente, modelo, cantidad, total y lo que pagó) y gastos. Lista de quiénes quedaron debiendo. **🔒 Cierre del día**: resumen de caja y pasa solos a Cartera a los que no cancelaron, con sus modelos (si no se cierra, pasan solos al día siguiente). Excel del cierre. |
 | **Factura DGI** | Abre el portal web de facturación de la DGI (el enlace se cambia en Ajustes). |
 | **Orden de ingreso** | Plantilla simple: cliente, equipo, marca (botones) y modelo (lista de los más comunes), falla con botones (FRP, KG, PayJoy, Software, Cuenta Mi u otra), nota opcional, costo y abono. La fecha es la de hoy. El comprobante tiene el formato de hoja de orden de servicio (marca, modelo, IMEI, diagnóstico, SIM/memoria/batería, abono/debe/total, garantía, firma). Imprime o guarda en PDF y la envía por WhatsApp. El saldo pasa solo a Cartera. Cada orden tiene **etiqueta naranja con código QR** (60 × 30 mm: QR, cliente, modelo y fecha) para pegar en el equipo; con **📷 Escanear** (cámara o lector USB) se marca *Listo* (y se avisa por WhatsApp) o *Entregado* (cobrando el saldo). Filtro En taller / Listos / Entregados. |
 | **Inventario** | Producto y cantidad, con botones + / −, alerta de agotados y exportación a Excel. |

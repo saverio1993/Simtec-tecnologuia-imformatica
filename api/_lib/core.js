@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import { readDoc, writeDoc, writeBackup, ConflictError } from './storage.js';
 
-export const COLLECTIONS = ['clientes', 'cartera', 'movimientos', 'ordenes', 'inventario'];
+export const COLLECTIONS = ['clientes', 'cartera', 'movimientos', 'ordenes', 'inventario', 'cierres'];
 const DEFAULT_USER = 'admin';
 const DEFAULT_PASS = 'simtec';
 const SESSION_DAYS = 30;
@@ -22,6 +22,7 @@ export const emptyData = () => ({
   movimientos: [],
   ordenes: [],
   inventario: [],
+  cierres: [],
 });
 
 // ------------------------------------------------------------ contraseñas
