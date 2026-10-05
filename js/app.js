@@ -2564,7 +2564,12 @@
   }
   let importOctIntentado = false;
   async function importarOctubre() {
-    if (importOctIntentado || db.config[IMPORT_OCT] === '5') return;
+    if (importOctIntentado || db.config[IMPORT_OCT] === '6') return;
+    if (db.config[IMPORT_OCT] === '5') { // pedido del 5/10: borrar todos los trabajos y dejar solo los clientes (una única vez)
+      if (hasPending()) return;
+      importOctIntentado = true;
+      return borrarTrabajos('6').then(() => toast('Listo: se borraron los trabajos y quedaron solo los clientes'), () => { importOctIntentado = false; });
+    }
     if (db.config[IMPORT_OCT] === '3') return importarCopia();
     if (db.config[IMPORT_OCT] === '4') return renumerarFacturas();
     importOctIntentado = true;
@@ -2624,6 +2629,16 @@
       importOctIntentado = false;
     }
   }
+  // deja SOLO los clientes: borra órdenes, cartera, reporte diario, cierres e inventario y la factura vuelve a 001
+  async function borrarTrabajos(marca) {
+    const limpio = { ...emptyDB(), config: { ...db.config, ...(marca ? { [IMPORT_OCT]: marca } : {}) }, clientes: clone(db.clientes) };
+    const res = await api('POST', 'data', { replace: limpio });
+    synced = normalize(res.data);
+    db = clone(synced);
+    version = res.version;
+    cacheLocal();
+    route({ keepScroll: true });
+  }
   // '4' → '5': las facturas quedan 001, 002, 003… en orden de fecha (una única vez)
   function renumerarFacturas() {
     if (hasPending()) { importOctIntentado = false; return; }
@@ -2633,6 +2648,8 @@
     db.config[IMPORT_OCT] = '5';
     save();
     if (lista.length) { toast(`Facturas ordenadas: N°001 a N°${String(lista.length).padStart(3, '0')}`); refreshView(); }
+    importOctIntentado = false;
+    setTimeout(importarOctubre, 1500);
   }
 
   views.ajustes = (el) => {
@@ -2682,7 +2699,7 @@
       <div class="card">
         <h2>Empezar de cero</h2>
         <p style="color:var(--muted);margin-top:0">Borra <b>todos</b> los clientes, órdenes / equipos, cartera, reporte diario, cierres e inventario en <b>todas</b> las computadoras. La factura vuelve a empezar en 00. Se mantienen los datos del negocio, el WhatsApp del encargado y la contraseña. Antes de borrar se descarga una copia por si acaso.</p>
-        <div class="form-actions"><button class="btn red" id="aj-reset">🧹 Dejar todo en blanco</button></div>
+        <div class="form-actions"><button class="btn yellow" id="aj-trabajos">🧽 Borrar trabajos (dejar clientes)</button><button class="btn red" id="aj-reset">🧹 Dejar todo en blanco</button></div>
       </div>`;
 
     const marcarTema = () => $$('#aj-tema [data-tema]').forEach((b) => b.classList.toggle('on', b.dataset.tema === document.documentElement.dataset.tema));
@@ -2737,6 +2754,12 @@
       a.download = `SIMTEC_copia_${today()}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+    $('#aj-trabajos').addEventListener('click', () => {
+      if (!confirm(`Se borran ${db.ordenes.length} órdenes, la cartera, el reporte diario, los cierres y el inventario en todas las computadoras. Quedan los ${db.clientes.length} clientes y la factura vuelve a N°001. ¿Continuar?`)) return;
+      if ((prompt('Para confirmar escriba BORRAR') || '').trim().toUpperCase() !== 'BORRAR') { toast('No se borró nada'); return; }
+      $('#aj-backup').click(); // copia de seguridad antes de borrar
+      borrarTrabajos().then(() => toast('Listo: quedaron solo los clientes'), (err) => (err instanceof AuthError ? handleSyncError(err) : toast('No se pudo borrar: ' + err.message)));
     });
     $('#aj-reset').addEventListener('click', () => {
       const n = db.clientes.length + db.ordenes.length + db.cartera.length + db.movimientos.length + db.inventario.length + db.cierres.length;
