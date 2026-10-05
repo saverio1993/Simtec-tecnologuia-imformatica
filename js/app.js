@@ -1781,7 +1781,7 @@
           <div class="scan-cli">${esc(c.nombre || '(cliente borrado)')}${c.tienda ? ' — ' + esc(c.tienda) : ''}</div>
           <div>${esc(equipoTxt(o))}${o.imei ? ' · IMEI ' + esc(o.imei) : ''}</div>
           <div class="scan-falla">Falla: ${esc(o.falla)}</div>
-          <div>Ingresó: ${fmtDate(o.fecha)} · Saldo: ${s > 0 ? `<b class="debe">${money(s)}</b>` : '<b class="pagado">PAGADO</b>'}</div>
+          <div>Ingresó: ${fmtDate(o.fecha)} · Saldo: ${s > 0 ? `<b class="debe">${money(s)}</b>` : !num(o.costo) ? '<b>SIN PRECIO</b>' : '<b class="pagado">PAGADO</b>'}</div>
           <div class="scan-actions">
             ${o.estado !== 'Listo' && o.estado !== 'Entregado' ? '<button class="btn green big" data-act="listo">✅ MARCAR LISTO</button>' : ''}
             ${o.estado === 'Listo' ? `<button class="btn green" data-act="avisar">💬 ${o.avisadoListo ? 'Reenviar reporte por WhatsApp' : 'Enviar reporte por WhatsApp'}</button>` : ''}
@@ -1897,7 +1897,7 @@
             <td>${esc(clienteNombre(o.clienteId))}</td>
             <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === o.estado ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
-            <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : '<span class="tag ok">PAGADO</span>'}</td>
+            <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
             <td class="actions">${o.estado === 'Listo' ? `<button class="btn sm green" data-avisar="${o.id}" title="Enviar reporte de LISTO por WhatsApp">💬${o.avisadoListo ? ' ✓' : ''}</button>` : ''}<button class="btn sm" data-label="${o.id}" title="Imprimir etiqueta QR">🏷</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
@@ -2154,30 +2154,65 @@
   }
 
   // La contabilidad que se llevaba a mano se carga sola, una única vez para todos los equipos:
-  // clientes, la cartera al día y los trabajos de HOY (5 de octubre). Los días 1 al 4 no se cargan.
-  // config.importOct2026: '' = falta cargar · '1' = cargado con los días 1–4 (hay que quitarlos) · '2' = listo
+  // clientes, la cartera al día y los equipos de HOY (5 de octubre) como órdenes de ingreso en "Recibido"
+  // (entraron al negocio, no están listos y no se han cobrado). Los días 1 al 4 no se cargan.
+  // config.importOct2026: '' = falta cargar · '1' = cargado con días 1–4 · '2' = solo hoy en el reporte · '3' = listo
   const IMPORT_OCT = 'importOct2026';
   const VIEJOS_OCT = /^imp-mov-2026-10-0[1-4]-/;
+  const HOY_OCT = /^imp-mov-2026-10-05-(\d+)$/;
+  function ordenDesdeTrabajo(m, n) {
+    // "Honor Magic 6 Lite 5G – FRP", "Redmi Note 10 Pro – FRP", "Samsung A05S (garantía)"
+    let txt = m.concepto || '';
+    const fallas = [];
+    txt = txt.replace(/\s+–\s+(FRP|KG)\b/g, (x, f) => { fallas.push(f); return ''; });
+    if (/\(garant[ií]a\)/i.test(txt)) { fallas.push('Garantía'); txt = txt.replace(/\s*\(garant[ií]a\)/i, ''); }
+    txt = txt.trim();
+    const [primera, ...resto] = txt.split(' ');
+    let marca = '', modelo = txt;
+    if (MARCAS.includes(primera)) { marca = primera; modelo = resto.join(' '); }
+    else if (/^(Redmi|Poco)$/i.test(primera)) { marca = 'Xiaomi'; modelo = txt; }
+    else if (/^\S+$/.test(txt)) { marca = txt; modelo = ''; }
+    return {
+      id: 'imp-ord-2026-10-05-' + n, numero: nuevoNumeroOrden(), factura: nuevaFactura(), fecha: '2026-10-05',
+      clienteId: m.clienteId, equipo: 'Celular', marca, modelo, falla: fallas.join(', ') || 'Por revisar', trabajo: '',
+      costo: num(m.total), abono: 0, estado: 'Recibido', importado: true,
+      historial: [{ estado: 'Recibido', fecha: '2026-10-05T12:00:00.000Z' }],
+    };
+  }
   let importOctIntentado = false;
   async function importarOctubre() {
-    if (importOctIntentado || db.config[IMPORT_OCT] === '2') return;
+    if (importOctIntentado || db.config[IMPORT_OCT] === '3') return;
     importOctIntentado = true;
     try {
       let msg = '';
-      if (db.config[IMPORT_OCT] !== '1') {
+      if (!['1', '2'].includes(db.config[IMPORT_OCT])) {
         const r = await fetch('data/contabilidad-oct-2026.json', { cache: 'no-store' });
         const data = await r.json();
-        if (hasPending() || db.config[IMPORT_OCT] === '2') return;
+        if (hasPending() || db.config[IMPORT_OCT] === '3') return;
         const imp = prepararImport(data);
         imp.aplicar();
-        if (imp.total) msg = `Se cargó la contabilidad: ${imp.nC} clientes, ${imp.nM} trabajos de hoy y ${imp.nD} deudas`;
+        if (imp.nC || imp.nD) msg = `Se cargó la contabilidad: ${imp.nC} clientes y ${imp.nD} deudas. `;
       }
-      const antes = db.movimientos.length;
+      // días 1 al 4: fuera
       db.movimientos = db.movimientos.filter((m) => !VIEJOS_OCT.test(m.id));
-      if (!msg && antes !== db.movimientos.length) msg = 'Listo: quedaron solo los trabajos de hoy';
-      db.config[IMPORT_OCT] = '2';
+      // trabajos de hoy: pasan del reporte diario a Orden de ingreso
+      const hoy = db.movimientos.filter((m) => HOY_OCT.test(m.id)).sort((x, y) => Number(x.id.match(HOY_OCT)[1]) - Number(y.id.match(HOY_OCT)[1]));
+      let nO = 0;
+      hoy.forEach((m) => {
+        const n = m.id.match(HOY_OCT)[1];
+        if (db.ordenes.some((o) => o.id === 'imp-ord-2026-10-05-' + n)) return;
+        const o = ordenDesdeTrabajo(m, n);
+        db.ordenes.push(o);
+        if (o.costo > 0) {
+          db.cartera.push({ id: 'imp-ordcart-2026-10-05-' + n, origen: 'orden', ordenId: o.id, clienteId: o.clienteId, concepto: `Orden ${o.numero} - ${[o.equipo, o.marca, o.modelo].filter(Boolean).join(' ')}`, monto: o.costo, fecha: o.fecha, abonos: [] });
+        }
+        nO++;
+      });
+      db.movimientos = db.movimientos.filter((m) => !HOY_OCT.test(m.id));
+      if (nO) msg += `${nO} equipos de hoy pasaron a Orden de ingreso (Recibido)`;
+      db.config[IMPORT_OCT] = '3';
       save();
-      if (msg) { toast(msg); refreshView(); }
+      if (msg) { toast(msg.trim()); refreshView(); }
     } catch (e) {
       importOctIntentado = false; // sin conexión: se intenta en la próxima sincronización
     }
