@@ -421,6 +421,28 @@
     if (scanCode !== null) openScanner(scanCode);
   }
 
+  // En el celular las tablas se ven como tarjetas: cada dato lleva el nombre de su columna.
+  function etiquetarTablas() {
+    $$('.table-wrap table').forEach((t) => {
+      const cols = $$('thead th', t).map((th) => th.textContent.trim());
+      $$('tbody tr', t).forEach((tr) => {
+        let i = 0;
+        Array.from(tr.cells).forEach((td) => {
+          const span = td.colSpan || 1;
+          const lab = span === 1 ? cols[i] || '' : '';
+          if (td.dataset.label !== lab) td.dataset.label = lab;
+          i += span;
+        });
+      });
+    });
+  }
+  let etiquetaPend = false;
+  new MutationObserver(() => {
+    if (etiquetaPend) return;
+    etiquetaPend = true;
+    requestAnimationFrame(() => { etiquetaPend = false; etiquetarTablas(); });
+  }).observe(document.body, { childList: true, subtree: true });
+
   const head = (title, cls, extra = '') => `
     <div class="section-head">
       <h1 class="${cls}"><button class="btn ghost back" data-go="menu" aria-label="Volver">←</button>${title}</h1>

@@ -27,6 +27,7 @@ Es una PWA (`manifest.webmanifest` + `sw.js`): en Chrome/Edge de PC o en Chrome 
 - Cada día se guarda una copia de seguridad automática en la nube (`simtec/copias/AAAA-MM-DD.json` en el Blob store `simtec-datos`).
 - **⬇ Descargar Excel** en cada sección (o **Descargar todo en Excel** en Ajustes) baja los datos a la PC.
 - **Colores de la app** (Ajustes): *Clásico* o *Rojo, blanco y negro*. Se guarda en cada equipo y se puede volver a Clásico cuando quiera.
+- **En el celular** todo se acomoda solo: botones en dos columnas, formularios más cortos y las tablas se ven como tarjetas (en la PC se ve igual que siempre).
 - El usuario y la contraseña los valida el servidor; al cambiarlos se cierran las demás sesiones.
 
 ## Servidor (`/api`)

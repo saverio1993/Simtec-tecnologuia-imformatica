@@ -564,6 +564,77 @@ html[data-tema="rojo"] .tile { --glow: #ff1a1a !important; }
 html[data-tema="rojo"] .update-bar { background: #fff; }
 html[data-tema="rojo"] .login-wrap .install-btn { background: #ff1a1a; }
 
+/* ================= CELULAR: todo más ordenado (la PC queda igual) ================= */
+@media (max-width: 600px) {
+  main { padding: 14px 12px 50px; }
+  .card { padding: 14px 12px; }
+  .card h2 { font-size: 23px; }
+  .card h2 small { display: block; margin-top: 2px; }
+
+  /* encabezado: título arriba y los botones en dos columnas parejas */
+  .section-head { flex-direction: column; align-items: stretch; gap: 10px; }
+  .section-head h1 { display: flex; align-items: center; font-size: 32px; }
+  .section-head .toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+  .section-head .toolbar:empty { display: none; }
+  .section-head .toolbar > * { width: 100%; min-width: 0; padding-left: 8px; padding-right: 8px; }
+  .section-head .toolbar > .big, .section-head .toolbar > :only-child,
+  .section-head .toolbar > .big:first-child + :last-child { grid-column: 1 / -1; }
+  .section-head .toolbar .btn.big { font-size: 24px; padding: 12px; }
+
+  /* cuadros de números: de dos en dos; si queda uno solo, ocupa todo el ancho */
+  .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stats-row .stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .stat { padding: 10px 12px; }
+  .stat .label { font-size: 12px; }
+  .stat .value { font-size: 27px; }
+
+  /* formularios: números y fechas de dos en dos, lo demás a lo ancho */
+  .form-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid > .field { grid-column: 1 / -1; }
+  .form-grid > .field:has(input[type="number"]), .form-grid > .field:has(input[type="date"]) { grid-column: auto; }
+  .form-grid > .field:has(#rd-pago) { grid-column: 1 / -1; }
+  .field label { font-size: 13px; }
+  .form-actions > .btn { flex: 1 1 100%; }
+  .chip { padding: 7px 13px; }
+  .chip.big { font-size: 19px; padding: 8px 15px; }
+
+  /* buscador y filtros a lo ancho */
+  .toolbar { gap: 8px; }
+  .toolbar .search { flex: 1 1 100%; }
+  .toolbar .seg { flex: 1 1 100%; display: flex; }
+  .seg button { flex: 1; padding: 8px 6px; }
+  .seg[style] { display: flex; }
+
+  /* tablas como tarjetas */
+  .table-wrap { border: 0; border-radius: 0; overflow: visible; background: none; }
+  .table-wrap table { min-width: 0; }
+  .table-wrap thead { display: none; }
+  .table-wrap tbody, .table-wrap tfoot { display: block; }
+  .table-wrap tbody tr { display: block; background: var(--panel-2); border: 2px solid #ffffff55; border-radius: 14px; padding: 6px 2px; margin-bottom: 10px; }
+  .table-wrap tbody tr:hover td { background: transparent; }
+  .table-wrap td { display: block; text-align: right; border: 0; padding: 6px 12px; min-height: 0; overflow: hidden; }
+  .table-wrap td::before { content: attr(data-label); float: left; margin: 3px 12px 0 0; max-width: 45%; text-align: left; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+  .table-wrap td[data-label=""]::before, .table-wrap td:not([data-label])::before { content: none; }
+  .table-wrap td:empty { display: none; }
+  .table-wrap td[colspan] { display: block; text-align: center; }
+  .table-wrap tbody td:first-child { font-size: 18px; font-weight: 700; }
+  .table-wrap td.actions { border-top: 1px solid #ffffff22; margin-top: 4px; padding-top: 10px; }
+  .table-wrap td.actions .btn { margin: 0 0 0 6px; }
+  .table-wrap td select { max-width: 60%; }
+  .table-wrap tfoot tr { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; background: #1a1a1f; border: 2px solid #fff; border-radius: 14px; padding: 4px 2px; }
+  .table-wrap tfoot td { display: block; background: none; border: 0; padding: 8px 12px; }
+  .table-wrap tfoot td::before { content: none; }
+  .table-wrap .empty { padding: 18px; }
+
+  html[data-tema="rojo"] .table-wrap { background: none; border: 0; }
+  html[data-tema="rojo"] .table-wrap tbody tr { background: #fff; border: 3px solid #000; box-shadow: 0 3px 0 #0005; }
+  html[data-tema="rojo"] .table-wrap td { background: transparent; }
+  html[data-tema="rojo"] .table-wrap td::before { color: #b00000; }
+  html[data-tema="rojo"] .table-wrap td.actions { border-top-color: #0002; }
+  html[data-tema="rojo"] .table-wrap tfoot tr { background: #000; }
+  html[data-tema="rojo"] .table-wrap tbody tr:hover td { background: transparent; }
+}
+
 /* ================= AVISO DE VERSIÓN NUEVA ================= */
 .update-bar {
   position: fixed; left: 50%; top: 70px; transform: translateX(-50%); z-index: 120;
