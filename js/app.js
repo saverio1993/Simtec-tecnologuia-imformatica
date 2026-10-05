@@ -2144,6 +2144,11 @@
           <button class="btn" id="aj-backup">⬇ Descargar copia (.json)</button>
           <label class="btn">⬆ Restaurar copia<input type="file" id="aj-restore" accept="application/json,.json" hidden></label>
         </div>
+      </div>
+      <div class="card">
+        <h2>Empezar de cero</h2>
+        <p style="color:var(--muted);margin-top:0">Borra <b>todos</b> los clientes, órdenes / equipos, cartera, reporte diario, cierres e inventario en <b>todas</b> las computadoras. La factura vuelve a empezar en 00. Se mantienen los datos del negocio, el WhatsApp del encargado y la contraseña. Antes de borrar se descarga una copia por si acaso.</p>
+        <div class="form-actions"><button class="btn red" id="aj-reset">🧹 Dejar todo en blanco</button></div>
       </div>`;
 
     const marcarTema = () => $$('#aj-tema [data-tema]').forEach((b) => b.classList.toggle('on', b.dataset.tema === document.documentElement.dataset.tema));
@@ -2198,6 +2203,23 @@
       a.download = `SIMTEC_copia_${today()}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+    $('#aj-reset').addEventListener('click', () => {
+      const n = db.clientes.length + db.ordenes.length + db.cartera.length + db.movimientos.length + db.inventario.length + db.cierres.length;
+      if (!confirm(`Se van a borrar ${db.clientes.length} clientes, ${db.ordenes.length} órdenes y todo lo demás (${n} registros) en todas las computadoras. ¿Continuar?`)) return;
+      if ((prompt('Para confirmar escriba BORRAR') || '').trim().toUpperCase() !== 'BORRAR') { toast('No se borró nada'); return; }
+      $('#aj-backup').click(); // copia de seguridad antes de borrar
+      const vacio = { ...emptyDB(), config: { ...db.config } };
+      api('POST', 'data', { replace: vacio })
+        .then((res) => {
+          synced = normalize(res.data);
+          db = clone(synced);
+          version = res.version;
+          cacheLocal();
+          toast('Listo: todo quedó en blanco');
+          route();
+        })
+        .catch((err) => (err instanceof AuthError ? handleSyncError(err) : toast('No se pudo borrar: ' + err.message)));
     });
     $('#aj-restore').addEventListener('change', (e) => {
       const f = e.target.files[0];
