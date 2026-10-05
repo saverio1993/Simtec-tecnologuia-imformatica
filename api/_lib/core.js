@@ -16,7 +16,7 @@ export const emptyData = () => ({
     moneda: '$',
     paisWa: '507',
     encargadoWa: '6240-9181',
-    importOct2026: '', // '4' cuando ya se cargó la contabilidad manual de octubre
+    importOct2026: '', // '5' cuando ya se cargó la contabilidad manual de octubre
   },
   seq: { orden: 0, factura: 0 },
   clientes: [],
@@ -133,11 +133,11 @@ export function applyChanges(data, changes) {
 // ese número, a la orden nueva se le da el siguiente libre.
 function asignarFactura(data, orden) {
   if (orden.factura == null) return;
-  const usados = new Set(data.ordenes.filter((o) => o.factura != null).map((o) => String(o.factura)));
+  const usados = new Set(data.ordenes.filter((o) => o.factura != null).map((o) => Number(o.factura)));
   const mayor = data.ordenes.reduce((mx, o) => (o.factura != null ? Math.max(mx, Number(o.factura) + 1) : mx), 0);
-  if (usados.has(String(orden.factura))) {
-    const n = Math.max(data.seq.factura || 0, mayor);
-    orden.factura = String(n).padStart(2, '0');
+  if (usados.has(Number(orden.factura))) {
+    const n = Math.max(data.seq.factura || 0, mayor, 1);
+    orden.factura = String(n).padStart(3, '0');
   }
   data.seq.factura = Math.max(data.seq.factura || 0, mayor, Number(orden.factura) + 1);
 }

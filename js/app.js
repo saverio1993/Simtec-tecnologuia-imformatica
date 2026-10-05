@@ -1522,9 +1522,9 @@
   // número de factura en secuencia: 00, 01, 02… (sigue después del mayor que ya exista)
   function nuevaFactura() {
     const mayor = db.ordenes.reduce((mx, o) => (o.factura != null ? Math.max(mx, Number(o.factura) + 1) : mx), 0);
-    const n = Math.max(db.seq.factura || 0, mayor);
+    const n = Math.max(db.seq.factura || 0, mayor, 1); // la primera es 001
     db.seq.factura = n + 1;
-    return String(n).padStart(2, '0');
+    return String(n).padStart(3, '0');
   }
   // número de orden aleatorio de 6 dígitos, que no se repite
   function nuevoNumeroOrden() {
@@ -2086,7 +2086,7 @@
         <div class="seg" id="or-filtro"><button class="on" data-f="taller">En taller</button><button data-f="Listo">Listos</button><button data-f="Entregado">Entregados</button><button data-f="all">Todas</button></div>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Factura</th><th>Orden</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th class="num">Saldo</th><th></th></tr></thead>
+        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th class="num">Saldo</th><th></th></tr></thead>
         <tbody id="or-body"></tbody>
       </table></div>`;
 
@@ -2101,7 +2101,7 @@
       const rows = db.ordenes
         .filter((o) => (q ? true : pasaFiltro(o)))
         .filter((o) => !q || [o.numero, o.factura != null ? 'N°' + o.factura : '', clienteNombre(o.clienteId), o.marca, o.modelo, o.imei, o.falla].join(' ').toLowerCase().includes(q))
-        .slice().reverse();
+        .slice().sort((a, b) => (Number(a.factura) || 0) - (Number(b.factura) || 0));
       const cuenta = (f) => db.ordenes.filter((o) => (f === 'taller' ? o.estado !== 'Listo' && o.estado !== 'Entregado' : f === 'all' || o.estado === f)).length;
       $$('#or-filtro button', el).forEach((b) => (b.textContent = b.textContent.replace(/ \(\d+\)$/, '') + ` (${cuenta(b.dataset.f)})`));
       $('#or-body').innerHTML = rows.length
@@ -2109,16 +2109,15 @@
           const s = saldoOrden(o);
           return `<tr>
             <td><b class="fact-n">${o.factura != null ? 'N°' + esc(o.factura) : '—'}</b></td>
-            <td><b>${esc(o.numero)}</b></td>
             <td>${fmtDate(o.fecha)}</td>
             <td>${esc(clienteNombre(o.clienteId))}</td>
             <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === o.estado ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
-            <td class="actions">${o.estado === 'Listo' ? `<button class="btn sm green" data-avisar="${o.id}" title="Enviar reporte de LISTO por WhatsApp">💬${o.avisadoListo ? ' ✓' : ''}</button>` : ''}<button class="btn sm" data-label="${o.id}" title="Imprimir etiqueta QR">🏷</button><button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
+            <td class="actions">${o.estado === 'Listo' ? `<button class="btn sm green" data-avisar="${o.id}" title="Enviar reporte de LISTO por WhatsApp">💬${o.avisadoListo ? ' ✓' : ''}</button>` : ''}<button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
-        : `<tr><td colspan="8" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
+        : `<tr><td colspan="7" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
     }
     refreshOrdenList = render;
     $('#or-scan').addEventListener('click', () => openScanner());
@@ -2459,8 +2458,9 @@
   }
   let importOctIntentado = false;
   async function importarOctubre() {
-    if (importOctIntentado || db.config[IMPORT_OCT] === '4') return;
+    if (importOctIntentado || db.config[IMPORT_OCT] === '5') return;
     if (db.config[IMPORT_OCT] === '3') return importarCopia();
+    if (db.config[IMPORT_OCT] === '4') return renumerarFacturas();
     importOctIntentado = true;
     try {
       let msg = '';
@@ -2512,9 +2512,21 @@
       db.config[IMPORT_OCT] = '4';
       save();
       if (imp.total) { toast(`Se cargó la copia: ${imp.nO} órdenes, ${imp.nD} deudas, ${imp.nC} clientes y ${imp.nCi} cierre`); refreshView(); }
+      importOctIntentado = false;
+      setTimeout(importarOctubre, 1500);
     } catch (e) {
       importOctIntentado = false;
     }
+  }
+  // '4' → '5': las facturas quedan 001, 002, 003… en orden de fecha (una única vez)
+  function renumerarFacturas() {
+    if (hasPending()) { importOctIntentado = false; return; }
+    const lista = db.ordenes.slice().sort((a, b) => a.fecha.localeCompare(b.fecha) || (Number(a.factura) || 0) - (Number(b.factura) || 0));
+    lista.forEach((o, i) => { o.factura = String(i + 1).padStart(3, '0'); });
+    db.seq.factura = lista.length + 1;
+    db.config[IMPORT_OCT] = '5';
+    save();
+    if (lista.length) { toast(`Facturas ordenadas: N°001 a N°${String(lista.length).padStart(3, '0')}`); refreshView(); }
   }
 
   views.ajustes = (el) => {
