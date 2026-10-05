@@ -644,8 +644,6 @@
       <div class="stats-row" id="ca-stats"></div>
       <div class="toolbar">
         <div class="search"><input id="ca-q" placeholder="Buscar cliente o modelo…"></div>
-        <div class="seg" id="ca-vista"><button class="on" data-v="cliente">Por cliente</button><button data-v="detalle">Detalle</button></div>
-        <div class="seg" id="ca-filtro"><button class="on" data-f="pend">Pendientes</button><button data-f="all">Todas</button></div>
       </div>
       <div class="table-wrap"><table>
         <thead id="ca-head"></thead>
@@ -665,8 +663,9 @@
         ${db.clientes.length ? '' : '<span style="color:var(--muted)">Primero cree clientes en la sección <a href="#clientes" style="color:#fff">Clientes</a>.</span>'}</div>
       </form>`;
 
-    let filtro = 'pend';
-    let vista = 'cliente';
+    // una sola tabla: cada deuda pendiente con su cliente, y los botones en cada fila
+    const filtro = 'pend';
+    let vista = 'detalle';
     // ---- cuenta de un cliente: lista completa de lo que debe y resumen para WhatsApp
     const deudasDe = (id) => db.cartera.filter((d) => enCartera(d) && d.clienteId === id && saldo(d) > 0).sort((a, b) => a.fecha.localeCompare(b.fecha));
     // resumen de la cuenta en imagen (mismo diseño que la orden)
@@ -761,9 +760,12 @@
           }).join('')
           : `<tr><td colspan="6" class="empty">Nadie le debe 🎉</td></tr>`;
       } else {
-        $('#ca-head').innerHTML = '<tr><th>Fecha</th><th>Cliente</th><th>Concepto / modelo</th><th class="num">Monto</th><th class="num">Abonado</th><th class="num">Debe</th><th></th></tr>';
+        $('#ca-head').innerHTML = '<tr><th>Fecha</th><th>Cliente</th><th>Equipo / modelo</th><th class="num">Monto</th><th class="num">Abonado</th><th class="num">Debe</th><th></th></tr>';
         $('#ca-total-lab').colSpan = 5;
-        const rows = deudas.filter(match).sort((a, b) => b.fecha.localeCompare(a.fecha));
+        // agrupado por cliente (el que más debe primero) y dentro por fecha
+        const debeCli = new Map();
+        deudas.forEach((d) => debeCli.set(d.clienteId, (debeCli.get(d.clienteId) || 0) + saldo(d)));
+        const rows = deudas.filter(match).sort((a, b) => (debeCli.get(b.clienteId) - debeCli.get(a.clienteId)) || String(a.clienteId).localeCompare(String(b.clienteId)) || a.fecha.localeCompare(b.fecha));
         $('#ca-body').innerHTML = rows.length
           ? rows.map((d) => {
             const c = clienteById(d.clienteId) || {};
@@ -777,6 +779,8 @@
               <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : '<span class="tag ok">PAGADO</span>'}</td>
               <td class="actions">
                 ${s > 0 ? `<button class="btn sm green" data-abono="${d.id}">Abonar</button>` : ''}
+                <button class="btn sm" data-cuenta="${d.clienteId}" title="Ver la cuenta completa del cliente">📋 Cuenta</button>
+                <button class="btn sm green" data-wa-cli="${d.clienteId}" title="Enviar el estado de cuenta en imagen por WhatsApp">🖼 WhatsApp</button>
                 <button class="btn sm red" data-del="${d.id}">Borrar</button>
               </td></tr>`;
           }).join('')
@@ -813,17 +817,10 @@
       render();
     });
     $('#ca-q').addEventListener('input', render);
-    $$('#ca-filtro button', el).forEach((b) => b.addEventListener('click', () => {
-      $$('#ca-filtro button', el).forEach((x) => x.classList.toggle('on', x === b));
-      filtro = b.dataset.f;
-      render();
-    }));
     const setVista = (v) => {
       vista = v;
-      $$('#ca-vista button', el).forEach((x) => x.classList.toggle('on', x.dataset.v === v));
       render();
     };
-    $$('#ca-vista button', el).forEach((b) => b.addEventListener('click', () => setVista(b.dataset.v)));
     function abonarDe(id) {
       const deudas = deudasDe(id);
       const debe = deudas.reduce((t, d) => t + saldo(d), 0);
