@@ -45,6 +45,11 @@
     del(k) { try { localStorage.removeItem(k); } catch (e) { /* almacenamiento bloqueado */ } },
   };
 
+  // Colores de la app (se guarda en este equipo): 'clasico' o 'rojo' (solo rojo, blanco y negro)
+  const TEMA_KEY = 'simtec_tema';
+  const aplicarTema = (t) => { document.documentElement.dataset.tema = t === 'rojo' ? 'rojo' : 'clasico'; };
+  aplicarTema(ls.get(TEMA_KEY));
+
   // db = lo que se ve y edita; synced = última versión confirmada por el servidor.
   // Lo que cambie entre los dos se envía al servidor.
   let token = ls.get(TOKEN_KEY);
@@ -2079,6 +2084,14 @@
     const c = db.config;
     el.innerHTML = `
       ${head('AJUSTES', 'h-blue')}
+      <div class="card">
+        <h2>Colores de la app</h2>
+        <div class="chips" id="aj-tema">
+          <button type="button" class="chip big" data-tema="clasico">Clásico</button>
+          <button type="button" class="chip big" data-tema="rojo">Rojo, blanco y negro</button>
+        </div>
+        <p style="color:var(--muted);margin:10px 0 0">Se aplica al instante en este equipo. Si no le gusta, toque <b>Clásico</b> para dejarlo como estaba.</p>
+      </div>
       <form class="card" id="aj-negocio">
         <h2>Datos del negocio (salen en la orden de ingreso)</h2>
         <div class="form-grid">
@@ -2110,6 +2123,16 @@
           <label class="btn">⬆ Restaurar copia<input type="file" id="aj-restore" accept="application/json,.json" hidden></label>
         </div>
       </div>`;
+
+    const marcarTema = () => $$('#aj-tema [data-tema]').forEach((b) => b.classList.toggle('on', b.dataset.tema === document.documentElement.dataset.tema));
+    marcarTema();
+    $('#aj-tema').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-tema]');
+      if (!b) return;
+      ls.set(TEMA_KEY, b.dataset.tema);
+      aplicarTema(b.dataset.tema);
+      marcarTema();
+    });
 
     $('#aj-negocio').addEventListener('submit', (e) => {
       e.preventDefault();
