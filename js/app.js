@@ -9,6 +9,8 @@
   const CACHE_KEY = 'simtec_cache_v2';
   const OLD_LOCAL_KEY = 'simtec_db_v1'; // datos de la versión anterior (solo en este navegador)
   const COLLECTIONS = ['clientes', 'cartera', 'movimientos', 'ordenes', 'inventario', 'cierres'];
+  const ENCARGADO_WA = '6240-9181'; // recibe siempre el cierre del día (se puede cambiar en Ajustes)
+  const encargado = () => db.config.encargadoWa || ENCARGADO_WA;
 
   // ------------------------------------------------------------------ datos
   const emptyDB = () => ({
@@ -19,7 +21,7 @@
       direccion: '',
       moneda: '$',
       paisWa: '507',
-      encargadoWa: '',
+      encargadoWa: ENCARGADO_WA,
     },
     seq: { orden: 0, factura: 0 },
     clientes: [],
@@ -227,7 +229,7 @@
   });
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261005d'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261005e'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -878,7 +880,7 @@
       factura: o.factura != null ? 'N°' + o.factura : '', orden: o.numero, cliente: clienteNombre(o.clienteId),
       equipo: [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo, falla: o.falla, total: num(o.costo), debe: saldoOrden(o),
     }));
-    const cartera = porCliente(db.cartera.filter((d) => enCartera(d) && saldo(d) > 0)).map((g) => {
+    const cartera = porCliente(db.cartera.filter((d) => (enCartera(d) || (esperaCierre(d) && d.fecha === f)) && saldo(d) > 0)).map((g) => {
       const c = clienteById(g.clienteId) || {};
       return { cliente: c.nombre || '', tienda: c.tienda || '', whatsapp: c.whatsapp || '', modelos: resumenModelos(g.deudas.filter((d) => saldo(d) > 0)), desde: g.deudas.map((d) => d.fecha).sort()[0], debe: g.debe };
     });
@@ -990,10 +992,30 @@
     if (cur) { cur.enviado = new Date().toISOString(); save(); refreshReporte(); }
   };
   let refreshReporte = () => {};
+  // Envía los PDF del cierre al encargado. Debe llamarse directo desde un toque (el navegador lo exige).
+  async function enviarCierre(c, files) {
+    const texto = resumenCierreTexto(c);
+    if (navigator.canShare && navigator.canShare({ files })) {
+      // Android / Windows: menú de compartir con los PDF adjuntos → WhatsApp → encargado
+      try {
+        await navigator.share({ files, title: `Cierre ${fmtDate(c.fecha)}`, text: texto });
+        marcarEnviado(c.fecha);
+        toast('Cierre enviado ✅');
+      } catch (err) {
+        if (err.name !== 'AbortError') toast('No se pudo compartir: ' + err.message);
+      }
+    } else {
+      // sin compartir archivos: se abre directo el chat del encargado con el resumen y se descargan los PDF
+      window.open(waLink(encargado(), texto + '\n\n📎 Adjunto los PDF del cierre y de la cartera.'), '_blank', 'noopener');
+      files.forEach(descargar);
+      marcarEnviado(c.fecha);
+      toast(`WhatsApp abierto con ${encargado()}: adjunte los 2 PDF descargados y toque Enviar`);
+    }
+  }
   // ventana del cierre: genera los 2 PDF y permite enviarlos por WhatsApp o descargarlos
   function openCierreListo(c, { recien = false } = {}) {
     let files = null;
-    const enc = db.config.encargadoWa;
+    const enc = encargado();
     const { el } = openModal(`
       <div class="cierre-box">
         <div class="modal-actions"><button class="btn" data-act="close">Cerrar</button></div>
@@ -1005,32 +1027,14 @@
           <button class="btn" data-act="pdf" disabled>⬇ Descargar PDF</button>
           <button class="btn" data-act="excel">⬇ Excel</button>
         </div>
-        <p class="modal-hint">${enc ? `Encargado: ${esc(enc)} (se cambia en Ajustes)` : 'Ponga el WhatsApp del encargado en Ajustes para enviarle el resumen directo.'}</p>
+        <p class="modal-hint">Se envía al encargado: <b>${esc(enc)}</b> (se cambia en Ajustes)</p>
       </div>`,
     async (e, a) => {
       if (!a) return;
       if (a.dataset.act === 'excel') excelCierre(c.fecha);
       if (!files) return;
       if (a.dataset.act === 'pdf') files.forEach(descargar);
-      if (a.dataset.act === 'enviar') {
-        const texto = resumenCierreTexto(c);
-        if (navigator.canShare && navigator.canShare({ files })) {
-          try {
-            await navigator.share({ files, title: `Cierre ${fmtDate(c.fecha)}`, text: texto });
-            marcarEnviado(c.fecha);
-            toast('Cierre compartido ✅');
-          } catch (err) {
-            if (err.name !== 'AbortError') toast('No se pudo compartir: ' + err.message);
-          }
-        } else {
-          // este equipo no comparte archivos: se descargan y se abre el chat del encargado con el resumen
-          files.forEach(descargar);
-          const msg = texto + '\n\n📎 Adjunto los PDF del cierre y de la cartera.';
-          window.open(enc ? waLink(enc, msg) : 'https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
-          marcarEnviado(c.fecha);
-          toast('PDF descargados: adjúntelos en el chat de WhatsApp que se abrió');
-        }
-      }
+      if (a.dataset.act === 'enviar') enviarCierre(c, files);
     });
     Promise.all([pdfCierre(c), pdfCartera(c)])
       .then((f) => {
@@ -1192,28 +1196,37 @@
               <tbody>${grupos.map((g) => `<tr><td><b>${esc(clienteNombre(g.clienteId) || '(sin cliente)')}</b></td><td>${esc(resumenModelos(g.deudas))}</td><td class="num"><span class="tag due">${money(g.debe)}</span></td></tr>`).join('')}</tbody>
             </table></div>` : '<p class="empty">Nadie quedó debiendo 🎉</p>'}
           </div>
+          <p class="modal-hint" id="ci-estado">Preparando los PDF del cierre y la cartera…</p>
           <div class="form-actions" style="justify-content:center">
-            <button class="btn yellow big" data-act="confirmar">🔒 CONFIRMAR CIERRE</button>
+            <button class="btn yellow big" data-act="confirmar" disabled>🔒 CONFIRMAR CIERRE Y ENVIAR</button>
           </div>
+          <p class="modal-hint">Se cierra el día y se abre WhatsApp con los PDF para el encargado <b>${esc(encargado())}</b>. Solo toque Enviar.</p>
         </div>`,
       (e, a) => {
-        if (!a || a.dataset.act !== 'confirmar') return;
-        const hora = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+        if (!a || a.dataset.act !== 'confirmar' || !files) return;
         pend.forEach((d) => { if (!d.cerrado) d.cerrado = f; });
-        const registro = {
-          id: 'cierre-' + f, fecha: f, hora, ingresos: ing, gastos: gas, total: ing - gas, trabajos, enMora,
-          deudores: grupos.map((g) => ({ clienteId: g.clienteId, cliente: clienteNombre(g.clienteId), modelos: resumenModelos(g.deudas), debe: g.debe })),
-        };
-        registro.snap = snapshotCierre(f); // queda guardado en la nube para volver a sacar el PDF
         const i = db.cierres.findIndex((c) => c.fecha === f);
         if (i >= 0) db.cierres[i] = registro; else db.cierres.push(registro);
         save();
         close();
         render();
-        toast(grupos.length ? `Día cerrado: ${grupos.length} ${grupos.length === 1 ? 'cliente pasó' : 'clientes pasaron'} a Cartera` : 'Día cerrado ✅');
-        openCierreListo(registro, { recien: true });
+        enviarCierre(registro, files); // en el mismo toque, para que el navegador permita abrir WhatsApp
       });
-      void m;
+      // el registro y los PDF se preparan al abrir la ventana, así el toque de confirmar envía de inmediato
+      const registro = {
+        id: 'cierre-' + f, fecha: f, hora: new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }),
+        ingresos: ing, gastos: gas, total: ing - gas, trabajos, enMora,
+        deudores: grupos.map((g) => ({ clienteId: g.clienteId, cliente: clienteNombre(g.clienteId), modelos: resumenModelos(g.deudas), debe: g.debe })),
+        snap: snapshotCierre(f), // queda guardado en la nube para volver a sacar el PDF
+      };
+      let files = null;
+      Promise.all([pdfCierre(registro), pdfCartera(registro)])
+        .then((fl) => {
+          files = fl;
+          $('[data-act=confirmar]', m).disabled = false;
+          $('#ci-estado', m).textContent = '✅ PDF listos (Cierre del día y Cartera)';
+        })
+        .catch((err) => ($('#ci-estado', m).textContent = 'No se pudieron crear los PDF: ' + err.message));
     }
 
     const toRows = (list) => {
@@ -2054,7 +2067,7 @@
           <div class="field"><label for="aj-tel">Teléfono / WhatsApp</label><input id="aj-tel" value="${esc(c.telefono)}"></div>
           <div class="field"><label for="aj-dir">Dirección</label><input id="aj-dir" value="${esc(c.direccion)}"></div>
           <div class="field"><label for="aj-mon">Símbolo de moneda</label><input id="aj-mon" value="${esc(c.moneda)}" maxlength="4"></div>
-          <div class="field"><label for="aj-enc">WhatsApp del encargado (recibe el cierre)</label><input id="aj-enc" type="tel" value="${esc(c.encargadoWa)}" placeholder="6123-4567"></div>
+          <div class="field"><label for="aj-enc">WhatsApp del encargado (recibe el cierre)</label><input id="aj-enc" type="tel" value="${esc(c.encargadoWa || ENCARGADO_WA)}" placeholder="${ENCARGADO_WA}"></div>
           <div class="field"><label for="aj-pais">Código de país para WhatsApp</label><input id="aj-pais" value="${esc(c.paisWa)}" maxlength="4" inputmode="numeric" placeholder="507"></div>
           <div class="field full"><label for="aj-dgi">Enlace del portal de facturación DGI</label><input id="aj-dgi" type="url" value="${esc(c.dgiUrl)}"></div>
         </div>
@@ -2086,7 +2099,7 @@
         negocio: $('#aj-neg').value.trim() || 'SIMTEC', telefono: $('#aj-tel').value.trim(), direccion: $('#aj-dir').value.trim(),
         moneda: $('#aj-mon').value.trim() || '$', dgiUrl: $('#aj-dgi').value.trim() || db.config.dgiUrl,
         paisWa: $('#aj-pais').value.replace(/\D/g, ''),
-        encargadoWa: $('#aj-enc').value.trim(),
+        encargadoWa: $('#aj-enc').value.trim() || ENCARGADO_WA,
       });
       save();
       toast('Datos guardados');

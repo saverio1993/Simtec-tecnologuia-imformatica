@@ -15,7 +15,7 @@ export const emptyData = () => ({
     direccion: '',
     moneda: '$',
     paisWa: '507',
-    encargadoWa: '',
+    encargadoWa: '6240-9181',
   },
   seq: { orden: 0, factura: 0 },
   clientes: [],
