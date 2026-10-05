@@ -1,0 +1,393 @@
+{
+ "simtecImport": "copia 2026-10-05",
+ "clientes": [
+  {
+   "id": "muuqkjy5ig4us",
+   "nombre": "Cliente Final",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "muuqsiw5f8omh",
+   "nombre": "Jose Barbao",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "muuntvnfi4y9r",
+   "nombre": "Eduardo Paredes",
+   "tienda": "Edu Phone 888",
+   "whatsapp": "64159364"
+  },
+  {
+   "id": "muuo97yyc47op",
+   "nombre": "Cliente sin nombre (400 Lite)",
+   "tienda": "",
+   "whatsapp": ""
+  }
+ ],
+ "movimientos": [],
+ "cartera": [
+  {
+   "id": "muuo10fdcpgu6",
+   "origen": "manual",
+   "clienteId": "muuntvnfi4y9r",
+   "concepto": "Honor 8 Lite",
+   "monto": 40,
+   "fecha": "2026-10-04",
+   "abonos": []
+  },
+  {
+   "id": "muuobw4vyh6pl",
+   "origen": "manual",
+   "clienteId": "muuo97yyc47op",
+   "concepto": "Honor 400 Lite",
+   "monto": 30,
+   "fecha": "2026-10-04",
+   "abonos": []
+  },
+  {
+   "id": "muuqm9lvu7lfo",
+   "origen": "orden",
+   "ordenId": "muuqm9lpcfp00",
+   "clienteId": "muuqkjy5ig4us",
+   "concepto": "Orden SIM-228442 - Celular Xiaomi Redmi 15C",
+   "monto": 20,
+   "fecha": "2026-10-04",
+   "abonos": []
+  },
+  {
+   "id": "muuqp283uz8rw",
+   "origen": "orden",
+   "ordenId": "muuqp2825u2su",
+   "clienteId": "muuqkjy5ig4us",
+   "concepto": "Orden SIM-516319 - Celular Samsung A23",
+   "monto": 5,
+   "fecha": "2026-10-04",
+   "abonos": []
+  },
+  {
+   "id": "muuqsiw62px2s",
+   "origen": "orden",
+   "ordenId": "muuqsiw5437gm",
+   "clienteId": "muuqsiw5f8omh",
+   "concepto": "Orden SIM-101513 - Celular Xiaomi Redmi A3",
+   "monto": 15,
+   "fecha": "2026-10-04",
+   "abonos": []
+  }
+ ],
+ "ordenes": [
+  {
+   "id": "muuqm9lpcfp00",
+   "numero": "SIM-228442",
+   "factura": "00",
+   "fecha": "2026-10-04",
+   "clienteId": "muuqkjy5ig4us",
+   "equipo": "Celular",
+   "marca": "Xiaomi",
+   "modelo": "Redmi 15C",
+   "falla": "FRP",
+   "trabajo": "",
+   "costo": 20,
+   "abono": 0,
+   "estado": "Recibido",
+   "historial": [
+    {
+     "estado": "Recibido",
+     "fecha": "2026-10-05T04:16:14.365Z"
+    },
+    {
+     "estado": "En reparación",
+     "fecha": "2026-10-05T04:17:21.659Z"
+    },
+    {
+     "estado": "Listo",
+     "fecha": "2026-10-05T04:17:24.061Z"
+    },
+    {
+     "estado": "Recibido",
+     "fecha": "2026-10-05T04:17:38.802Z"
+    }
+   ]
+  },
+  {
+   "id": "muuqp2825u2su",
+   "numero": "SIM-516319",
+   "factura": "01",
+   "fecha": "2026-10-04",
+   "clienteId": "muuqkjy5ig4us",
+   "equipo": "Celular",
+   "marca": "Samsung",
+   "modelo": "A23",
+   "falla": "Pantalla",
+   "trabajo": "",
+   "costo": 5,
+   "abono": 0,
+   "estado": "Recibido",
+   "historial": [
+    {
+     "estado": "Recibido",
+     "fecha": "2026-10-05T04:18:24.771Z"
+    }
+   ]
+  },
+  {
+   "id": "muuqsiw5437gm",
+   "numero": "SIM-101513",
+   "factura": "02",
+   "fecha": "2026-10-04",
+   "clienteId": "muuqsiw5f8omh",
+   "equipo": "Celular",
+   "marca": "Xiaomi",
+   "modelo": "Redmi A3",
+   "falla": "FRP",
+   "trabajo": "",
+   "costo": 15,
+   "abono": 0,
+   "estado": "Recibido",
+   "historial": [
+    {
+     "estado": "Recibido",
+     "fecha": "2026-10-05T04:21:06.342Z"
+    }
+   ]
+  }
+ ],
+ "cierres": [
+  {
+   "id": "cierre-2026-10-04",
+   "fecha": "2026-10-04",
+   "hora": "22:10",
+   "ingresos": 79,
+   "gastos": 0,
+   "total": 79,
+   "trabajos": 8,
+   "enMora": 115,
+   "deudores": [
+    {
+     "clienteId": "murdm22e4n0hw",
+     "cliente": "",
+     "modelos": "Honor Magic 5 Lite, Honor 400 lite",
+     "debe": 35
+    },
+    {
+     "clienteId": "muui8ut9psias",
+     "cliente": "",
+     "modelos": "Samsung A57",
+     "debe": 20
+    },
+    {
+     "clienteId": "muuifrdu2vieo",
+     "cliente": "",
+     "modelos": "Samsung A55",
+     "debe": 20
+    },
+    {
+     "clienteId": "muuiimis3jp2b",
+     "cliente": "",
+     "modelos": "Samsung",
+     "debe": 20
+    },
+    {
+     "clienteId": "muudg46dkue7j",
+     "cliente": "",
+     "modelos": "Samsung A04s",
+     "debe": 10
+    },
+    {
+     "clienteId": "muudocxaub8ve",
+     "cliente": "",
+     "modelos": "Honor X6a",
+     "debe": 10
+    }
+   ],
+   "snap": {
+    "movs": [
+     {
+      "tipo": "Abono",
+      "concepto": "Pago al entregar SIM-0004",
+      "cliente": "",
+      "total": 10,
+      "caja": 10,
+      "debe": 0
+     },
+     {
+      "tipo": "Abono",
+      "concepto": "Pago al entregar SIM-0005",
+      "cliente": "",
+      "total": 39,
+      "caja": 39,
+      "debe": 0
+     },
+     {
+      "tipo": "Abono",
+      "concepto": "Abono orden SIM-298529",
+      "cliente": "",
+      "total": 10,
+      "caja": 10,
+      "debe": 0
+     },
+     {
+      "tipo": "Abono",
+      "concepto": "Abono orden SIM-864498",
+      "cliente": "",
+      "total": 10,
+      "caja": 10,
+      "debe": 0
+     },
+     {
+      "tipo": "Abono",
+      "concepto": "Abono orden SIM-683872",
+      "cliente": "",
+      "total": 10,
+      "caja": 10,
+      "debe": 0
+     }
+    ],
+    "ordenes": [
+     {
+      "factura": "",
+      "orden": "SIM-0005",
+      "cliente": "",
+      "equipo": "Xiaomi nonte 15",
+      "falla": "PayJoy",
+      "total": 39,
+      "debe": 0
+     },
+     {
+      "factura": "",
+      "orden": "SIM-0006",
+      "cliente": "",
+      "equipo": "Honor Magic 5 Lite",
+      "falla": "PayJoy",
+      "total": 5,
+      "debe": 5
+     },
+     {
+      "factura": "",
+      "orden": "SIM-0007",
+      "cliente": "",
+      "equipo": "Honor 400 lite",
+      "falla": "PayJoy",
+      "total": 30,
+      "debe": 30
+     },
+     {
+      "factura": "",
+      "orden": "SIM-0008",
+      "cliente": "",
+      "equipo": "Samsung A04s",
+      "falla": "FRP",
+      "total": 10,
+      "debe": 10
+     },
+     {
+      "factura": "",
+      "orden": "SIM-363607",
+      "cliente": "",
+      "equipo": "Honor X6a",
+      "falla": "FRP",
+      "total": 10,
+      "debe": 10
+     },
+     {
+      "factura": "",
+      "orden": "SIM-298529",
+      "cliente": "",
+      "equipo": "Samsung A57",
+      "falla": "FRP",
+      "total": 30,
+      "debe": 20
+     },
+     {
+      "factura": "",
+      "orden": "SIM-864498",
+      "cliente": "",
+      "equipo": "Samsung A55",
+      "falla": "FRP",
+      "total": 30,
+      "debe": 20
+     },
+     {
+      "factura": "",
+      "orden": "SIM-683872",
+      "cliente": "",
+      "equipo": "Samsung",
+      "falla": "KG",
+      "total": 30,
+      "debe": 20
+     }
+    ],
+    "cartera": [
+     {
+      "cliente": "Eduardo Paredes",
+      "tienda": "Edu Phone  888",
+      "whatsapp": "64159364",
+      "modelos": "Honor 8 lite",
+      "desde": "2026-10-04",
+      "debe": 40
+     },
+     {
+      "cliente": "",
+      "tienda": "",
+      "whatsapp": "",
+      "modelos": "Honor Magic 5 Lite, Honor 400 lite",
+      "desde": "2026-10-04",
+      "debe": 35
+     },
+     {
+      "cliente": "",
+      "tienda": "",
+      "whatsapp": "",
+      "modelos": "Samsung A57",
+      "desde": "2026-10-04",
+      "debe": 20
+     },
+     {
+      "cliente": "",
+      "tienda": "",
+      "whatsapp": "",
+      "modelos": "Samsung A55",
+      "desde": "2026-10-04",
+      "debe": 20
+     },
+     {
+      "cliente": "",
+      "tienda": "",
+      "whatsapp": "",
+      "modelos": "Samsung",
+      "desde": "2026-10-04",
+      "debe": 20
+     },
+     {
+      "cliente": "",
+      "tienda": "",
+      "whatsapp": "",
+      "modelos": "Xiaomi Redmi 10C",
+      "desde": "2026-10-02",
+      "debe": 10
+     },
+     {
+      "cliente": "",
+      "tienda": "",
+      "whatsapp": "",
+      "modelos": "Samsung A04s",
+      "desde": "2026-10-04",
+      "debe": 10
+     },
+     {
+      "cliente": "",
+      "tienda": "",
+      "whatsapp": "",
+      "modelos": "Honor X6a",
+      "desde": "2026-10-04",
+      "debe": 10
+     }
+    ],
+    "carteraTotal": 165
+   },
+   "enviado": "2026-10-05T11:57:43.894Z"
+  }
+ ]
+}

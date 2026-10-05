@@ -2415,10 +2415,22 @@
     (data.cartera || []).forEach((d) => {
       if (d.id && !carIds.has(d.id)) nuevosD.push({ ...d, clienteId: mapa[d.clienteId] || d.clienteId, abonos: d.abonos || [] });
     });
+    // órdenes (con su número de factura: si ya está usado, el servidor le da el siguiente libre) y cierres
+    const ordIds = new Set(db.ordenes.map((x) => x.id));
+    const nuevosO = (data.ordenes || []).filter((o) => o.id && !ordIds.has(o.id)).map((o) => ({ ...o, clienteId: mapa[o.clienteId] || o.clienteId }));
+    const ciIds = new Set(db.cierres.map((x) => x.id));
+    const nuevosCi = (data.cierres || []).filter((c) => c.id && !ciIds.has(c.id) && !db.cierres.some((x) => x.fecha === c.fecha));
     return {
-      nC: nuevosC.length, nM: nuevosM.length, nD: nuevosD.length,
-      total: nuevosC.length + nuevosM.length + nuevosD.length,
-      aplicar() { db.clientes.push(...nuevosC); db.movimientos.push(...nuevosM); db.cartera.push(...nuevosD); },
+      nC: nuevosC.length, nM: nuevosM.length, nD: nuevosD.length, nO: nuevosO.length, nCi: nuevosCi.length,
+      total: nuevosC.length + nuevosM.length + nuevosD.length + nuevosO.length + nuevosCi.length,
+      aplicar() {
+        db.clientes.push(...nuevosC); db.movimientos.push(...nuevosM); db.cartera.push(...nuevosD);
+        nuevosO.forEach((o) => {
+          if (db.ordenes.some((x) => x.factura === o.factura)) o.factura = nuevaFactura();
+          db.ordenes.push(o);
+        });
+        db.cierres.push(...nuevosCi);
+      },
     };
   }
 
@@ -2450,7 +2462,8 @@
   }
   let importOctIntentado = false;
   async function importarOctubre() {
-    if (importOctIntentado || db.config[IMPORT_OCT] === '3') return;
+    if (importOctIntentado || db.config[IMPORT_OCT] === '4') return;
+    if (db.config[IMPORT_OCT] === '3') return importarCopia();
     importOctIntentado = true;
     try {
       let msg = '';
@@ -2482,8 +2495,28 @@
       db.config[IMPORT_OCT] = '3';
       save();
       if (msg) { toast(msg.trim()); refreshView(); }
+      importOctIntentado = false;
+      setTimeout(importarOctubre, 1500); // sigue con la copia del 5/10
     } catch (e) {
       importOctIntentado = false; // sin conexión: se intenta en la próxima sincronización
+    }
+  }
+  // '3' → '4': la copia de seguridad del 5/10 (órdenes del 4/10, deudas y el cierre del 4/10), una única vez.
+  // La deuda "Cliente final $25" del Excel son esas mismas 2 órdenes (Redmi 15C $20 + Samsung A23 $5): se quita para no cobrarla doble.
+  async function importarCopia() {
+    try {
+      const r = await fetch('data/copia-2026-10-05.json', { cache: 'no-store' });
+      const data = await r.json();
+      if (hasPending() || db.config[IMPORT_OCT] !== '3') { importOctIntentado = false; return; }
+      const imp = prepararImport(data);
+      imp.aplicar();
+      const cf = db.cartera.find((d) => d.id === 'imp-cart-12' && !(d.abonos || []).length);
+      if (cf && imp.nO) db.cartera = db.cartera.filter((d) => d !== cf);
+      db.config[IMPORT_OCT] = '4';
+      save();
+      if (imp.total) { toast(`Se cargó la copia: ${imp.nO} órdenes, ${imp.nD} deudas, ${imp.nC} clientes y ${imp.nCi} cierre`); refreshView(); }
+    } catch (e) {
+      importOctIntentado = false;
     }
   }
 
