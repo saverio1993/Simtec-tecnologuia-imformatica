@@ -16,6 +16,7 @@ export const emptyData = () => ({
     moneda: '$',
     paisWa: '507',
     encargadoWa: '6240-9181',
+    importOct2026: '', // '1' cuando ya se cargó la contabilidad manual de octubre
   },
   seq: { orden: 0, factura: 0 },
   clientes: [],

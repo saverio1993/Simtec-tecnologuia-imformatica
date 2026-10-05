@@ -1,0 +1,1569 @@
+{
+ "simtecImport": "contabilidad 1-15 oct 2026",
+ "clientes": [
+  {
+   "id": "imp-cli-albruk",
+   "nombre": "Albruk",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-albruk-2",
+   "nombre": "Albruk 2",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-albruk-3",
+   "nombre": "Albruk 3",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-albruk-luis",
+   "nombre": "Albruk Luis",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-andres",
+   "nombre": "Andres",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-barbero",
+   "nombre": "Barbero",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-capo",
+   "nombre": "Capo",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-chino",
+   "nombre": "Chino",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-chino-dominic",
+   "nombre": "Chino Dominic",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-cliente-final",
+   "nombre": "Cliente Final",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-cucho",
+   "nombre": "Cucho",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-didi",
+   "nombre": "Didi",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-dominic",
+   "nombre": "Dominic",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-esteban",
+   "nombre": "Esteban",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-firma",
+   "nombre": "Firma",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-fulo",
+   "nombre": "Fulo",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-india",
+   "nombre": "India",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-jesica",
+   "nombre": "Jesica",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-jesus",
+   "nombre": "Jesus",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-jesus-pedro",
+   "nombre": "Jesus Pedro",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-jose-barbao",
+   "nombre": "Jose Barbao",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-jose-terra",
+   "nombre": "Jose Terra",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-juan",
+   "nombre": "Juan",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-julio",
+   "nombre": "Julio",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-katia",
+   "nombre": "Katia",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-la-pifia",
+   "nombre": "La Pifia",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-laio",
+   "nombre": "Laio",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-leo",
+   "nombre": "Leo",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-macdonal",
+   "nombre": "Macdonal",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-mary",
+   "nombre": "Mary",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-miguel-albruk",
+   "nombre": "Miguel Albruk",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-movil-shen",
+   "nombre": "Movil Shen",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-mr-android",
+   "nombre": "Mr. Android",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-negrita",
+   "nombre": "Negrita",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-niche",
+   "nombre": "Niche",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-oniel",
+   "nombre": "Oniel",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-pollos",
+   "nombre": "Pollos",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-ramon",
+   "nombre": "Ramon",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-robin",
+   "nombre": "Robin",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-taxi-2",
+   "nombre": "Taxi 2",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-terra-1",
+   "nombre": "Terra 1",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-tienda-bonita",
+   "nombre": "Tienda Bonita",
+   "tienda": "",
+   "whatsapp": ""
+  },
+  {
+   "id": "imp-cli-tomas",
+   "nombre": "Tomas",
+   "tienda": "",
+   "whatsapp": ""
+  }
+ ],
+ "movimientos": [
+  {
+   "id": "imp-mov-2026-10-01-1",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Samsung A16 – KG",
+   "clienteId": "imp-cli-fulo",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 10,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-2",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Samsung A16 – KG",
+   "clienteId": "imp-cli-movil-shen",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 20,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-3",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Redmi – FRP",
+   "clienteId": "imp-cli-movil-shen",
+   "cantidad": 1,
+   "total": 7,
+   "monto": 7,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-4",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Tecno Spark – FRP",
+   "clienteId": "imp-cli-movil-shen",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-5",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor X5A Plus – FRP",
+   "clienteId": "imp-cli-katia",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 5,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-6",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor 400 Smart",
+   "clienteId": "imp-cli-jesus",
+   "cantidad": 1,
+   "total": 25,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-7",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor X5C",
+   "clienteId": "imp-cli-jesus-pedro",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-8",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor Magic 8 Lite – FRP",
+   "clienteId": "imp-cli-taxi-2",
+   "cantidad": 1,
+   "total": 30,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-9",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor 400 Lite – FRP",
+   "clienteId": "imp-cli-jesica",
+   "cantidad": 1,
+   "total": 25,
+   "monto": 25,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-10",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor X5D – FRP",
+   "clienteId": "imp-cli-mary",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 10,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-11",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor 200 Lite – FRP",
+   "clienteId": "imp-cli-niche",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 20,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-12",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Play 10 – FRP",
+   "clienteId": "imp-cli-jose-barbao",
+   "cantidad": 1,
+   "total": 15,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-13",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor X7D 5G – FRP",
+   "clienteId": "imp-cli-jose-barbao",
+   "cantidad": 1,
+   "total": 25,
+   "monto": 25,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-14",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor X6A – FRP",
+   "clienteId": "imp-cli-niche",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 5,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-15",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor X5C – FRP",
+   "clienteId": "imp-cli-capo",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 5,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-16",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Redmi – FRP",
+   "clienteId": "imp-cli-katia",
+   "cantidad": 1,
+   "total": 7,
+   "monto": 7,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-17",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor Magic 8 Lite – KG",
+   "clienteId": "imp-cli-robin",
+   "cantidad": 1,
+   "total": 30,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-18",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Honor X5B – FRP",
+   "clienteId": "imp-cli-ramon",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-19",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Samsung A16 – FRP",
+   "clienteId": "imp-cli-barbero",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-20",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Samsung A15",
+   "clienteId": "imp-cli-dominic",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-01-21",
+   "origen": "manual",
+   "fecha": "2026-10-01",
+   "tipo": "ingreso",
+   "concepto": "Samsung A17",
+   "clienteId": "imp-cli-dominic",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-1",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Samsung A54 – FRP",
+   "clienteId": "imp-cli-katia",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 10,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-2",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Honor Magic 5 Lite – FRP",
+   "clienteId": "imp-cli-katia",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-3",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Honor 400 Lite – FRP",
+   "clienteId": "imp-cli-barbero",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-4",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Samsung A16 – FRP",
+   "clienteId": "imp-cli-barbero",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-5",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Redmi – FRP",
+   "clienteId": "imp-cli-ramon",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-6",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Honor X6C – FRP",
+   "clienteId": "imp-cli-ramon",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-7",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Honor X8C – FRP",
+   "clienteId": "imp-cli-terra-1",
+   "cantidad": 1,
+   "total": 15,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-8",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Samsung A16 – FRP",
+   "clienteId": "imp-cli-mary",
+   "cantidad": 1,
+   "total": 15,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-9",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Honor X6C – FRP",
+   "clienteId": "imp-cli-mary",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-10",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Poco – FRP",
+   "clienteId": "imp-cli-jose-barbao",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 10,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-11",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Samsung A16 – FRP",
+   "clienteId": "imp-cli-jose-barbao",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 10,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-12",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Samsung A06 – FRP",
+   "clienteId": "imp-cli-jose-barbao",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-13",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Honor X5B Plus – FRP",
+   "clienteId": "imp-cli-leo",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-14",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "A26 – FRP",
+   "clienteId": "imp-cli-robin",
+   "cantidad": 1,
+   "total": 8,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-15",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Magic 7 Lite – FRP",
+   "clienteId": "imp-cli-robin",
+   "cantidad": 1,
+   "total": 25,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-16",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Honor X8C – FRP",
+   "clienteId": "imp-cli-firma",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-17",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "A07 – FRP",
+   "clienteId": "imp-cli-laio",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-18",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Honor X7D 5G – FRP",
+   "clienteId": "imp-cli-india",
+   "cantidad": 1,
+   "total": 25,
+   "monto": 15,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-19",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Honor X8 – FRP",
+   "clienteId": "imp-cli-macdonal",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 5,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-20",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Tecno Spark – FRP",
+   "clienteId": "imp-cli-chino-dominic",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-21",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Magic 8 Lite – FRP",
+   "clienteId": "imp-cli-albruk",
+   "cantidad": 1,
+   "total": 35,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-22",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Samsung A26 – FRP",
+   "clienteId": "imp-cli-albruk",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-23",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Redmi – FRP",
+   "clienteId": "imp-cli-esteban",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 20,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-24",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Samsung A06 – FRP",
+   "clienteId": "imp-cli-barbero",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-25",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Honor X6C – FRP",
+   "clienteId": "imp-cli-ramon",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-26",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "A16 – FRP",
+   "clienteId": "imp-cli-chino-dominic",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-27",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "A07 – FRP",
+   "clienteId": "imp-cli-tomas",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-28",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "A07 – FRP",
+   "clienteId": "imp-cli-tomas",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 10,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-29",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "A16 – FRP",
+   "clienteId": "imp-cli-tomas",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 20,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-30",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "Samsung A06 – FRP",
+   "clienteId": "imp-cli-chino",
+   "cantidad": 1,
+   "total": 15,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-31",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "X6A – FRP",
+   "clienteId": "imp-cli-tienda-bonita",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 10,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-02-32",
+   "origen": "manual",
+   "fecha": "2026-10-02",
+   "tipo": "ingreso",
+   "concepto": "A36 – FRP",
+   "clienteId": "imp-cli-dominic",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-1",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor Magic 8 Lite – FRP",
+   "clienteId": "imp-cli-ramon",
+   "cantidad": 1,
+   "total": 30,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-2",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor X7D – FRP",
+   "clienteId": "imp-cli-movil-shen",
+   "cantidad": 1,
+   "total": 15,
+   "monto": 15,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-3",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor X6C – FRP",
+   "clienteId": "imp-cli-albruk-luis",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 10,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-4",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor – FRP",
+   "clienteId": "imp-cli-miguel-albruk",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 5,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-5",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor – FRP",
+   "clienteId": "imp-cli-miguel-albruk",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 5,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-6",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor – FRP",
+   "clienteId": "imp-cli-miguel-albruk",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 5,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-7",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor – FRP",
+   "clienteId": "imp-cli-laio",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-8",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Samsung A07 – FRP",
+   "clienteId": "imp-cli-pollos",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 10,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-9",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor – FRP",
+   "clienteId": "imp-cli-oniel",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-10",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor – FRP",
+   "clienteId": "imp-cli-oniel",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-11",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor – FRP",
+   "clienteId": "imp-cli-oniel",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-12",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor – FRP",
+   "clienteId": "imp-cli-oniel",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-13",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Honor – FRP",
+   "clienteId": "imp-cli-niche",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 5,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-14",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Redmi – FRP",
+   "clienteId": "imp-cli-jose-terra",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-15",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "Redmi – FRP",
+   "clienteId": "imp-cli-jose-terra",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-16",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "A35 – FRP",
+   "clienteId": "imp-cli-robin",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 10,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-03-17",
+   "origen": "manual",
+   "fecha": "2026-10-03",
+   "tipo": "ingreso",
+   "concepto": "X7D 5G – FRP",
+   "clienteId": "imp-cli-robin",
+   "cantidad": 1,
+   "total": 25,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-04-1",
+   "origen": "manual",
+   "fecha": "2026-10-04",
+   "tipo": "ingreso",
+   "concepto": "Redmi 15C – FRP",
+   "clienteId": "imp-cli-cliente-final",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-04-2",
+   "origen": "manual",
+   "fecha": "2026-10-04",
+   "tipo": "ingreso",
+   "concepto": "Samsung A23 – FRP",
+   "clienteId": "imp-cli-cliente-final",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 5,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-04-3",
+   "origen": "manual",
+   "fecha": "2026-10-04",
+   "tipo": "ingreso",
+   "concepto": "Redmi A3 – FRP",
+   "clienteId": "imp-cli-jose-barbao",
+   "cantidad": 1,
+   "total": 15,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-04-4",
+   "origen": "manual",
+   "fecha": "2026-10-04",
+   "tipo": "ingreso",
+   "concepto": "Redmi – FRP",
+   "clienteId": "imp-cli-ramon",
+   "cantidad": 1,
+   "total": 25,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-04-5",
+   "origen": "manual",
+   "fecha": "2026-10-04",
+   "tipo": "ingreso",
+   "concepto": "Honor X6E – FRP",
+   "clienteId": "imp-cli-cucho",
+   "cantidad": 1,
+   "total": 0,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-04-6",
+   "origen": "manual",
+   "fecha": "2026-10-04",
+   "tipo": "ingreso",
+   "concepto": "Samsung A05 – FRP",
+   "clienteId": "imp-cli-cucho",
+   "cantidad": 1,
+   "total": 0,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-04-7",
+   "origen": "manual",
+   "fecha": "2026-10-04",
+   "tipo": "ingreso",
+   "concepto": "Samsung A15 – FRP",
+   "clienteId": "imp-cli-mary",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-04-8",
+   "origen": "manual",
+   "fecha": "2026-10-04",
+   "tipo": "ingreso",
+   "concepto": "Samsung A32 – FRP",
+   "clienteId": "imp-cli-chino",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 5,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-1",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Redmi A3",
+   "clienteId": "imp-cli-taxi-2",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-2",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Redmi Note 10 Pro – FRP",
+   "clienteId": "imp-cli-chino",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-3",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Honor 50 Lite – FRP",
+   "clienteId": "imp-cli-chino",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-4",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Oppo A5 – FRP",
+   "clienteId": "imp-cli-katia",
+   "cantidad": 1,
+   "total": 12,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-5",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Infinix – FRP",
+   "clienteId": "imp-cli-katia",
+   "cantidad": 1,
+   "total": 12,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-6",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Samsung A36 – KG",
+   "clienteId": "imp-cli-esteban",
+   "cantidad": 1,
+   "total": 30,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-7",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Honor Magic 6 Lite 5G – FRP",
+   "clienteId": "imp-cli-jesica",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-8",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Honor Magic 5 Lite 5G – FRP",
+   "clienteId": "imp-cli-jesica",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-9",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Samsung A05S (garantía)",
+   "clienteId": "imp-cli-jesica",
+   "cantidad": 1,
+   "total": 0,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-10",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Samsung A16 – FRP",
+   "clienteId": "imp-cli-negrita",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-11",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Honor X6C – FRP",
+   "clienteId": "imp-cli-andres",
+   "cantidad": 1,
+   "total": 5,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-12",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Samsung A06",
+   "clienteId": "imp-cli-ramon",
+   "cantidad": 1,
+   "total": 0,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-13",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Samsung A15 – KG",
+   "clienteId": "imp-cli-la-pifia",
+   "cantidad": 1,
+   "total": 0,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-14",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Honor X5B Plus – FRP",
+   "clienteId": "imp-cli-la-pifia",
+   "cantidad": 1,
+   "total": 0,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-15",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Honor X5D – KG",
+   "clienteId": "imp-cli-la-pifia",
+   "cantidad": 1,
+   "total": 0,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-16",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Honor 400 Lite – FRP",
+   "clienteId": "imp-cli-barbero",
+   "cantidad": 1,
+   "total": 20,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-17",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Honor X5B – FRP",
+   "clienteId": "imp-cli-didi",
+   "cantidad": 1,
+   "total": 10,
+   "monto": 0,
+   "importado": true
+  },
+  {
+   "id": "imp-mov-2026-10-05-18",
+   "origen": "manual",
+   "fecha": "2026-10-05",
+   "tipo": "ingreso",
+   "concepto": "Redmi – FRP",
+   "clienteId": "imp-cli-julio",
+   "cantidad": 1,
+   "total": 12,
+   "monto": 0,
+   "importado": true
+  }
+ ],
+ "cartera": [
+  {
+   "id": "imp-cart-1",
+   "origen": "manual",
+   "clienteId": "imp-cli-barbero",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 40,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-2",
+   "origen": "manual",
+   "clienteId": "imp-cli-ramon",
+   "fecha": "2026-10-05",
+   "concepto": "X5B, Redmi, X6C, X6C, Magic 8 Lite, Redmi",
+   "monto": 80,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-3",
+   "origen": "manual",
+   "clienteId": "imp-cli-robin",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 133,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-4",
+   "origen": "manual",
+   "clienteId": "imp-cli-laio",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 5,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-5",
+   "origen": "manual",
+   "clienteId": "imp-cli-india",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 10,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-6",
+   "origen": "manual",
+   "clienteId": "imp-cli-albruk-2",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 35,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-7",
+   "origen": "manual",
+   "clienteId": "imp-cli-tomas",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 25,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-8",
+   "origen": "manual",
+   "clienteId": "imp-cli-dominic",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 10,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-9",
+   "origen": "manual",
+   "clienteId": "imp-cli-mary",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 20,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-10",
+   "origen": "manual",
+   "clienteId": "imp-cli-chino",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 15,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-11",
+   "origen": "manual",
+   "clienteId": "imp-cli-albruk-3",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 20,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-12",
+   "origen": "manual",
+   "clienteId": "imp-cli-cliente-final",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 25,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-13",
+   "origen": "manual",
+   "clienteId": "imp-cli-juan",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 10,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-14",
+   "origen": "manual",
+   "clienteId": "imp-cli-mr-android",
+   "fecha": "2026-10-05",
+   "concepto": "Saldo anterior (contabilidad manual)",
+   "monto": 10,
+   "abonos": [],
+   "importado": true
+  },
+  {
+   "id": "imp-cart-15",
+   "origen": "manual",
+   "clienteId": "imp-cli-cliente-final",
+   "fecha": "2026-10-05",
+   "concepto": "Samsung A16",
+   "monto": 50,
+   "abonos": [],
+   "importado": true
+  }
+ ]
+}

@@ -22,6 +22,7 @@
       moneda: '$',
       paisWa: '507',
       encargadoWa: ENCARGADO_WA,
+      importOct2026: '',
     },
     seq: { orden: 0, factura: 0 },
     clientes: [],
@@ -183,6 +184,7 @@
       cacheLocal();
       setStatus('ok');
       if (changed && rerender) refreshView();
+      importarOctubre();
     } catch (e) {
       handleSyncError(e);
     }
@@ -2122,6 +2124,58 @@
   };
 
   // ================================================================== AJUSTES
+  // ---- importar datos (archivo o la contabilidad manual de octubre) sin borrar lo que ya hay.
+  // Los clientes se juntan por nombre; lo que ya se importó antes no se repite.
+  function prepararImport(data) {
+    const llave = (n) => String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    const porNombre = new Map(db.clientes.map((c) => [llave(c.nombre), c.id]));
+    const mapa = {};
+    const nuevosC = [], nuevosM = [], nuevosD = [];
+    (data.clientes || []).forEach((c) => {
+      const id = porNombre.get(llave(c.nombre)) || (db.clientes.some((x) => x.id === c.id) ? c.id : null);
+      if (id) { mapa[c.id] = id; return; }
+      nuevosC.push({ id: c.id, nombre: c.nombre, tienda: c.tienda || '', whatsapp: c.whatsapp || '' });
+      porNombre.set(llave(c.nombre), c.id);
+      mapa[c.id] = c.id;
+    });
+    const movIds = new Set(db.movimientos.map((x) => x.id));
+    (data.movimientos || []).forEach((m) => {
+      if (m.id && !movIds.has(m.id)) nuevosM.push({ ...m, clienteId: mapa[m.clienteId] || m.clienteId || '' });
+    });
+    const carIds = new Set(db.cartera.map((x) => x.id));
+    (data.cartera || []).forEach((d) => {
+      if (d.id && !carIds.has(d.id)) nuevosD.push({ ...d, clienteId: mapa[d.clienteId] || d.clienteId, abonos: d.abonos || [] });
+    });
+    return {
+      nC: nuevosC.length, nM: nuevosM.length, nD: nuevosD.length,
+      total: nuevosC.length + nuevosM.length + nuevosD.length,
+      aplicar() { db.clientes.push(...nuevosC); db.movimientos.push(...nuevosM); db.cartera.push(...nuevosD); },
+    };
+  }
+
+  // La contabilidad que se llevaba a mano (1–5 de octubre) se carga sola, una única vez para todos los equipos.
+  const IMPORT_OCT = 'importOct2026';
+  let importOctIntentado = false;
+  async function importarOctubre() {
+    if (importOctIntentado || db.config[IMPORT_OCT] === '1') return;
+    importOctIntentado = true;
+    try {
+      const r = await fetch('data/contabilidad-oct-2026.json', { cache: 'no-store' });
+      const data = await r.json();
+      if (hasPending() || db.config[IMPORT_OCT] === '1') return;
+      const imp = prepararImport(data);
+      imp.aplicar();
+      db.config[IMPORT_OCT] = '1';
+      save();
+      if (imp.total) {
+        toast(`Se cargó la contabilidad de octubre: ${imp.nC} clientes, ${imp.nM} trabajos y ${imp.nD} deudas`);
+        refreshView();
+      }
+    } catch (e) {
+      importOctIntentado = false; // sin conexión: se intenta en la próxima sincronización
+    }
+  }
+
   views.ajustes = (el) => {
     const c = db.config;
     el.innerHTML = `
@@ -2258,33 +2312,12 @@
           toast('El archivo no es un archivo para importar a SIMTEC');
           return;
         }
-        const llave = (n) => String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
-        const porNombre = new Map(db.clientes.map((c) => [llave(c.nombre), c.id]));
-        const mapa = {};
-        const nuevosC = [], nuevosM = [], nuevosD = [];
-        data.clientes.forEach((c) => {
-          const id = porNombre.get(llave(c.nombre)) || (db.clientes.some((x) => x.id === c.id) ? c.id : null);
-          if (id) { mapa[c.id] = id; return; }
-          nuevosC.push({ id: c.id, nombre: c.nombre, tienda: c.tienda || '', whatsapp: c.whatsapp || '' });
-          porNombre.set(llave(c.nombre), c.id);
-          mapa[c.id] = c.id;
-        });
-        const movIds = new Set(db.movimientos.map((x) => x.id));
-        (data.movimientos || []).forEach((m) => {
-          if (m.id && !movIds.has(m.id)) nuevosM.push({ ...m, clienteId: mapa[m.clienteId] || m.clienteId || '' });
-        });
-        const carIds = new Set(db.cartera.map((x) => x.id));
-        (data.cartera || []).forEach((d) => {
-          if (d.id && !carIds.has(d.id)) nuevosD.push({ ...d, clienteId: mapa[d.clienteId] || d.clienteId, abonos: d.abonos || [] });
-        });
-        const nC = nuevosC.length, nM = nuevosM.length, nD = nuevosD.length;
-        if (!nC && !nM && !nD) { toast('Esos datos ya estaban en el sistema'); return; }
-        if (!confirm(`Se van a agregar ${nC} clientes nuevos, ${nM} trabajos al reporte diario y ${nD} deudas a Cartera. ¿Continuar?`)) return;
-        db.clientes.push(...nuevosC);
-        db.movimientos.push(...nuevosM);
-        db.cartera.push(...nuevosD);
+        const imp = prepararImport(data);
+        if (!imp.total) { toast('Esos datos ya estaban en el sistema'); return; }
+        if (!confirm(`Se van a agregar ${imp.nC} clientes nuevos, ${imp.nM} trabajos al reporte diario y ${imp.nD} deudas a Cartera. ¿Continuar?`)) return;
+        imp.aplicar();
         save();
-        toast(`Listo: ${nC} clientes, ${nM} trabajos y ${nD} deudas agregados`);
+        toast(`Listo: ${imp.nC} clientes, ${imp.nM} trabajos y ${imp.nD} deudas agregados`);
       };
       r.readAsText(f);
     });
