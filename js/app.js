@@ -211,6 +211,8 @@
   }
   // Sincronización automática: cada 10 s mientras se usa la app; si nadie la toca en 5 min, cada minuto.
   let ultimoUso = Date.now();
+  let ultimaTecla = 0;
+  window.addEventListener('keydown', () => { ultimaTecla = Date.now(); }, { passive: true });
   ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, () => { ultimoUso = Date.now(); }, { passive: true }));
   let ultimoPull = 0;
   setInterval(() => {
@@ -261,8 +263,8 @@
       const { v } = await r.json();
       if (!v || v === APP_VERSION) return;
       // espera a que no estén escribiendo ni con una ventana abierta (orden, cierre, escáner…)
-      const active = document.activeElement;
-      const typing = active && /INPUT|SELECT|TEXTAREA/.test(active.tagName);
+      // solo espera si alguien está tecleando ahora mismo, hay algo escrito en un formulario o una ventana abierta
+      const typing = Date.now() - ultimaTecla < 20000;
       const filled = $$('#view form input, #view form textarea').some((i) => i.type !== 'date' && i.type !== 'number' && i.value);
       if (typing || filled || document.querySelector('.modal-back')) return;
       actualizando = true;
@@ -1246,7 +1248,7 @@
         </table></div>
       </div>
       <div class="card">
-        <h2>Quedaron debiendo hoy <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(pasan a Cartera con el cierre)</small></h2>
+        <h2 class="neon-tit">Quedaron debiendo hoy <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(pasan a Cartera con el cierre)</small></h2>
         <div class="table-wrap"><table>
           <thead><tr><th>Cliente</th><th>Equipos / modelos</th><th class="num">Debe</th><th>Estado</th></tr></thead>
           <tbody id="rd-mora"></tbody>

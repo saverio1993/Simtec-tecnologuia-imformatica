@@ -699,6 +699,14 @@ tr:has(#ca-total) { background: #0a0006 !important; box-shadow: inset 0 0 0 3px 
   50% { box-shadow: inset 0 0 0 3px #ff2a6d55, 0 0 0 transparent; }
 }
 
+/* título "Quedaron debiendo hoy": letras de neón amarillo que laten */
+.card h2.neon-tit { color: #fff8b0; font-size: 30px; animation: neonTit 1.6s ease-in-out infinite; }
+.card h2.neon-tit small { animation: none; text-shadow: none; }
+@keyframes neonTit {
+  0%, 100% { text-shadow: 0 0 4px #fff, 0 0 10px #ffe600, 0 0 22px #ffe600, 0 0 40px #ff9d00; }
+  50% { text-shadow: 0 0 2px #fff, 0 0 6px #ffe60088; }
+}
+
 /* fecha del Reporte diario: luz neón que parpadea para resaltarla */
 #rd-fecha {
   --neon: #00e5ff;
