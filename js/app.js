@@ -207,7 +207,20 @@
     if (typing || filled || document.querySelector('.modal-back')) return;
     route({ keepScroll: true });
   }
-  setInterval(() => document.visibilityState === 'visible' && pull({ rerender: true }), 20000);
+  // Sincronización automática: cada 10 s mientras se usa la app; si nadie la toca en 5 min, cada minuto.
+  let ultimoUso = Date.now();
+  ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, () => { ultimoUso = Date.now(); }, { passive: true }));
+  let ultimoPull = 0;
+  setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    const espera = Date.now() - ultimoUso > 300000 ? 60000 : 10000;
+    if (Date.now() - ultimoPull < espera) return;
+    ultimoPull = Date.now();
+    pull({ rerender: true });
+  }, 2000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { ultimoPull = Date.now(); pull({ rerender: true }); }
+  });
 
   // ---- instalar como aplicación (PWA): ícono en el escritorio / pantalla de inicio, ventana propia
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -233,27 +246,33 @@
     installButtons().forEach((b) => (b.hidden = true));
   });
 
-  // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261005h'; // igual que version.json y los ?v= de index.html
+  // ---- versión nueva de la página (después de cada publicación en Vercel): se actualiza sola.
+  // La versión actual sale del ?v= con que se cargó este archivo, así nunca queda desfasada.
+  const APP_VERSION = (() => {
+    try { return new URL(document.currentScript.src).searchParams.get('v'); } catch (e) { return null; }
+  })();
+  let actualizando = false;
   async function checkVersion() {
+    if (!APP_VERSION || actualizando) return;
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
       const { v } = await r.json();
-      if (v && v !== APP_VERSION && !document.getElementById('update-bar')) {
-        const bar = document.createElement('button');
-        bar.id = 'update-bar';
-        bar.className = 'update-bar';
-        bar.textContent = '✨ Hay una versión nueva de SIMTEC — toque aquí para actualizar';
-        bar.addEventListener('click', async () => {
-          if (hasPending()) await push();
-          location.reload();
-        });
-        document.body.appendChild(bar);
-      }
+      if (!v || v === APP_VERSION) return;
+      // espera a que no estén escribiendo ni con una ventana abierta (orden, cierre, escáner…)
+      const active = document.activeElement;
+      const typing = active && /INPUT|SELECT|TEXTAREA/.test(active.tagName);
+      const filled = $$('#view form input, #view form textarea').some((i) => i.type !== 'date' && i.type !== 'number' && i.value);
+      if (typing || filled || document.querySelector('.modal-back')) return;
+      actualizando = true;
+      if (hasPending()) await push();
+      if (hasPending()) { actualizando = false; return; } // sin internet: no perder lo anotado
+      toast('Actualizando SIMTEC…');
+      setTimeout(() => location.reload(), 600);
     } catch (e) { /* sin conexión */ }
   }
-  setInterval(checkVersion, 120000);
+  setInterval(checkVersion, 60000);
   window.addEventListener('focus', checkVersion);
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && checkVersion());
   window.addEventListener('focus', () => pull({ rerender: true }));
   window.addEventListener('online', () => (hasPending() ? push() : pull({ rerender: true })));
 
