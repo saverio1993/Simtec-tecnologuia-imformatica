@@ -20,7 +20,7 @@
       moneda: '$',
       paisWa: '507',
     },
-    seq: { orden: 0 },
+    seq: { orden: 0, factura: 0 },
     clientes: [],
     cartera: [],
     movimientos: [],
@@ -71,9 +71,11 @@
     const config = {};
     Object.keys(b.config).forEach((k) => { if (a.config[k] !== b.config[k]) config[k] = b.config[k]; });
     const hasConfig = Object.keys(config).length > 0;
-    const seq = b.seq.orden > a.seq.orden ? { orden: b.seq.orden } : null;
-    if (!ops.length && !hasConfig && !seq) return null;
-    return { ops, config: hasConfig ? config : undefined, seq: seq || undefined };
+    const seq = {};
+    ['orden', 'factura'].forEach((k) => { if ((b.seq[k] || 0) > (a.seq[k] || 0)) seq[k] = b.seq[k]; });
+    const hasSeq = Object.keys(seq).length > 0;
+    if (!ops.length && !hasConfig && !hasSeq) return null;
+    return { ops, config: hasConfig ? config : undefined, seq: hasSeq ? seq : undefined };
   }
   function applyChanges(data, ch) {
     (ch.ops || []).forEach((op) => {
@@ -84,7 +86,7 @@
       else list.push(op.item);
     });
     if (ch.config) Object.assign(data.config, ch.config);
-    if (ch.seq) data.seq.orden = Math.max(data.seq.orden, ch.seq.orden);
+    if (ch.seq) Object.keys(ch.seq).forEach((k) => (data.seq[k] = Math.max(data.seq[k] || 0, ch.seq[k])));
     return data;
   }
 
@@ -146,6 +148,16 @@
     } finally {
       pushing = false;
       if (again) { again = false; push(); }
+    }
+  }
+
+  // Sube ya los cambios pendientes y espera la respuesta (máx. ~5 s; sin conexión sigue igual).
+  async function syncNow() {
+    clearTimeout(pushTimer);
+    for (let i = 0; i < 25 && hasPending(); i++) {
+      if (!pushing) await push();
+      else await new Promise((r) => setTimeout(r, 200));
+      if (document.querySelector('#sync-status.bad')) break;
     }
   }
 
@@ -214,7 +226,7 @@
   });
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261005b'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261005c'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -1139,6 +1151,13 @@
     // número aleatorio (SIM-583201) o de las órdenes antiguas en secuencia (SIM-0004, se puede escribir "4")
     return same('SIM-' + digits) || same('SIM-' + String(Number(digits)).padStart(4, '0')) || null;
   }
+  // número de factura en secuencia: 00, 01, 02… (sigue después del mayor que ya exista)
+  function nuevaFactura() {
+    const mayor = db.ordenes.reduce((mx, o) => (o.factura != null ? Math.max(mx, Number(o.factura) + 1) : mx), 0);
+    const n = Math.max(db.seq.factura || 0, mayor);
+    db.seq.factura = n + 1;
+    return String(n).padStart(2, '0');
+  }
   // número de orden aleatorio de 6 dígitos, que no se repite
   function nuevoNumeroOrden() {
     const usados = new Set(db.ordenes.map((o) => o.numero));
@@ -1223,7 +1242,7 @@
         </div>
         <div class="f-box">
           <div class="f-brand">SIMTEC</div>
-          <div class="f-os"><div class="f-os-t">ORDEN DE SERVICIO</div><div class="f-date">${d} / ${m} / ${y.slice(2)}</div><div class="f-nro">N°${esc(nro)}</div></div>
+          <div class="f-os"><div class="f-os-t">ORDEN DE SERVICIO</div><div class="f-date">${d} / ${m} / ${y.slice(2)}</div><div class="f-nro">N°${esc(o.factura != null ? o.factura : nro)}</div></div>${o.factura != null ? `<div class="f-cod">Orden ${esc(o.numero)}</div>` : ''}
         </div>
         <div class="f-qr">${qrSVG(orderLink(o))}</div>
       </div>
@@ -1456,7 +1475,7 @@
       $('#sc-result', el).innerHTML = `
         <div class="scan-card">
           ${note ? `<div class="scan-note">${note}</div>` : ''}
-          <div class="scan-num">${esc(o.numero)} ${estadoTag(o.estado)}</div>
+          <div class="scan-num">${esc(o.numero)} ${estadoTag(o.estado)}${o.factura != null ? ` <span class="tag gray">Factura N°${esc(o.factura)}</span>` : ''}</div>
           <div class="scan-cli">${esc(c.nombre || '(cliente borrado)')}${c.tienda ? ' — ' + esc(c.tienda) : ''}</div>
           <div>${esc(equipoTxt(o))}${o.imei ? ' · IMEI ' + esc(o.imei) : ''}</div>
           <div class="scan-falla">Falla: ${esc(o.falla)}</div>
@@ -1548,7 +1567,7 @@
         <div class="seg" id="or-filtro"><button class="on" data-f="taller">En taller</button><button data-f="Listo">Listos</button><button data-f="Entregado">Entregados</button><button data-f="all">Todas</button></div>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th class="num">Saldo</th><th></th></tr></thead>
+        <thead><tr><th>Factura</th><th>Orden</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th class="num">Saldo</th><th></th></tr></thead>
         <tbody id="or-body"></tbody>
       </table></div>`;
 
@@ -1562,7 +1581,7 @@
       const q = $('#or-q').value.toLowerCase();
       const rows = db.ordenes
         .filter((o) => (q ? true : pasaFiltro(o)))
-        .filter((o) => !q || [o.numero, clienteNombre(o.clienteId), o.marca, o.modelo, o.imei, o.falla].join(' ').toLowerCase().includes(q))
+        .filter((o) => !q || [o.numero, o.factura != null ? 'N°' + o.factura : '', clienteNombre(o.clienteId), o.marca, o.modelo, o.imei, o.falla].join(' ').toLowerCase().includes(q))
         .slice().reverse();
       const cuenta = (f) => db.ordenes.filter((o) => (f === 'taller' ? o.estado !== 'Listo' && o.estado !== 'Entregado' : f === 'all' || o.estado === f)).length;
       $$('#or-filtro button', el).forEach((b) => (b.textContent = b.textContent.replace(/ \(\d+\)$/, '') + ` (${cuenta(b.dataset.f)})`));
@@ -1570,6 +1589,7 @@
         ? rows.map((o) => {
           const s = saldoOrden(o);
           return `<tr>
+            <td><b class="fact-n">${o.factura != null ? 'N°' + esc(o.factura) : '—'}</b></td>
             <td><b>${esc(o.numero)}</b></td>
             <td>${fmtDate(o.fecha)}</td>
             <td>${esc(clienteNombre(o.clienteId))}</td>
@@ -1579,7 +1599,7 @@
             <td class="actions">${o.estado === 'Listo' ? `<button class="btn sm green" data-avisar="${o.id}" title="Enviar reporte de LISTO por WhatsApp">💬${o.avisadoListo ? ' ✓' : ''}</button>` : ''}<button class="btn sm" data-label="${o.id}" title="Imprimir etiqueta QR">🏷</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
-        : `<tr><td colspan="7" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
+        : `<tr><td colspan="8" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
     }
     refreshOrdenList = render;
     $('#or-scan').addEventListener('click', () => openScanner());
@@ -1621,7 +1641,7 @@
       fillModelos();
     };
 
-    $('#or-form').addEventListener('submit', (e) => {
+    $('#or-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const marca = marcaSel === '' ? $('#or-marca-otra').value.trim() : marcaSel || '';
       const falla = [...fallasSel].map((f) => (f === 'otra' ? $('#or-falla-otra').value.trim() : f)).filter(Boolean).join(', ');
@@ -1641,7 +1661,7 @@
         db.clientes.push({ id: clienteId, fecha: today(), nombre, tienda: $('#or-tie').value.trim(), whatsapp: $('#or-wa').value.trim() });
       }
       const o = {
-        id: uid(), numero: nuevoNumeroOrden(), fecha: today(), clienteId,
+        id: uid(), numero: nuevoNumeroOrden(), factura: nuevaFactura(), fecha: today(), clienteId,
         equipo: $('#or-eq').value, marca, modelo: $('#or-modelo').value.trim(), falla, trabajo: $('#or-trab').value.trim(),
         costo: num($('#or-costo').value), abono: num($('#or-abono').value), estado: 'Recibido',
         historial: [{ estado: 'Recibido', fecha: new Date().toISOString() }],
@@ -1661,8 +1681,15 @@
       $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo (llenar abajo) —');
       toggleNuevo();
       render();
-      toast(`Orden ${o.numero} guardada`);
-      openReceipt(o);
+      // esperar a que el servidor confirme el número de factura antes de mostrar el comprobante
+      const btn = $('#or-form button[type=submit]');
+      btn.disabled = true;
+      await syncNow();
+      btn.disabled = false;
+      const final = db.ordenes.find((x) => x.id === o.id) || o;
+      render();
+      toast(`Orden guardada · Factura N°${final.factura}`);
+      openReceipt(final);
     });
     $('#or-q').addEventListener('input', render);
     $('#or-body').addEventListener('change', (e) => {
@@ -1697,7 +1724,7 @@
     $('#or-xls').addEventListener('click', () =>
       exportXLSX(`Ordenes_Ingreso_SIMTEC_${today()}.xlsx`, {
         Ordenes: db.ordenes.map((o) => ({
-          'N°': o.numero, Fecha: fmtDate(o.fecha), Cliente: clienteNombre(o.clienteId), Equipo: o.equipo, Marca: o.marca, Modelo: o.modelo,
+          Factura: o.factura != null ? o.factura : '', Orden: o.numero, Fecha: fmtDate(o.fecha), Cliente: clienteNombre(o.clienteId), Equipo: o.equipo, Marca: o.marca, Modelo: o.modelo,
           Falla: o.falla, Nota: o.trabajo, Estado: o.estado, 'Listo el': fechaEstado(o, 'Listo'), 'Entregado el': fechaEstado(o, 'Entregado'),
           Costo: num(o.costo), Abono: num(o.abono) + abonosOrden(o), Saldo: saldoOrden(o),
         })),
@@ -1860,7 +1887,7 @@
         Clientes: db.clientes.map((x) => ({ Nombre: x.nombre, Tienda: x.tienda, WhatsApp: x.whatsapp })),
         Cartera: db.cartera.map((d) => ({ Fecha: fmtDate(d.fecha), Cliente: clienteNombre(d.clienteId), Concepto: d.concepto, Monto: num(d.monto), Abonado: abonado(d), Debe: saldo(d) })),
         Reporte: db.movimientos.map((m) => ({ Fecha: fmtDate(m.fecha), Tipo: m.tipo, Concepto: m.concepto, Cliente: clienteNombre(m.clienteId), Monto: m.tipo === 'gasto' ? -num(m.monto) : num(m.monto) })),
-        Ordenes: db.ordenes.map((o) => ({ 'N°': o.numero, Fecha: fmtDate(o.fecha), Cliente: clienteNombre(o.clienteId), Equipo: [o.equipo, o.marca, o.modelo].join(' '), Falla: o.falla, Estado: o.estado, Costo: num(o.costo), Abono: num(o.abono) })),
+        Ordenes: db.ordenes.map((o) => ({ Factura: o.factura != null ? o.factura : '', Orden: o.numero, Fecha: fmtDate(o.fecha), Cliente: clienteNombre(o.clienteId), Equipo: [o.equipo, o.marca, o.modelo].join(' '), Falla: o.falla, Estado: o.estado, Costo: num(o.costo), Abono: num(o.abono) })),
         Inventario: db.inventario.map((p) => ({ Producto: p.producto, Cantidad: p.cantidad })),
       })
     );

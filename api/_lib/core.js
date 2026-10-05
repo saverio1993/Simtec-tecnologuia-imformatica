@@ -16,7 +16,7 @@ export const emptyData = () => ({
     moneda: '$',
     paisWa: '507',
   },
-  seq: { orden: 0 },
+  seq: { orden: 0, factura: 0 },
   clientes: [],
   cartera: [],
   movimientos: [],
@@ -108,6 +108,7 @@ export function applyChanges(data, changes) {
     if (!COLLECTIONS.includes(op.c) || !op.id) continue;
     const list = data[op.c] || (data[op.c] = []);
     const i = list.findIndex((x) => x.id === op.id);
+    if (op.c === 'ordenes' && !op.del && op.item && i < 0) asignarFactura(data, op.item);
     if (op.del) {
       if (i >= 0) list.splice(i, 1);
     } else if (op.item && op.item.id === op.id) {
@@ -120,10 +121,23 @@ export function applyChanges(data, changes) {
       if (k in emptyData().config) data.config[k] = String(v ?? '');
     }
   }
-  if (changes.seq && Number.isFinite(changes.seq.orden)) {
-    data.seq.orden = Math.max(data.seq.orden || 0, changes.seq.orden);
+  for (const k of ['orden', 'factura']) {
+    if (changes.seq && Number.isFinite(changes.seq[k])) data.seq[k] = Math.max(data.seq[k] || 0, changes.seq[k]);
   }
   return data;
+}
+
+// El número de factura (00, 01, 02…) lo confirma el servidor: si otra computadora ya usó
+// ese número, a la orden nueva se le da el siguiente libre.
+function asignarFactura(data, orden) {
+  if (orden.factura == null) return;
+  const usados = new Set(data.ordenes.filter((o) => o.factura != null).map((o) => String(o.factura)));
+  const mayor = data.ordenes.reduce((mx, o) => (o.factura != null ? Math.max(mx, Number(o.factura) + 1) : mx), 0);
+  if (usados.has(String(orden.factura))) {
+    const n = Math.max(data.seq.factura || 0, mayor);
+    orden.factura = String(n).padStart(2, '0');
+  }
+  data.seq.factura = Math.max(data.seq.factura || 0, mayor, Number(orden.factura) + 1);
 }
 
 export function cleanData(input) {
@@ -132,7 +146,7 @@ export function cleanData(input) {
   if (!input || typeof input !== 'object') return out;
   for (const c of COLLECTIONS) out[c] = Array.isArray(input[c]) ? input[c].filter((x) => x && x.id) : [];
   if (input.config) for (const k of Object.keys(base.config)) if (input.config[k] != null) out.config[k] = String(input.config[k]);
-  if (input.seq && Number.isFinite(input.seq.orden)) out.seq.orden = input.seq.orden;
+  for (const k of ['orden', 'factura']) if (input.seq && Number.isFinite(input.seq[k])) out.seq[k] = input.seq[k];
   return out;
 }
 
