@@ -667,7 +667,81 @@
 
     let filtro = 'pend';
     let vista = 'cliente';
-    const cobroMsg = (c, g) => `Hola ${c.nombre || ''}, le saluda ${db.config.negocio}. Le recordamos su saldo pendiente de *${money(g.debe)}*${g.deudas.length ? ` por: ${resumenModelos(g.deudas.filter((d) => saldo(d) > 0))}` : ''}. ¡Gracias!`;
+    // ---- cuenta de un cliente: lista completa de lo que debe y resumen para WhatsApp
+    const deudasDe = (id) => db.cartera.filter((d) => enCartera(d) && d.clienteId === id && saldo(d) > 0).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    function resumenCuenta(id) {
+      const c = clienteById(id) || {};
+      const ds = deudasDe(id);
+      const debe = ds.reduce((t, d) => t + saldo(d), 0);
+      const abon = ds.reduce((t, d) => t + abonado(d), 0);
+      return [
+        `*${db.config.negocio}*`,
+        `Estado de cuenta: *${c.nombre || ''}*`,
+        `Fecha: ${fmtDate(today())}`,
+        '',
+        ...ds.map((d) => `• ${fmtDate(d.fecha)} · ${modeloDe(d)} · ${money(saldo(d))}${abonado(d) > 0 ? ` (abonó ${money(abonado(d))})` : ''}`),
+        '',
+        `Equipos: ${resumenModelos(ds)}`,
+        ...(abon > 0 ? [`Ya abonado: ${money(abon)}`] : []),
+        `*TOTAL A PAGAR: ${money(debe)}*`,
+        '',
+        '¡Gracias por su preferencia!',
+      ].join('\n');
+    }
+    function enviarResumen(id) {
+      const c = clienteById(id) || {};
+      const texto = resumenCuenta(id);
+      window.open(c.whatsapp ? waLink(c.whatsapp, texto) : 'https://wa.me/?text=' + encodeURIComponent(texto), '_blank', 'noopener');
+      if (!c.whatsapp) toast('El cliente no tiene WhatsApp guardado: elija el contacto en WhatsApp');
+    }
+    function verCuenta(id) {
+      const c = clienteById(id) || {};
+      const todas = db.cartera.filter((d) => enCartera(d) && d.clienteId === id).sort((a, b) => b.fecha.localeCompare(a.fecha));
+      const ds = deudasDe(id);
+      const debe = ds.reduce((t, d) => t + saldo(d), 0);
+      const total = todas.reduce((t, d) => t + num(d.monto), 0);
+      const abon = todas.reduce((t, d) => t + abonado(d), 0);
+      const abonos = todas.flatMap((d) => (d.abonos || []).map((a) => ({ ...a, modelo: modeloDe(d) }))).sort((a, b) => b.fecha.localeCompare(a.fecha));
+      openModal(`
+        <div class="card cierre-box cuenta-box">
+          <h2>📋 Cuenta de ${esc(c.nombre || '(cliente borrado)')}</h2>
+          <p class="hint-line" style="margin:-4px 0 12px">${[c.tienda && esc(c.tienda), c.whatsapp && `WhatsApp ${esc(c.whatsapp)}`].filter(Boolean).join(' · ') || 'Sin tienda ni WhatsApp guardado'}</p>
+          <div class="stats-row">
+            <div class="stat red"><div class="label">Debe</div><div class="value">${money(debe)}</div></div>
+            <div class="stat yellow"><div class="label">Equipos pendientes</div><div class="value">${ds.length}</div></div>
+            <div class="stat green"><div class="label">Abonado</div><div class="value">${money(abon)}</div></div>
+            <div class="stat blue"><div class="label">Total histórico</div><div class="value">${money(total)}</div></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Fecha</th><th>Equipo / modelo</th><th>Orden</th><th class="num">Monto</th><th class="num">Abonado</th><th class="num">Debe</th></tr></thead>
+            <tbody>${todas.map((d) => {
+              const o = d.ordenId && ordenById(d.ordenId);
+              const s = saldo(d);
+              return `<tr><td>${fmtDate(d.fecha)}</td><td>${esc(modeloDe(d))}</td><td>${o ? `${esc(o.numero)}${o.factura != null ? ` · N°${esc(o.factura)}` : ''}` : '—'}</td>
+                <td class="num">${money(d.monto)}</td><td class="num">${money(abonado(d))}</td>
+                <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : '<span class="tag ok">PAGADO</span>'}</td></tr>`;
+            }).join('') || '<tr><td colspan="6" class="empty">Sin deudas</td></tr>'}</tbody>
+            <tfoot><tr><td colspan="5">TOTAL A PAGAR</td><td class="num">${money(debe)}</td></tr></tfoot>
+          </table></div>
+          ${abonos.length ? `<p class="hint-line"><b>Abonos:</b> ${abonos.map((a) => `${fmtDate(a.fecha)} ${money(a.monto)} (${esc(a.modelo)})`).join(' · ')}</p>` : ''}
+          ${debe > 0 ? `<h2 style="margin-top:16px;font-size:20px">Resumen para WhatsApp</h2><pre class="cierre-resumen">${esc(resumenCuenta(id).replace(/\*/g, ''))}</pre>` : ''}
+          <div class="modal-actions">
+            ${debe > 0 ? `<button class="btn green" data-act="wa">💬 Enviar resumen por WhatsApp</button><button class="btn" data-act="copiar">📄 Copiar resumen</button><button class="btn yellow" data-act="abonar">Abonar</button>` : ''}
+            <button class="btn" data-act="close">Cerrar</button>
+          </div>
+        </div>`, (e, a, close) => {
+        if (!a) return;
+        if (a.dataset.act === 'wa') enviarResumen(id);
+        if (a.dataset.act === 'copiar') {
+          const t = resumenCuenta(id).replace(/\*/g, '');
+          (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Resumen copiado'), () => toast('No se pudo copiar'));
+        }
+        if (a.dataset.act === 'abonar') {
+          close();
+          abonarDe(id);
+        }
+      });
+    }
 
     function render() {
       const q = $('#ca-q').value.toLowerCase();
@@ -690,8 +764,8 @@
               <td class="num">${g.debe > 0 ? `<span class="tag due">${money(g.debe)}</span>` : '<span class="tag ok">PAGADO</span>'}</td>
               <td class="actions">
                 ${g.debe > 0 ? `<button class="btn sm green" data-abono-cli="${g.clienteId}">Abonar</button>` : ''}
-                ${g.debe > 0 && c.whatsapp ? `<a class="btn sm" target="_blank" rel="noopener" href="${waLink(c.whatsapp, cobroMsg(c, g))}">💬 Cobrar</a>` : ''}
-                <button class="btn sm" data-ver-cli="${esc(c.nombre || '')}">Detalle</button>
+                <button class="btn sm" data-cuenta="${g.clienteId}">📋 Ver cuenta</button>
+                ${g.debe > 0 ? `<button class="btn sm" data-wa-cli="${g.clienteId}">💬 Resumen</button>` : ''}
               </td></tr>`;
           }).join('')
           : `<tr><td colspan="6" class="empty">Nadie le debe 🎉</td></tr>`;
@@ -759,23 +833,27 @@
       render();
     };
     $$('#ca-vista button', el).forEach((b) => b.addEventListener('click', () => setVista(b.dataset.v)));
+    function abonarDe(id) {
+      const deudas = deudasDe(id);
+      const debe = deudas.reduce((t, d) => t + saldo(d), 0);
+      const v = prompt(`Abono de ${clienteNombre(id)} (debe ${money(debe)} por ${resumenModelos(deudas)}):`, debe.toFixed(2));
+      if (v === null) return;
+      const m = Math.min(num(v), debe);
+      if (m <= 0) return;
+      abonarCliente(id, deudas, m, `Abono cartera: ${resumenModelos(deudas)}`);
+      toast('Abono registrado y sumado al reporte diario');
+      render();
+    }
     $('#ca-body').addEventListener('click', (e) => {
       const abCli = e.target.closest('[data-abono-cli]');
       const verCli = e.target.closest('[data-ver-cli]');
       const ab = e.target.closest('[data-abono]');
       const del = e.target.closest('[data-del]');
-      if (abCli) {
-        const id = abCli.dataset.abonoCli;
-        const deudas = db.cartera.filter((d) => enCartera(d) && d.clienteId === id && saldo(d) > 0);
-        const debe = deudas.reduce((s, d) => s + saldo(d), 0);
-        const v = prompt(`Abono de ${clienteNombre(id)} (debe ${money(debe)} por ${resumenModelos(deudas)}):`, debe.toFixed(2));
-        if (v === null) return;
-        const m = Math.min(num(v), debe);
-        if (m <= 0) return;
-        abonarCliente(id, deudas, m, `Abono cartera: ${resumenModelos(deudas)}`);
-        toast('Abono registrado y sumado al reporte diario');
-        render();
-      }
+      const cuenta = e.target.closest('[data-cuenta]');
+      const waCli = e.target.closest('[data-wa-cli]');
+      if (abCli) abonarDe(abCli.dataset.abonoCli);
+      if (cuenta) verCuenta(cuenta.dataset.cuenta);
+      if (waCli) enviarResumen(waCli.dataset.waCli);
       if (verCli) {
         $('#ca-q').value = verCli.dataset.verCli;
         setVista('detalle');

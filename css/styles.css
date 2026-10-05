@@ -499,6 +499,8 @@ tfoot td { font-weight: 700; background: #1a1a1f; font-size: 18px; }
 .cierre-ok { background: #16a34a26; border: 2px solid #22c55e; color: #bbf7d0; border-radius: 14px; padding: 12px 16px; margin-bottom: 16px; font-weight: 700; }
 .cierre-box { max-width: 820px; margin: 0 auto; }
 .cierre-box .modal-actions { justify-content: flex-end; }
+.cuenta-box .stats-row { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.cuenta-box .stat .value { font-size: 26px; }
 .cierre-resumen { background: var(--panel); border: 2px solid #ffffff44; border-radius: 12px; padding: 14px 16px; white-space: pre-wrap; font-family: var(--font-body); font-size: 16px; line-height: 1.5; margin: 0 0 12px; }
 .btn:disabled { opacity: .5; cursor: wait; }
 
