@@ -29,6 +29,7 @@ Es una PWA (`manifest.webmanifest` + `sw.js`): en Chrome/Edge de PC o en Chrome 
 - **Colores de la app** (Ajustes): *Clásico* o *Rojo, blanco y negro*. Se guarda en cada equipo y se puede volver a Clásico cuando quiera.
 - **En el celular** todo se acomoda solo: botones en dos columnas, formularios más cortos y las tablas se ven como tarjetas (en la PC se ve igual que siempre).
 - **Empezar de cero** (Ajustes → 🧹 Dejar todo en blanco): borra clientes, órdenes, cartera, reporte, cierres e inventario en todas las computadoras y la factura vuelve a 00. Pide escribir BORRAR y antes descarga una copia.
+- **➕ Agregar datos (importar)** (Ajustes): suma clientes, trabajos y deudas de un archivo sin borrar lo que ya hay; junta los clientes por nombre y no repite lo que ya se importó.
 - El usuario y la contraseña los valida el servidor; al cambiarlos se cierran las demás sesiones.
 
 ## Servidor (`/api`)

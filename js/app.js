@@ -836,7 +836,8 @@
       };
       db.ordenes.forEach((o) => add(o.clienteId, o.costo));
       db.movimientos.filter((x) => x.origen === 'manual' && x.tipo === 'ingreso').forEach((x) => add(x.clienteId, x.total != null ? x.total : x.monto, num(x.cantidad) || 1));
-      db.cartera.filter((x) => x.origen === 'manual').forEach((x) => add(x.clienteId, x.monto));
+      // los saldos importados ya están contados en sus trabajos del reporte
+      db.cartera.filter((x) => x.origen === 'manual' && !x.importado).forEach((x) => add(x.clienteId, x.monto));
       return Array.from(m.values()).filter((r) => clienteById(r.id));
     }
 
@@ -2162,6 +2163,7 @@
           <button class="btn green" id="aj-xls">⬇ Descargar todo en Excel</button>
           <button class="btn" id="aj-backup">⬇ Descargar copia (.json)</button>
           <label class="btn">⬆ Restaurar copia<input type="file" id="aj-restore" accept="application/json,.json" hidden></label>
+          <label class="btn yellow">➕ Agregar datos (importar)<input type="file" id="aj-import" accept="application/json,.json" hidden></label>
         </div>
       </div>
       <div class="card">
@@ -2239,6 +2241,52 @@
           route();
         })
         .catch((err) => (err instanceof AuthError ? handleSyncError(err) : toast('No se pudo borrar: ' + err.message)));
+    });
+    // Agrega clientes, trabajos y deudas de un archivo sin borrar lo que ya hay.
+    // Los clientes se juntan por nombre; lo que ya se importó antes no se repite.
+    $('#aj-import').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        let data;
+        try {
+          data = JSON.parse(r.result);
+          if (!data || !data.simtecImport || !Array.isArray(data.clientes)) throw new Error('formato');
+        } catch (err) {
+          toast('El archivo no es un archivo para importar a SIMTEC');
+          return;
+        }
+        const llave = (n) => String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+        const porNombre = new Map(db.clientes.map((c) => [llave(c.nombre), c.id]));
+        const mapa = {};
+        const nuevosC = [], nuevosM = [], nuevosD = [];
+        data.clientes.forEach((c) => {
+          const id = porNombre.get(llave(c.nombre)) || (db.clientes.some((x) => x.id === c.id) ? c.id : null);
+          if (id) { mapa[c.id] = id; return; }
+          nuevosC.push({ id: c.id, nombre: c.nombre, tienda: c.tienda || '', whatsapp: c.whatsapp || '' });
+          porNombre.set(llave(c.nombre), c.id);
+          mapa[c.id] = c.id;
+        });
+        const movIds = new Set(db.movimientos.map((x) => x.id));
+        (data.movimientos || []).forEach((m) => {
+          if (m.id && !movIds.has(m.id)) nuevosM.push({ ...m, clienteId: mapa[m.clienteId] || m.clienteId || '' });
+        });
+        const carIds = new Set(db.cartera.map((x) => x.id));
+        (data.cartera || []).forEach((d) => {
+          if (d.id && !carIds.has(d.id)) nuevosD.push({ ...d, clienteId: mapa[d.clienteId] || d.clienteId, abonos: d.abonos || [] });
+        });
+        const nC = nuevosC.length, nM = nuevosM.length, nD = nuevosD.length;
+        if (!nC && !nM && !nD) { toast('Esos datos ya estaban en el sistema'); return; }
+        if (!confirm(`Se van a agregar ${nC} clientes nuevos, ${nM} trabajos al reporte diario y ${nD} deudas a Cartera. ¿Continuar?`)) return;
+        db.clientes.push(...nuevosC);
+        db.movimientos.push(...nuevosM);
+        db.cartera.push(...nuevosD);
+        save();
+        toast(`Listo: ${nC} clientes, ${nM} trabajos y ${nD} deudas agregados`);
+      };
+      r.readAsText(f);
     });
     $('#aj-restore').addEventListener('change', (e) => {
       const f = e.target.files[0];
