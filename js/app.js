@@ -1687,7 +1687,7 @@
     };
     const [aviso, avisoColor] = avisos[o.estado] || avisos.Recibido;
     const filas = [
-      { icono: '📄', etiqueta: 'Orden:', valor: o.numero, color: 'cian' },
+      { icono: '📄', etiqueta: 'Factura:', valor: o.factura != null ? `N°${o.factura}` : o.numero, color: 'cian' },
       { icono: '📱', etiqueta: 'Equipo:', valor: [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || '-', color: 'turquesa' },
     ];
     if (o.estado === 'Listo' || o.estado === 'Entregado') {
@@ -1717,8 +1717,9 @@
     const c = clienteById(o.clienteId) || {};
     toast('Preparando imagen…');
     const blob = await tarjetaOrden(o);
-    const caption = `${o.estado === 'Listo' ? '✅ Su equipo está LISTO. ' : ''}Orden ${o.numero} · ${db.config.negocio}`;
-    return compartirImagen(blob, `SIMTEC_${o.numero}.png`, caption, c.whatsapp);
+    const fact = o.factura != null ? `N°${o.factura}` : o.numero;
+    const caption = `Factura ${fact} · ${db.config.negocio}`;
+    return compartirImagen(blob, `SIMTEC_factura_${o.factura != null ? o.factura : o.numero}.png`, caption, c.whatsapp);
   }
 
   // comprobante con el formato de la hoja de "orden de servicio" en papel
