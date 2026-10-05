@@ -337,6 +337,17 @@ tfoot td { font-weight: 700; background: #1a1a1f; font-size: 18px; }
 .es-grid .rank-row { grid-template-columns: 44px minmax(90px, 150px) 1fr; }
 @media (max-width: 900px) { .es-grid { grid-template-columns: 1fr; } }
 
+.fallas-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.falla-box { border: 3px solid #fff; border-radius: 16px; padding: 14px 16px; text-align: center; background: #000; }
+.falla-k { font-family: var(--font-title); font-size: 26px; letter-spacing: 1px; }
+.falla-n { font-family: var(--font-title); font-size: 54px; line-height: 1.05; }
+.falla-sub { color: var(--muted); font-size: 14px; }
+.falla-sub b { color: #fff; }
+.falla-box.blue .falla-k, .falla-box.blue .falla-n { color: var(--blue); }
+.falla-box.yellow .falla-k, .falla-box.yellow .falla-n { color: var(--yellow); }
+.falla-box.green .falla-k, .falla-box.green .falla-n { color: #4ade80; }
+@media (max-width: 600px) { .falla-n { font-size: 40px; } .falla-k { font-size: 20px; } .fallas-row { gap: 8px; } .falla-box { padding: 10px 6px; } .falla-sub { font-size: 12px; } }
+
 /* ================= FACTURA DGI ================= */
 .dgi-box { text-align: center; padding: 30px 18px; }
 .dgi-box img { width: 100%; max-width: 420px; border-radius: var(--radius); margin-bottom: 18px; }

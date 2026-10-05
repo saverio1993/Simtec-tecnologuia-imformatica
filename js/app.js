@@ -229,7 +229,7 @@
   });
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261005g'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261005h'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -774,6 +774,7 @@
     el.innerHTML = `
       ${head('ESTADÍSTICA', 'h-blue')}
       <div class="stats-row" id="es-stats"></div>
+      <div class="card"><h2>🔓 Trabajos de desbloqueo</h2><div class="fallas-row" id="es-fallas"></div></div>
       <div class="card"><h2>🏆 Ranking de clientes</h2><p class="es-sub">Del que más trabajos trae al que menos · en cada barra: trabajos y dinero</p><div class="rank" id="es-rank"></div></div>`;
 
     // Trabajos: órdenes de ingreso + ventas manuales del reporte + deudas manuales de cartera.
@@ -793,8 +794,38 @@
       return Array.from(m.values()).filter((r) => clienteById(r.id));
     }
 
+    // cuenta FRP / KG / PayJoy en órdenes (botones de falla) y en el reporte diario (texto del trabajo)
+    function contarFallas() {
+      const tipos = [
+        { k: 'FRP', re: /\bFRP\b/i, cls: 'blue' },
+        { k: 'KG', re: /\bKG\b/i, cls: 'yellow' },
+        { k: 'PayJoy', re: /\bPAY\s*JOY\b|\bPAY\b/i, cls: 'green' },
+      ];
+      const hoy = today();
+      const mes = hoy.slice(0, 7);
+      const items = [
+        ...db.ordenes.map((o) => ({ texto: o.falla || '', fecha: o.fecha, n: 1 })),
+        ...db.movimientos.filter((m) => m.origen === 'manual' && m.tipo !== 'gasto').map((m) => ({ texto: m.concepto || '', fecha: m.fecha, n: num(m.cantidad) || 1 })),
+      ];
+      return tipos.map((t) => {
+        const r = { ...t, total: 0, mes: 0, hoy: 0 };
+        items.filter((x) => t.re.test(x.texto)).forEach((x) => {
+          r.total += x.n;
+          if (x.fecha && x.fecha.startsWith(mes)) r.mes += x.n;
+          if (x.fecha === hoy) r.hoy += x.n;
+        });
+        return r;
+      });
+    }
+
     // una sola lista: en la misma barra van los trabajos y el dinero de cada cliente
     function render() {
+      $('#es-fallas').innerHTML = contarFallas().map((f) => `
+        <div class="falla-box ${f.cls}">
+          <div class="falla-k">${f.k}</div>
+          <div class="falla-n" data-count="${f.total}">0</div>
+          <div class="falla-sub">Este mes: <b>${f.mes}</b> · Hoy: <b>${f.hoy}</b></div>
+        </div>`).join('');
       const data = compute().sort((a, b) => b.trabajos - a.trabajos || b.dinero - a.dinero);
       const max = Math.max(1, ...data.map((r) => r.trabajos));
       $('#es-rank').innerHTML = data.length
