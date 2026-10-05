@@ -19,6 +19,7 @@
       direccion: '',
       moneda: '$',
       paisWa: '507',
+      encargadoWa: '',
     },
     seq: { orden: 0, factura: 0 },
     clientes: [],
@@ -226,7 +227,7 @@
   });
 
   // ---- aviso de versión nueva de la página (después de cada publicación en Vercel)
-  const APP_VERSION = '20261005c'; // igual que version.json y los ?v= de index.html
+  const APP_VERSION = '20261005d'; // igual que version.json y los ?v= de index.html
   async function checkVersion() {
     try {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -844,6 +845,203 @@
   const pendientesDelDia = (f) => db.cartera.filter((d) => esperaCierre(d) && d.fecha === f && saldo(d) > 0);
   const cierreDe = (f) => db.cierres.find((c) => c.fecha === f);
 
+  // ---- PDF del cierre y de la cartera (se guardan como datos en la nube y se pueden volver a generar)
+  const loadScript = (src) => new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = res;
+    s.onerror = () => rej(new Error('No se pudo cargar ' + src));
+    document.head.appendChild(s);
+  });
+  let pdfLib;
+  const loadPdf = () =>
+    pdfLib || (pdfLib = loadScript('vendor/jspdf.umd.min.js').then(() => loadScript('vendor/jspdf.plugin.autotable.min.js')).then(() => window.jspdf.jsPDF));
+  let logoData;
+  const loadLogo = () =>
+    logoData || (logoData = fetch('assets/logo.jpg').then((r) => r.blob()).then((b) => new Promise((res) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.readAsDataURL(b);
+    })).catch(() => null));
+
+  // fotografía del día que se guarda con el cierre (para poder sacar el PDF igual tiempo después)
+  function snapshotCierre(f) {
+    const movs = db.movimientos.filter((m) => m.fecha === f).map((m) => ({
+      tipo: m.tipo === 'gasto' ? 'Gasto' : m.origen === 'manual' ? 'Trabajo' : 'Abono',
+      concepto: (m.cantidad > 1 ? `${m.cantidad} × ` : '') + m.concepto,
+      cliente: clienteNombre(m.clienteId),
+      total: m.tipo === 'gasto' ? 0 : m.total != null ? num(m.total) : num(m.monto),
+      caja: m.tipo === 'gasto' ? -num(m.monto) : num(m.monto),
+      debe: m.total != null ? Math.max(0, num(m.total) - num(m.monto)) : 0,
+    }));
+    const ordenes = db.ordenes.filter((o) => o.fecha === f).map((o) => ({
+      factura: o.factura != null ? 'N°' + o.factura : '', orden: o.numero, cliente: clienteNombre(o.clienteId),
+      equipo: [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo, falla: o.falla, total: num(o.costo), debe: saldoOrden(o),
+    }));
+    const cartera = porCliente(db.cartera.filter((d) => enCartera(d) && saldo(d) > 0)).map((g) => {
+      const c = clienteById(g.clienteId) || {};
+      return { cliente: c.nombre || '', tienda: c.tienda || '', whatsapp: c.whatsapp || '', modelos: resumenModelos(g.deudas.filter((d) => saldo(d) > 0)), desde: g.deudas.map((d) => d.fecha).sort()[0], debe: g.debe };
+    });
+    return { movs, ordenes, cartera, carteraTotal: cartera.reduce((s, x) => s + x.debe, 0) };
+  }
+
+  async function pdfHeader(doc, titulo, subtitulo) {
+    const cfg = db.config;
+    const logo = await loadLogo();
+    if (logo) doc.addImage(logo, 'JPEG', 14, 10, 24, 24);
+    doc.setFont('helvetica', 'bold').setFontSize(16).text(cfg.negocio || 'SIMTEC', 42, 18);
+    doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(90);
+    doc.text([cfg.direccion, cfg.telefono ? 'Tel/WhatsApp: ' + cfg.telefono : ''].filter(Boolean), 42, 24);
+    doc.setTextColor(0).setFont('helvetica', 'bold').setFontSize(14).text(titulo, 196, 18, { align: 'right' });
+    doc.setFont('helvetica', 'normal').setFontSize(10).text(subtitulo, 196, 24, { align: 'right' });
+    doc.setDrawColor(0).setLineWidth(0.6).line(14, 37, 196, 37);
+    return 44;
+  }
+  function pdfFooter(doc) {
+    const n = doc.getNumberOfPages();
+    for (let i = 1; i <= n; i++) {
+      doc.setPage(i);
+      const h = doc.internal.pageSize.getHeight();
+      doc.setFontSize(8).setTextColor(120).text(`Generado por SIMTEC · ${new Date().toLocaleString('es')} · Página ${i} de ${n}`, 105, h - 8, { align: 'center' });
+    }
+    doc.setTextColor(0);
+  }
+  const tabla = (doc, y, head, body, opts = {}) => {
+    doc.autoTable({
+      startY: y, head: [head], body, theme: 'grid', margin: { left: 14, right: 14 },
+      styles: { fontSize: 9, cellPadding: 1.8 }, headStyles: { fillColor: [74, 74, 85], textColor: 255 },
+      ...opts,
+    });
+    return doc.lastAutoTable.finalY + 8;
+  };
+  const subtitulo = (doc, y, t) => {
+    doc.setFont('helvetica', 'bold').setFontSize(12).text(t, 14, y);
+    doc.setFont('helvetica', 'normal');
+    return y + 3;
+  };
+
+  async function pdfCierre(c) {
+    const JsPDF = await loadPdf();
+    const doc = new JsPDF({ unit: 'mm', format: 'letter' });
+    const s = c.snap || snapshotCierre(c.fecha);
+    let y = await pdfHeader(doc, 'CIERRE DEL DÍA', `${fmtDate(c.fecha)} · ${c.hora}`);
+    y = tabla(doc, y, ['Entró a caja', 'Gastos', 'Total en caja', 'Trabajos del día', 'Quedaron debiendo'],
+      [[money(c.ingresos), money(c.gastos), money(c.total), String(c.trabajos), money(c.enMora)]],
+      { styles: { fontSize: 11, halign: 'center', fontStyle: 'bold' } });
+    y = subtitulo(doc, y, 'Movimientos de caja');
+    y = tabla(doc, y, ['#', 'Tipo', 'Concepto', 'Cliente', 'Total', 'Entró a caja', 'Debe'],
+      s.movs.length ? s.movs.map((m, i) => [i + 1, m.tipo, m.concepto, m.cliente, m.tipo === 'Gasto' ? '' : money(m.total), money(m.caja), m.debe ? money(m.debe) : '']) : [['', '', 'Sin movimientos', '', '', '', '']],
+      { columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right', textColor: [200, 0, 0] } },
+        foot: [['', '', 'TOTAL EN CAJA', '', '', money(c.total), '']], footStyles: { fillColor: [235, 235, 235], textColor: 0, halign: 'right' } });
+    if (s.ordenes.length) {
+      y = subtitulo(doc, y, 'Órdenes de ingreso del día');
+      y = tabla(doc, y, ['Factura', 'Orden', 'Cliente', 'Equipo', 'Falla', 'Total', 'Debe'],
+        s.ordenes.map((o) => [o.factura, o.orden, o.cliente, o.equipo, o.falla, money(o.total), o.debe ? money(o.debe) : '']),
+        { columnStyles: { 5: { halign: 'right' }, 6: { halign: 'right', textColor: [200, 0, 0] } } });
+    }
+    y = subtitulo(doc, y, `Pasaron a Cartera (${money(c.enMora)})`);
+    tabla(doc, y, ['Cliente', 'Equipos / modelos', 'Debe'],
+      c.deudores.length ? c.deudores.map((d) => [d.cliente, d.modelos, money(d.debe)]) : [['Nadie quedó debiendo', '', '']],
+      { columnStyles: { 2: { halign: 'right', textColor: [200, 0, 0], fontStyle: 'bold' } } });
+    pdfFooter(doc);
+    return new File([doc.output('blob')], `Cierre_${c.fecha}.pdf`, { type: 'application/pdf' });
+  }
+
+  async function pdfCartera(c) {
+    const JsPDF = await loadPdf();
+    const doc = new JsPDF({ unit: 'mm', format: 'letter' });
+    const s = c.snap || snapshotCierre(c.fecha);
+    let y = await pdfHeader(doc, 'CARTERA', `Al cierre del ${fmtDate(c.fecha)}`);
+    y = tabla(doc, y, ['Total por cobrar', 'Clientes que deben'], [[money(s.carteraTotal), String(s.cartera.length)]],
+      { styles: { fontSize: 11, halign: 'center', fontStyle: 'bold' } });
+    tabla(doc, y, ['Cliente', 'Tienda', 'Equipos / modelos', 'Desde', 'Debe'],
+      s.cartera.length ? s.cartera.map((x) => [x.cliente, x.tienda, x.modelos, fmtDate(x.desde), money(x.debe)]) : [['Nadie debe', '', '', '', '']],
+      { columnStyles: { 4: { halign: 'right', textColor: [200, 0, 0], fontStyle: 'bold' } },
+        foot: [['TOTAL', '', '', '', money(s.carteraTotal)]], footStyles: { fillColor: [235, 235, 235], textColor: 0, halign: 'right' } });
+    pdfFooter(doc);
+    return new File([doc.output('blob')], `Cartera_${c.fecha}.pdf`, { type: 'application/pdf' });
+  }
+
+  const resumenCierreTexto = (c) => {
+    const s = c.snap || snapshotCierre(c.fecha);
+    return [
+      `🔒 *Cierre del día ${fmtDate(c.fecha)}* (${c.hora}) — ${db.config.negocio}`,
+      `💵 Entró a caja: ${money(c.ingresos)}`,
+      `🧾 Gastos: ${money(c.gastos)}`,
+      `✅ *Total en caja: ${money(c.total)}*`,
+      `📱 Trabajos del día: ${c.trabajos}`,
+      `⏳ Quedaron debiendo: ${money(c.enMora)}${c.deudores.length ? ' — ' + c.deudores.map((d) => `${d.cliente} (${d.modelos})`).join('; ') : ''}`,
+      `📒 Cartera total: ${money(s.carteraTotal)} (${s.cartera.length} clientes)`,
+    ].join('\n');
+  };
+  const descargar = (file) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  };
+
+  // se busca por fecha (no se usa el objeto viejo: al sincronizar los datos se reemplazan por copias)
+  const marcarEnviado = (f) => {
+    const cur = cierreDe(f);
+    if (cur) { cur.enviado = new Date().toISOString(); save(); refreshReporte(); }
+  };
+  let refreshReporte = () => {};
+  // ventana del cierre: genera los 2 PDF y permite enviarlos por WhatsApp o descargarlos
+  function openCierreListo(c, { recien = false } = {}) {
+    let files = null;
+    const enc = db.config.encargadoWa;
+    const { el } = openModal(`
+      <div class="cierre-box">
+        <div class="modal-actions"><button class="btn" data-act="close">Cerrar</button></div>
+        <h2 class="scan-title">${recien ? '✅ DÍA CERRADO' : '📄 CIERRE'} ${fmtDate(c.fecha)}</h2>
+        <pre class="cierre-resumen">${esc(resumenCierreTexto(c).replace(/\*/g, ''))}</pre>
+        <p class="modal-hint" id="cl-estado">Preparando los PDF…</p>
+        <div class="form-actions" style="justify-content:center">
+          <button class="btn green big" data-act="enviar" disabled>📤 ENVIAR PDF POR WHATSAPP</button>
+          <button class="btn" data-act="pdf" disabled>⬇ Descargar PDF</button>
+          <button class="btn" data-act="excel">⬇ Excel</button>
+        </div>
+        <p class="modal-hint">${enc ? `Encargado: ${esc(enc)} (se cambia en Ajustes)` : 'Ponga el WhatsApp del encargado en Ajustes para enviarle el resumen directo.'}</p>
+      </div>`,
+    async (e, a) => {
+      if (!a) return;
+      if (a.dataset.act === 'excel') excelCierre(c.fecha);
+      if (!files) return;
+      if (a.dataset.act === 'pdf') files.forEach(descargar);
+      if (a.dataset.act === 'enviar') {
+        const texto = resumenCierreTexto(c);
+        if (navigator.canShare && navigator.canShare({ files })) {
+          try {
+            await navigator.share({ files, title: `Cierre ${fmtDate(c.fecha)}`, text: texto });
+            marcarEnviado(c.fecha);
+            toast('Cierre compartido ✅');
+          } catch (err) {
+            if (err.name !== 'AbortError') toast('No se pudo compartir: ' + err.message);
+          }
+        } else {
+          // este equipo no comparte archivos: se descargan y se abre el chat del encargado con el resumen
+          files.forEach(descargar);
+          const msg = texto + '\n\n📎 Adjunto los PDF del cierre y de la cartera.';
+          window.open(enc ? waLink(enc, msg) : 'https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+          marcarEnviado(c.fecha);
+          toast('PDF descargados: adjúntelos en el chat de WhatsApp que se abrió');
+        }
+      }
+    });
+    Promise.all([pdfCierre(c), pdfCartera(c)])
+      .then((f) => {
+        files = f;
+        $$('[data-act=enviar], [data-act=pdf]', el).forEach((b) => (b.disabled = false));
+        $('#cl-estado', el).textContent = '2 PDF listos: Cierre del día y Cartera';
+      })
+      .catch((err) => ($('#cl-estado', el).textContent = 'No se pudieron crear los PDF: ' + err.message));
+  }
+  let excelCierre = () => {};
+
   views.reporte = (el) => {
     el.innerHTML = `
       ${head('REPORTE DIARIO', 'h-red', `<input type="date" id="rd-fecha" class="btn ghost" value="${today()}"><button class="btn yellow big" id="rd-cierre">🔒 CIERRE DEL DÍA</button><button class="btn green" id="rd-xls">⬇ Excel del día</button><button class="btn" id="rd-xls-all">⬇ Excel completo</button>`)}
@@ -875,6 +1073,13 @@
         <div class="table-wrap"><table>
           <thead><tr><th>Cliente</th><th>Equipos / modelos</th><th class="num">Debe</th><th>Estado</th></tr></thead>
           <tbody id="rd-mora"></tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <h2>Historial de cierres <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(PDF guardados en la plataforma)</small></h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Fecha</th><th>Hora</th><th class="num">En caja</th><th class="num">Pasó a cartera</th><th>Enviado</th><th></th></tr></thead>
+          <tbody id="rd-hist"></tbody>
         </table></div>
       </div>`;
 
@@ -946,6 +1151,15 @@
         <div class="stat red"><div class="label">Gastos</div><div class="value">${money(gas)}</div></div>
         <div class="stat yellow"><div class="label">Total en caja</div><div class="value">${money(ing - gas)}</div></div>
         <div class="stat blue"><div class="label">Quedaron debiendo</div><div class="value">${money(enMora)}</div></div>`;
+      const hist = db.cierres.slice().sort((x, z) => z.fecha.localeCompare(x.fecha));
+      $('#rd-hist').innerHTML = hist.length
+        ? hist.map((c) => `<tr>
+            <td><b>${fmtDate(c.fecha)}</b></td><td>${esc(c.hora)}</td>
+            <td class="num">${money(c.total)}</td><td class="num">${money(c.enMora)}</td>
+            <td>${c.enviado ? '<span class="tag ok">✓ Enviado</span>' : '<span class="tag gray">No</span>'}</td>
+            <td class="actions"><button class="btn sm green" data-cierre="${esc(c.fecha)}">📄 PDF / Enviar</button></td>
+          </tr>`).join('')
+        : '<tr><td colspan="6" class="empty">Todavía no hay cierres</td></tr>';
       const sinCerrar = pend.filter((d) => !d.cerrado).length;
       $('#rd-cierre-estado').innerHTML = cierre
         ? `<div class="cierre-ok">🔒 Día cerrado a las ${esc(cierre.hora)} · En caja ${money(cierre.total)} · ${cierre.deudores.length} ${cierre.deudores.length === 1 ? 'cliente pasó' : 'clientes pasaron'} a Cartera (${money(cierre.enMora)})${sinCerrar ? ` · <b>Hay ${sinCerrar} pendiente(s) nuevos: vuelva a cerrar</b>` : ''}</div>`
@@ -990,13 +1204,14 @@
           id: 'cierre-' + f, fecha: f, hora, ingresos: ing, gastos: gas, total: ing - gas, trabajos, enMora,
           deudores: grupos.map((g) => ({ clienteId: g.clienteId, cliente: clienteNombre(g.clienteId), modelos: resumenModelos(g.deudas), debe: g.debe })),
         };
+        registro.snap = snapshotCierre(f); // queda guardado en la nube para volver a sacar el PDF
         const i = db.cierres.findIndex((c) => c.fecha === f);
         if (i >= 0) db.cierres[i] = registro; else db.cierres.push(registro);
         save();
         close();
         render();
         toast(grupos.length ? `Día cerrado: ${grupos.length} ${grupos.length === 1 ? 'cliente pasó' : 'clientes pasaron'} a Cartera` : 'Día cerrado ✅');
-        if (confirm('Día cerrado ✅\n\n¿Descargar el Excel del cierre?')) excelDia(f);
+        openCierreListo(registro, { recien: true });
       });
       void m;
     }
@@ -1067,6 +1282,12 @@
       }
     });
     $('#rd-xls').addEventListener('click', () => excelDia(fecha()));
+    excelCierre = excelDia;
+    refreshReporte = () => { if (document.body.contains(el)) render(); };
+    $('#rd-hist').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-cierre]');
+      if (b) openCierreListo(cierreDe(b.dataset.cierre));
+    });
     $('#rd-xls-all').addEventListener('click', () => {
       const all = db.movimientos.slice().sort((a, b) => a.fecha.localeCompare(b.fecha));
       const porDia = {};
@@ -1833,6 +2054,7 @@
           <div class="field"><label for="aj-tel">Teléfono / WhatsApp</label><input id="aj-tel" value="${esc(c.telefono)}"></div>
           <div class="field"><label for="aj-dir">Dirección</label><input id="aj-dir" value="${esc(c.direccion)}"></div>
           <div class="field"><label for="aj-mon">Símbolo de moneda</label><input id="aj-mon" value="${esc(c.moneda)}" maxlength="4"></div>
+          <div class="field"><label for="aj-enc">WhatsApp del encargado (recibe el cierre)</label><input id="aj-enc" type="tel" value="${esc(c.encargadoWa)}" placeholder="6123-4567"></div>
           <div class="field"><label for="aj-pais">Código de país para WhatsApp</label><input id="aj-pais" value="${esc(c.paisWa)}" maxlength="4" inputmode="numeric" placeholder="507"></div>
           <div class="field full"><label for="aj-dgi">Enlace del portal de facturación DGI</label><input id="aj-dgi" type="url" value="${esc(c.dgiUrl)}"></div>
         </div>
@@ -1864,6 +2086,7 @@
         negocio: $('#aj-neg').value.trim() || 'SIMTEC', telefono: $('#aj-tel').value.trim(), direccion: $('#aj-dir').value.trim(),
         moneda: $('#aj-mon').value.trim() || '$', dgiUrl: $('#aj-dgi').value.trim() || db.config.dgiUrl,
         paisWa: $('#aj-pais').value.replace(/\D/g, ''),
+        encargadoWa: $('#aj-enc').value.trim(),
       });
       save();
       toast('Datos guardados');

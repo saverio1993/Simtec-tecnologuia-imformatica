@@ -11,7 +11,7 @@ App web para el local de servicio técnico, publicada en Vercel. Los datos se gu
 | **Clientes** | Crear cliente (Nombre, Tienda, WhatsApp) → Guardar. Buscar, editar, borrar y escribir por WhatsApp. |
 | **Cartera** | Quién debe, agrupado por cliente con sus modelos ("4 × Honor 400 Lite"). Abono por cliente (se reparte de la deuda más vieja a la más nueva y se suma al reporte diario), cobro por WhatsApp con el detalle y Excel. Las deudas de hoy llegan con el **cierre del día**. |
 | **Estadística** | Ranking animado de clientes, del que más trabajos trae (o más consume) al que menos. |
-| **Reporte diario** | Trabajos/ventas (cliente, modelo, cantidad, total y lo que pagó) y gastos. Lista de quiénes quedaron debiendo. **🔒 Cierre del día**: resumen de caja y pasa solos a Cartera a los que no cancelaron, con sus modelos (si no se cierra, pasan solos al día siguiente). Excel del cierre. |
+| **Reporte diario** | Trabajos/ventas (cliente, modelo, cantidad, total y lo que pagó) y gastos. Lista de quiénes quedaron debiendo. **🔒 Cierre del día**: resumen de caja y pasa solos a Cartera a los que no cancelaron, con sus modelos (si no se cierra, pasan solos al día siguiente). Excel del cierre. Al cerrar se generan **2 PDF (Cierre del día y Cartera)** para enviar por WhatsApp al encargado (menú de compartir en Android/Windows; si no, se descargan y se abre su chat). Historial de cierres guardado en la nube para volver a sacar los PDF. |
 | **Factura DGI** | Abre el portal web de facturación de la DGI (el enlace se cambia en Ajustes). |
 | **Orden de ingreso** | Plantilla simple: cliente, equipo, marca (botones) y modelo (lista de los más comunes), falla con botones (FRP, KG, PayJoy, Software, Cuenta Mi u otra), nota opcional, costo y abono. La fecha es la de hoy. El comprobante tiene el formato de hoja de orden de servicio (marca, modelo, IMEI, diagnóstico, SIM/memoria/batería, abono/debe/total, garantía, firma). Imprime o guarda en PDF y la envía por WhatsApp. El saldo pasa solo a Cartera. Cada orden tiene **etiqueta naranja con código QR** (60 × 30 mm: QR, cliente, modelo y fecha) para pegar en el equipo; con **📷 Escanear** (cámara o lector USB) se marca *Listo* (y se avisa por WhatsApp) o *Entregado* (cobrando el saldo). Filtro En taller / Listos / Entregados. |
 | **Inventario** | Producto y cantidad, con botones + / −, alerta de agotados y exportación a Excel. |
@@ -51,7 +51,7 @@ api/              servidor en Vercel (login, datos, contraseña)
 scripts/          servidor local de pruebas
 assets/           logo y botones del menú
 fonts/            fuentes Anton y Roboto Condensed (locales)
-vendor/           SheetJS (Excel), qrcode-generator (crear QR) y jsQR (leer QR con la cámara)
+vendor/           SheetJS (Excel), qrcode-generator (crear QR), jsQR (leer QR con la cámara) y jsPDF + autotable (PDF)
 ```
 
 ## Publicar una versión nueva
