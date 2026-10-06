@@ -2136,12 +2136,60 @@
             <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === (o.estado === 'Entregado' ? 'Entregado' : 'Recibido') ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
-            <td class="actions">${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al reporte diario y al cierre)">💵 Pagar</button>` : ''}<button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
+            <td class="actions">${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al reporte diario y al cierre)">💵 Pagar</button>` : ''}<button class="btn sm" data-editar="${o.id}" title="Corregir datos o poner el precio">✏ Editar</button><button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
         : `<tr><td colspan="7" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
     }
     refreshOrdenList = render;
+
+    // editar una orden ya ingresada (por ejemplo, ponerle el precio cuando se sepa)
+    function editarOrden(id) {
+      const o = db.ordenes.find((x) => x.id === id);
+      if (!o) return;
+      const pagado = num(o.abono) + abonosOrden(o);
+      const { el: m, close } = openModal(`
+        <form class="card cierre-box" id="ed-form">
+          <h2>✏ Editar factura N°${esc(o.factura)}</h2>
+          <div class="form-grid">
+            <div class="field full"><label for="ed-cli">Cliente</label><select id="ed-cli">${clienteOptions(o.clienteId)}</select></div>
+            <div class="field"><label for="ed-eq">Equipo</label><select id="ed-eq">${['Celular', 'Tablet', 'Laptop', 'PC', 'Otro'].map((e) => `<option ${e === o.equipo ? 'selected' : ''}>${e}</option>`).join('')}</select></div>
+            <div class="field"><label for="ed-marca">Marca</label><input id="ed-marca" list="ed-marcas" value="${esc(o.marca || '')}"><datalist id="ed-marcas">${MARCAS.map((x) => `<option value="${x}">`).join('')}</datalist></div>
+            <div class="field full"><label for="ed-modelo">Modelo</label><input id="ed-modelo" value="${esc(o.modelo || '')}"></div>
+            <div class="field full"><label for="ed-falla">Falla</label><input id="ed-falla" value="${esc(o.falla || '')}" placeholder="FRP, KG, PayJoy…"></div>
+            <div class="field full"><label for="ed-nota">Nota</label><input id="ed-nota" value="${esc(o.trabajo || '')}"></div>
+            <div class="field"><label for="ed-costo">Precio / costo</label><input id="ed-costo" type="number" step="0.01" min="0" value="${num(o.costo) || ''}" placeholder="Sin precio"></div>
+          </div>
+          ${pagado > 0 ? `<p class="hint-line">Ya pagó ${money(pagado)}. Los pagos se anotan con el botón 💵 Pagar.</p>` : ''}
+          <div class="modal-actions" style="margin-top:14px">
+            <button type="submit" class="btn primary big">GUARDAR CAMBIOS</button>
+            <button type="button" class="btn" data-act="close">Cancelar</button>
+          </div>
+        </form>`);
+      setTimeout(() => (num(o.costo) ? m.querySelector('#ed-modelo') : m.querySelector('#ed-costo')).focus(), 50);
+      m.querySelector('#ed-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const x = db.ordenes.find((y) => y.id === id); // los datos pudieron cambiar al sincronizar
+        if (!x) return close();
+        const q = (sel) => m.querySelector(sel).value.trim();
+        if (!q('#ed-falla')) { toast('Escriba la falla'); return; }
+        Object.assign(x, {
+          clienteId: q('#ed-cli') || x.clienteId, equipo: q('#ed-eq'), marca: q('#ed-marca'), modelo: q('#ed-modelo'),
+          falla: q('#ed-falla'), trabajo: q('#ed-nota'), costo: num(q('#ed-costo')),
+        });
+        // la deuda de esta orden en cartera queda igual al nuevo precio
+        const base = Math.max(0, num(x.costo) - num(x.abono));
+        const concepto = `Orden ${x.numero} - ${equipoTxt(x)}`;
+        let d = db.cartera.find((y) => y.ordenId === x.id);
+        if (d) Object.assign(d, { monto: base, clienteId: x.clienteId, concepto });
+        else if (base > 0) db.cartera.push({ id: uid(), origen: 'orden', ordenId: x.id, clienteId: x.clienteId, concepto, monto: base, fecha: x.fecha, abonos: [] });
+        db.movimientos.filter((y) => y.ordenId === x.id).forEach((y) => { y.clienteId = x.clienteId; });
+        save();
+        close();
+        toast(`Factura N°${x.factura} actualizada`);
+        render();
+      });
+    }
 
     // pago de una orden: baja su saldo, se anota en el reporte diario (entra a caja) y sale en el cierre del día
     function pagarOrden(id) {
@@ -2374,6 +2422,8 @@
       }
     });
     $('#or-body').addEventListener('click', (e) => {
+      const ed = e.target.closest('[data-editar]');
+      if (ed) editarOrden(ed.dataset.editar);
       const pag = e.target.closest('[data-pagar]');
       if (pag) pagarOrden(pag.dataset.pagar);
       const img = e.target.closest('[data-img]');
