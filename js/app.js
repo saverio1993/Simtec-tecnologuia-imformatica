@@ -2880,6 +2880,56 @@
     });
   };
 
+  // ------------------------------------------------------------------ deslizar hacia abajo para actualizar (como Instagram)
+  (function deslizarParaActualizar() {
+    const ind = document.createElement('div');
+    ind.id = 'ptr';
+    ind.innerHTML = '<b>↓</b><span>Deslice para actualizar</span>';
+    document.body.appendChild(ind);
+    const UMBRAL = 70;
+    let y0 = null, h = 0, ocupado = false;
+    const mover = (alto) => {
+      ind.style.transform = `translate(-50%, ${alto - 60}px)`;
+      ind.style.opacity = Math.min(1, alto / 50);
+    };
+    const reset = () => { ind.classList.remove('listo', 'cargando'); ind.lastChild.textContent = 'Deslice para actualizar'; mover(0); h = 0; };
+    window.addEventListener('touchstart', (e) => {
+      y0 = !ocupado && window.scrollY <= 0 && !$('#app').hidden && !document.querySelector('.modal-back') ? e.touches[0].clientY : null;
+    }, { passive: true });
+    window.addEventListener('touchmove', (e) => {
+      if (y0 === null) return;
+      const dy = e.touches[0].clientY - y0;
+      if (dy <= 0 || window.scrollY > 0) { h = 0; mover(0); return; }
+      h = Math.min(dy * 0.5, 110);
+      mover(h);
+      ind.classList.toggle('listo', h >= UMBRAL);
+      ind.lastChild.textContent = h >= UMBRAL ? 'Suelte para actualizar' : 'Deslice para actualizar';
+    }, { passive: true });
+    window.addEventListener('touchend', async () => {
+      if (y0 === null) return;
+      y0 = null;
+      if (h < UMBRAL) return reset();
+      ocupado = true;
+      ind.classList.add('cargando');
+      ind.lastChild.textContent = 'Actualizando…';
+      mover(UMBRAL);
+      try {
+        checkVersion(); // si hay versión nueva de la app, se actualiza sola
+        if (hasPending()) await push();
+        await pull();
+        const filled = $$('#view form input, #view form textarea').some((i) => i.type !== 'date' && i.type !== 'number' && i.value);
+        if (!document.querySelector('.modal-back')) {
+          if (filled) refreshOrdenList(); // no se borra lo que está escribiendo: solo se actualiza la lista
+          else route({ keepScroll: true });
+        }
+        toast(document.querySelector('#sync-status.bad') ? 'Sin conexión: no se pudo actualizar' : '✅ Actualizado');
+      } finally {
+        ocupado = false;
+        reset();
+      }
+    });
+  })();
+
   // ------------------------------------------------------------------ inicio
   if (isLogged()) {
     showApp();

@@ -20,6 +20,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 17px; }
+body { overscroll-behavior-y: contain; } /* sin el recargar del navegador: la app usa el suyo (deslizar hacia abajo) */
 body { min-height: 100vh; overflow-x: hidden; }
 [hidden] { display: none !important; }
 button { font: inherit; cursor: pointer; }
@@ -730,6 +731,20 @@ html[data-tema="rojo"] #rd-fecha { --neon: #ff2a2a; background: #000; }
   padding: 12px 20px; font-weight: 700; font-size: 16px; box-shadow: 0 8px 30px #000a;
   animation: rise .3s ease-out; max-width: calc(100% - 32px);
 }
+
+/* ================= DESLIZAR PARA ACTUALIZAR ================= */
+#ptr {
+  position: fixed; top: 0; left: 50%; z-index: 90; transform: translate(-50%, -60px); opacity: 0;
+  display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px;
+  background: #000; color: #fff; border: 2px solid #00e5ff; box-shadow: 0 0 14px #00e5ff88;
+  font-weight: 700; font-size: 15px; white-space: nowrap; pointer-events: none;
+  transition: transform .15s ease-out, opacity .15s;
+}
+#ptr b { display: inline-block; font-size: 20px; transition: transform .2s; }
+#ptr.listo b { transform: rotate(180deg); }
+#ptr.listo { border-color: #4ade80; box-shadow: 0 0 16px #4ade80aa; }
+#ptr.cargando b { animation: girar .8s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
 
 /* ================= TOAST ================= */
 .toast {
