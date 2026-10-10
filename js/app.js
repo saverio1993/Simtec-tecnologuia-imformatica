@@ -527,7 +527,7 @@
     ];
     el.innerHTML = `
       <div class="menu-grid">
-        <img class="menu-logo" src="assets/logo.jpg" alt="SIMTEC Tecnología Informática">
+        <img class="menu-logo" src="assets/logo-212.jpg" alt="SIMTEC Tecnología Informática">
         ${tiles.map(([k, label]) => `<button class="tile t-${k}" data-go="${k}" aria-label="${label}"><img src="assets/${k}.jpg" alt="${label}"></button>`).join('')}
       </div>`;
   };
@@ -721,7 +721,8 @@
         aviso: 'ESTADO DE CUENTA',
         filas: [
           { icono: '📌', etiqueta: 'Fecha:', valor: fmtDate(today()), color: 'azul' },
-          { icono: '📱', etiqueta: 'Equipos:', valor: resumenModelos(ds) || '-', color: 'rosa' },
+          // cada equipo con la fecha en que se hizo el trabajo: "Honor X7D 5G (05/10)"
+          { icono: '📱', etiqueta: 'Equipos:', valor: ds.map((d) => { const o = d.ordenId && ordenById(d.ordenId); const f = (o && o.fecha) || d.fecha; return `${modeloDe(d)} (${fmtDate(f).slice(0, 5)})`; }).join(', ') || '-', color: 'rosa' },
           { icono: '🧾', etiqueta: 'Deudas:', valor: `${ds.length} ${ds.length === 1 ? 'pendiente' : 'pendientes'}`, color: 'amarillo' },
           { icono: '💵', etiqueta: 'Total:', valor: money(total), color: 'verde' },
           { icono: '💳', etiqueta: 'Abonado:', valor: money(total - debe), color: 'morado' },
@@ -1035,7 +1036,7 @@
     pdfLib || (pdfLib = loadScript('vendor/jspdf.umd.min.js').then(() => loadScript('vendor/jspdf.plugin.autotable.min.js')).then(() => window.jspdf.jsPDF));
   let logoData;
   const loadLogo = () =>
-    logoData || (logoData = fetch('assets/logo.jpg').then((r) => r.blob()).then((b) => new Promise((res) => {
+    logoData || (logoData = fetch('assets/logo-212.jpg').then((r) => r.blob()).then((b) => new Promise((res) => {
       const fr = new FileReader();
       fr.onload = () => res(fr.result);
       fr.readAsDataURL(b);
@@ -1583,7 +1584,7 @@
   // ---- reporte de trabajo LISTO para el cliente por WhatsApp
   // ---- tarjeta en imagen para WhatsApp (logo, saludo y filas de colores)
   const logoImg = new Image();
-  logoImg.src = 'assets/logo.jpg';
+  logoImg.src = 'assets/logo-212.jpg';
   const COLORES = {
     azul: ['#1e9bff', '#0b6fd8', '#fff'], rosa: ['#ff2fa8', '#c8137e', '#fff'], amarillo: ['#ffd500', '#f5b700', '#000'],
     verde: ['#22c55e', '#15803d', '#fff'], morado: ['#8b5cf6', '#6d28d9', '#fff'], naranja: ['#ff7a1a', '#ea580c', '#fff'],
@@ -1746,7 +1747,7 @@
     return `<div class="receipt fact">
       <div class="f-head">
         <div class="f-title">SERVICIO TÉCNICO<br>DE CELULARES</div>
-        <img class="f-logo" src="assets/logo.jpg" alt="">
+        <img class="f-logo" src="assets/logo-212.jpg" alt="">
         <div class="f-contact">
           ${cfg.telefono ? `<div><b class="wa">✆</b> ${esc(cfg.telefono)}</div>` : ''}
           ${cfg.direccion ? `<div><b class="pin">⦿</b> ${esc(cfg.direccion)}</div>` : ''}
