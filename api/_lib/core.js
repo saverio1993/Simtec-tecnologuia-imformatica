@@ -10,7 +10,7 @@ const SESSION_DAYS = 30;
 export const emptyData = () => ({
   config: {
     dgiUrl: 'https://dgi.mef.gob.pa/',
-    negocio: 'SIMTEC Tecnología Informática',
+    negocio: '212 V.I.P Servicio Técnico de Celulares',
     telefono: '',
     direccion: '',
     moneda: '$',

@@ -375,6 +375,15 @@ html[data-tema="rojo"] .paso-dots span { border-color: #fff; color: #fff; }
 html[data-tema="rojo"] .paso-dots span.on { background: #fff; color: #000; }
 html[data-tema="rojo"] .paso-dots span.ok { background: #000; color: #fff; }
 
+/* Cartera: una fila por cliente que se toca para ver su cuenta */
+.fila-cli { cursor: pointer; }
+.fila-cli:hover td { background: #ffffff12; }
+.ver-cli { display: inline-block; padding: 6px 12px; border-radius: 10px; border: 2px solid #fff; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.fila-cli:hover .ver-cli { background: #fff; color: #000; }
+html[data-tema="rojo"] .fila-cli:hover td { background: #ffe5e5; }
+html[data-tema="rojo"] .ver-cli { border-color: #000; color: #000; }
+html[data-tema="rojo"] .fila-cli:hover .ver-cli { background: #000; color: #fff; }
+
 /* buscador de clientes (orden de ingreso) */
 .cli-sug { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .cli-sug:empty { display: none; }

@@ -16,7 +16,7 @@
   const emptyDB = () => ({
     config: {
       dgiUrl: 'https://dgi.mef.gob.pa/',
-      negocio: 'SIMTEC Tecnología Informática',
+      negocio: '212 V.I.P Servicio Técnico de Celulares',
       telefono: '',
       direccion: '',
       moneda: '$',
@@ -185,6 +185,8 @@
       setStatus('ok');
       if (changed && rerender) refreshView();
       importarOctubre();
+      // el negocio ahora se llama 212 V.I.P (una sola vez si aún tenía el nombre anterior)
+      if (/^SIMTEC/i.test(db.config.negocio || '')) { db.config.negocio = '212 V.I.P Servicio Técnico de Celulares'; save(); }
     } catch (e) {
       handleSyncError(e);
     }
@@ -240,7 +242,7 @@
   window.addEventListener('appinstalled', () => {
     installPrompt = null;
     installButtons().forEach((b) => (b.hidden = true));
-    toast('SIMTEC quedó instalado ✅ Búsquelo en el escritorio o en sus aplicaciones');
+    toast('212 V.I.P quedó instalado ✅ Búsquelo en el escritorio o en sus aplicaciones');
   });
   document.addEventListener('click', async (e) => {
     if (!e.target.closest('[data-install]') || !installPrompt) return;
@@ -270,7 +272,7 @@
       actualizando = true;
       if (hasPending()) await push();
       if (hasPending()) { actualizando = false; return; } // sin internet: no perder lo anotado
-      toast('Actualizando SIMTEC…');
+      toast('Actualizando 212 V.I.P…');
       setTimeout(() => location.reload(), 600);
     } catch (e) { /* sin conexión */ }
   }
@@ -527,7 +529,7 @@
     ];
     el.innerHTML = `
       <div class="menu-grid">
-        <img class="menu-logo" src="assets/logo-212.jpg" alt="SIMTEC Tecnología Informática">
+        <img class="menu-logo" src="assets/logo-212.jpg" alt="212 V.I.P Servicio Técnico de Celulares">
         ${tiles.map(([k, label]) => `<button class="tile t-${k}" data-go="${k}" aria-label="${label}"><img src="assets/${k}.jpg" alt="${label}"></button>`).join('')}
       </div>`;
   };
@@ -624,7 +626,7 @@
       }
     });
     excelSeccion = (() =>
-      exportXLSX(`Clientes_SIMTEC_${today()}.xlsx`, {
+      exportXLSX(`Clientes_212VIP_${today()}.xlsx`, {
         Clientes: db.clientes.map((c) => ({ Nombre: c.nombre, Tienda: c.tienda, WhatsApp: c.whatsapp, 'Fecha registro': fmtDate(c.fecha), Trabajos: trabajos(c.id) })),
       })
     );
@@ -706,7 +708,7 @@
 
     // una sola tabla: cada deuda pendiente con su cliente, y los botones en cada fila
     const filtro = 'pend';
-    let vista = 'detalle';
+    let vista = 'cliente'; // una fila por cliente; al tocarla se abre su cuenta con todos los botones
     // ---- cuenta de un cliente: lista completa de lo que debe y resumen para WhatsApp
     const deudasDe = (id) => db.cartera.filter((d) => enCartera(d) && d.clienteId === id && saldo(d) > 0).sort((a, b) => a.fecha.localeCompare(b.fecha));
     // resumen de la cuenta en imagen (mismo diseño que la orden)
@@ -729,7 +731,7 @@
           { icono: '👛', etiqueta: 'A pagar:', valor: money(debe), color: 'naranja' },
         ],
       });
-      compartirImagen(blob, `SIMTEC_cuenta_${(c.nombre || 'cliente').replace(/\W+/g, '_')}.png`, `Estado de cuenta · ${db.config.negocio}`, c.whatsapp);
+      compartirImagen(blob, `212VIP_cuenta_${(c.nombre || 'cliente').replace(/\W+/g, '_')}.png`, `Estado de cuenta · ${db.config.negocio}`, c.whatsapp);
     }
     function verCuenta(id) {
       const c = clienteById(id) || {};
@@ -750,27 +752,49 @@
             <div class="stat blue"><div class="label">Total histórico</div><div class="value">${money(total)}</div></div>
           </div>
           <div class="table-wrap"><table>
-            <thead><tr><th>Fecha</th><th>Equipo / modelo</th><th>Factura</th><th class="num">Monto</th><th class="num">Abonado</th><th class="num">Debe</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Equipo / modelo</th><th>Factura</th><th class="num">Monto</th><th class="num">Abonado</th><th class="num">Debe</th><th></th></tr></thead>
             <tbody>${todas.map((d) => {
               const o = d.ordenId && ordenById(d.ordenId);
               const s = saldo(d);
               return `<tr><td>${fmtDate(d.fecha)}</td><td>${esc(modeloDe(d))}</td><td>${o && o.factura != null ? `N°${esc(o.factura)}` : '—'}</td>
                 <td class="num">${money(d.monto)}</td><td class="num">${money(abonado(d))}</td>
-                <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : '<span class="tag ok">PAGADO</span>'}</td></tr>`;
-            }).join('') || '<tr><td colspan="6" class="empty">Sin deudas</td></tr>'}</tbody>
-            <tfoot><tr><td colspan="5">TOTAL A PAGAR</td><td class="num">${money(debe)}</td></tr></tfoot>
+                <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : '<span class="tag ok">PAGADO</span>'}</td>
+                <td class="actions">${s > 0 ? `<button class="btn sm green" data-act="abonar-d" data-id="${d.id}">Abonar</button>` : ''}<button class="btn sm red" data-act="borrar-d" data-id="${d.id}">Borrar</button></td></tr>`;
+            }).join('') || '<tr><td colspan="7" class="empty">Sin deudas</td></tr>'}</tbody>
+            <tfoot><tr><td colspan="5">TOTAL A PAGAR</td><td class="num">${money(debe)}</td><td></td></tr></tfoot>
           </table></div>
           ${abonos.length ? `<p class="hint-line"><b>Abonos:</b> ${abonos.map((a) => `${fmtDate(a.fecha)} ${money(a.monto)} (${esc(a.modelo)})`).join(' · ')}</p>` : ''}
           <div class="modal-actions">
-            ${debe > 0 ? `<button class="btn green" data-act="wa">🖼 Enviar por WhatsApp</button><button class="btn yellow" data-act="abonar">Abonar</button>` : ''}
+            ${debe > 0 ? `<button class="btn green" data-act="wa">🖼 Enviar reporte por WhatsApp</button><button class="btn yellow" data-act="abonar">Abonar a la cuenta</button>` : ''}
             <button class="btn" data-act="close">Cerrar</button>
           </div>
         </div>`, (e, a, close) => {
         if (!a) return;
         if (a.dataset.act === 'wa') enviarResumen(id);
+        const volver = () => { close(); render(); verCuenta(id); }; // se vuelve a abrir con los datos al día
         if (a.dataset.act === 'abonar') {
           close();
           abonarDe(id);
+          verCuenta(id);
+        }
+        if (a.dataset.act === 'abonar-d') {
+          const d = db.cartera.find((x) => x.id === a.dataset.id);
+          if (!d) return;
+          const v = prompt(`Abono para "${modeloDe(d)}" (debe ${money(saldo(d))}):`, saldo(d).toFixed(2));
+          if (v === null) return;
+          const m = Math.min(num(v), saldo(d));
+          if (m <= 0) return;
+          abonarCliente(d.clienteId, [d], m, `Abono cartera: ${modeloDe(d)}`);
+          toast('Abono registrado y sumado al reporte diario');
+          volver();
+        }
+        if (a.dataset.act === 'borrar-d') {
+          const d = db.cartera.find((x) => x.id === a.dataset.id);
+          if (!d || !confirm(`¿Borrar la deuda de "${modeloDe(d)}" (${money(saldo(d))})?`)) return;
+          db.cartera = db.cartera.filter((x) => x.id !== d.id);
+          save();
+          toast('Deuda borrada');
+          volver();
         }
       });
     }
@@ -788,17 +812,13 @@
         $('#ca-body').innerHTML = grupos.length
           ? grupos.map((g) => {
             const c = clienteById(g.clienteId) || {};
-            return `<tr>
+            return `<tr class="fila-cli" data-cuenta="${g.clienteId}" title="Ver la cuenta de ${esc(c.nombre || '')}">
               <td><b>${esc(c.nombre || '(cliente borrado)')}</b>${c.tienda ? `<br><small style="color:var(--muted)">${esc(c.tienda)}</small>` : ''}</td>
               <td>${esc(resumenModelos(g.deudas))}<br><small style="color:var(--muted)">${g.deudas.length} ${g.deudas.length === 1 ? 'deuda' : 'deudas'} · desde ${fmtDate(g.deudas.map((d) => d.fecha).sort()[0])}</small></td>
               <td class="num">${money(g.monto)}</td>
               <td class="num">${money(g.abonado)}</td>
               <td class="num">${g.debe > 0 ? `<span class="tag due">${money(g.debe)}</span>` : '<span class="tag ok">PAGADO</span>'}</td>
-              <td class="actions">
-                ${g.debe > 0 ? `<button class="btn sm green" data-abono-cli="${g.clienteId}">Abonar</button>` : ''}
-                <button class="btn sm" data-cuenta="${g.clienteId}">📋 Ver cuenta</button>
-                ${g.debe > 0 ? `<button class="btn sm green" data-wa-cli="${g.clienteId}">🖼 WhatsApp</button>` : ''}
-              </td></tr>`;
+              <td class="actions"><span class="ver-cli">Ver cuenta ›</span></td></tr>`;
           }).join('')
           : `<tr><td colspan="6" class="empty">Nadie le debe 🎉</td></tr>`;
       } else {
@@ -908,7 +928,7 @@
     });
     excelSeccion = (() => {
       const visibles = db.cartera.filter(enCartera);
-      exportXLSX(`Cartera_SIMTEC_${today()}.xlsx`, {
+      exportXLSX(`Cartera_212VIP_${today()}.xlsx`, {
         'Por cliente': porCliente(visibles.filter((d) => saldo(d) > 0)).map((g) => {
           const c = clienteById(g.clienteId) || {};
           return { Cliente: c.nombre || '', Tienda: c.tienda || '', WhatsApp: c.whatsapp || '', Modelos: resumenModelos(g.deudas), Total: g.monto, Abonado: g.abonado, Debe: g.debe };
@@ -1067,7 +1087,7 @@
     const cfg = db.config;
     const logo = await loadLogo();
     if (logo) doc.addImage(logo, 'JPEG', 14, 10, 24, 24);
-    doc.setFont('helvetica', 'bold').setFontSize(16).text(cfg.negocio || 'SIMTEC', 42, 18);
+    doc.setFont('helvetica', 'bold').setFontSize(16).text(cfg.negocio || '212 V.I.P', 42, 18);
     doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(90);
     doc.text([cfg.direccion, cfg.telefono ? 'Tel/WhatsApp: ' + cfg.telefono : ''].filter(Boolean), 42, 24);
     doc.setTextColor(0).setFont('helvetica', 'bold').setFontSize(14).text(titulo, 196, 18, { align: 'right' });
@@ -1080,7 +1100,7 @@
     for (let i = 1; i <= n; i++) {
       doc.setPage(i);
       const h = doc.internal.pageSize.getHeight();
-      doc.setFontSize(8).setTextColor(120).text(`Generado por SIMTEC · ${new Date().toLocaleString('es')} · Página ${i} de ${n}`, 105, h - 8, { align: 'center' });
+      doc.setFontSize(8).setTextColor(120).text(`Generado por 212 V.I.P · ${new Date().toLocaleString('es')} · Página ${i} de ${n}`, 105, h - 8, { align: 'center' });
     }
     doc.setTextColor(0);
   }
@@ -1481,7 +1501,7 @@
       const all = db.movimientos.slice().sort((a, b) => a.fecha.localeCompare(b.fecha));
       const porDia = {};
       all.forEach((mv) => (porDia[mv.fecha] = (porDia[mv.fecha] || 0) + signed(mv)));
-      exportXLSX(`Reporte_Completo_SIMTEC_${today()}.xlsx`, {
+      exportXLSX(`Reporte_Completo_212VIP_${today()}.xlsx`, {
         Movimientos: toRows(all),
         'Total por día': Object.entries(porDia).map(([f, t]) => ({ Fecha: fmtDate(f), Total: t })),
         Cierres: db.cierres.slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).map((c) => ({ Fecha: fmtDate(c.fecha), Hora: c.hora, 'En caja': c.total, 'Pasó a cartera': c.enMora, Clientes: c.deudores.map((d) => `${d.cliente} (${d.modelos})`).join('; ') })),
@@ -1637,7 +1657,7 @@
     };
     ctx.textBaseline = 'alphabetic';
     partes(495 - 40, [['Hola, ', '#fff'], [`${nombre || 'cliente'}`, acento], ['.', '#fff']], 76, '400');
-    partes(495 + 20, [['Le saluda ', '#fff'], ['SIMTEC', acento], [' Tecnología Informática.', '#fff']], 44, '700');
+    partes(495 + 20, [['Le saluda ', '#fff'], ['212 V.I.P', acento], [' Servicio Técnico.', '#fff']], 44, '700');
     if (aviso) {
       ctx.font = `400 54px Anton, Impact, sans-serif`; ctx.fillStyle = avisoColor[0]; ctx.textAlign = 'center';
       ctx.shadowColor = avisoColor[1]; ctx.shadowBlur = 18; ctx.fillText(aviso, W / 2, 495 + 105); ctx.shadowBlur = 0; ctx.textAlign = 'left';
@@ -1670,7 +1690,7 @@
     ctx.textAlign = 'center';
     ctx.font = `italic 700 46px ${BODY}`; ctx.fillStyle = '#fff'; ctx.fillText('Gracias por confiar en', W / 2, y + 70);
     ctx.font = `400 50px Anton, Impact, sans-serif`;
-    const t1 = 'SIMTEC', t2 = ' Tecnología Informática.';
+    const t1 = '212 V.I.P', t2 = ' Servicio Técnico.';
     const w1 = ctx.measureText(t1).width; ctx.font = `italic 700 46px ${BODY}`; const w2 = ctx.measureText(t2).width;
     let px = W / 2 - (w1 + w2) / 2; ctx.textAlign = 'left';
     ctx.font = `400 50px Anton, Impact, sans-serif`; ctx.fillStyle = acento; ctx.fillText(t1, px, y + 140);
@@ -1722,7 +1742,7 @@
     const blob = await tarjetaOrden(o);
     const fact = o.factura != null ? `N°${o.factura}` : o.numero;
     const caption = `Factura ${fact} · ${db.config.negocio}`;
-    return compartirImagen(blob, `SIMTEC_factura_${o.factura != null ? o.factura : o.numero}.png`, caption, c.whatsapp);
+    return compartirImagen(blob, `212VIP_factura_${o.factura != null ? o.factura : o.numero}.png`, caption, c.whatsapp);
   }
 
   // comprobante con el formato de la hoja de "orden de servicio" en papel
@@ -1753,7 +1773,7 @@
           ${cfg.direccion ? `<div><b class="pin">⦿</b> ${esc(cfg.direccion)}</div>` : ''}
         </div>
         <div class="f-box">
-          <div class="f-brand">SIMTEC</div>
+          <div class="f-brand">212 V.I.P</div>
           <div class="f-os"><div class="f-os-t">ORDEN DE SERVICIO</div><div class="f-date">${d} / ${m} / ${y.slice(2)}</div><div class="f-nro">N°${esc(o.factura != null ? o.factura : nro)}</div></div>${o.factura != null ? `<div class="f-cod">Orden ${esc(o.numero)}</div>` : ''}
         </div>
         <div class="f-qr">${qrSVG(orderLink(o))}</div>
@@ -2446,7 +2466,7 @@
       }
     });
     excelSeccion = (() =>
-      exportXLSX(`Ordenes_Ingreso_SIMTEC_${today()}.xlsx`, {
+      exportXLSX(`Ordenes_Ingreso_212VIP_${today()}.xlsx`, {
         Ordenes: db.ordenes.map((o) => ({
           Factura: o.factura != null ? o.factura : '', Orden: o.numero, Fecha: fmtDate(o.fecha), Cliente: clienteNombre(o.clienteId), Equipo: o.equipo, Marca: o.marca, Modelo: o.modelo,
           Falla: o.falla, Nota: o.trabajo, Estado: o.estado, 'Listo el': fechaEstado(o, 'Listo'), 'Entregado el': fechaEstado(o, 'Entregado'),
@@ -2538,7 +2558,7 @@
       render();
     });
     excelSeccion = (() =>
-      exportXLSX(`Inventario_SIMTEC_${today()}.xlsx`, {
+      exportXLSX(`Inventario_212VIP_${today()}.xlsx`, {
         Inventario: db.inventario.map((p) => ({ Producto: p.producto, Cantidad: p.cantidad })),
       })
     );
@@ -2767,7 +2787,7 @@
       e.preventDefault();
       // db.config (no `c`): al sincronizar con la nube los datos se reemplazan por copias nuevas
       Object.assign(db.config, {
-        negocio: $('#aj-neg').value.trim() || 'SIMTEC', telefono: $('#aj-tel').value.trim(), direccion: $('#aj-dir').value.trim(),
+        negocio: $('#aj-neg').value.trim() || '212 V.I.P', telefono: $('#aj-tel').value.trim(), direccion: $('#aj-dir').value.trim(),
         moneda: $('#aj-mon').value.trim() || '$', dgiUrl: $('#aj-dgi').value.trim() || db.config.dgiUrl,
         paisWa: $('#aj-pais').value.replace(/\D/g, ''),
         encargadoWa: $('#aj-enc').value.trim() || ENCARGADO_WA,
@@ -2790,7 +2810,7 @@
       }
     });
     $('#aj-xls').addEventListener('click', () =>
-      exportXLSX(`SIMTEC_Completo_${today()}.xlsx`, {
+      exportXLSX(`212VIP_Completo_${today()}.xlsx`, {
         Clientes: db.clientes.map((x) => ({ Nombre: x.nombre, Tienda: x.tienda, WhatsApp: x.whatsapp })),
         Cartera: db.cartera.map((d) => ({ Fecha: fmtDate(d.fecha), Cliente: clienteNombre(d.clienteId), Concepto: d.concepto, Monto: num(d.monto), Abonado: abonado(d), Debe: saldo(d) })),
         Reporte: db.movimientos.map((m) => ({ Fecha: fmtDate(m.fecha), Tipo: m.tipo, Concepto: m.concepto, Cliente: clienteNombre(m.clienteId), Monto: m.tipo === 'gasto' ? -num(m.monto) : num(m.monto) })),
@@ -2802,7 +2822,7 @@
       const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `SIMTEC_copia_${today()}.json`;
+      a.download = `212VIP_copia_${today()}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     });
@@ -2842,7 +2862,7 @@
           data = JSON.parse(r.result);
           if (!data || !data.simtecImport || !Array.isArray(data.clientes)) throw new Error('formato');
         } catch (err) {
-          toast('El archivo no es un archivo para importar a SIMTEC');
+          toast('El archivo no es un archivo para importar a 212 V.I.P');
           return;
         }
         const imp = prepararImport(data);
@@ -2874,7 +2894,7 @@
             })
             .catch((err) => (err instanceof AuthError ? handleSyncError(err) : toast('No se pudo restaurar: ' + err.message)));
         } catch (err) {
-          toast('El archivo no es una copia válida de SIMTEC');
+          toast('El archivo no es una copia válida de 212 V.I.P');
         }
       };
       r.readAsText(f);
