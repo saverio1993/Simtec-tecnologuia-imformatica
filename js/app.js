@@ -524,7 +524,7 @@
       ['estadistica', 'Estadística'],
       ['reporte', 'Cierre diario', 'cierre-diario'],
       ['factura', 'Factura DGI'],
-      ['orden', 'Orden de ingreso'],
+      ['orden', 'Ingreso y orden de servicio', 'ingreso-orden'],
       ['inventario', 'Inventario'],
     ];
     el.innerHTML = `
@@ -1221,27 +1221,6 @@
       ${head('CIERRE DIARIO', 'h-red', `<input type="date" id="rd-fecha" class="btn ghost" value="${today()}"><button class="btn yellow big" id="rd-cierre">🔒 CIERRE DEL DÍA</button><button class="btn green" id="rd-xls">⬇ Excel del día</button><button class="btn" id="rd-xls-all">⬇ Excel completo</button>`)}
       <div id="rd-cierre-estado"></div>
       <div class="stats-row" id="rd-stats"></div>
-      <form class="card" id="rd-form">
-        <h2>Anotar trabajo / venta o gasto</h2>
-        <div class="seg" id="rd-tipo" style="margin-bottom:12px"><button type="button" class="on" data-t="ingreso">💵 Trabajo / venta</button><button type="button" data-t="gasto">🧾 Gasto</button></div>
-        <div class="form-grid">
-          <div class="field solo-ing"><label for="rd-cli">Cliente</label><select id="rd-cli">${clienteOptions('', '— Sin cliente / cliente de paso —')}</select></div>
-          <div class="field"><label for="rd-con" id="rd-con-lab">Modelo / trabajo</label><input id="rd-con" required list="rd-modelos" placeholder="Ej: Honor 400 Lite – FRP"><datalist id="rd-modelos">${Object.entries(MODELOS).flatMap(([m, l]) => l.map((x) => `<option value="${esc(m === 'iPhone' ? 'iPhone ' + x : m + ' ' + x)}">`)).join('')}</datalist></div>
-          <div class="field solo-ing"><label for="rd-cant">Cantidad</label><input id="rd-cant" type="number" min="1" step="1" value="1"></div>
-          <div class="field"><label for="rd-monto" id="rd-monto-lab">Total a cobrar</label><input id="rd-monto" type="number" step="0.01" min="0" required></div>
-          <div class="field solo-ing"><label for="rd-pago">Pagó</label><input id="rd-pago" type="number" step="0.01" min="0" placeholder="Lo que entregó hoy"></div>
-        </div>
-        <p class="hint-line solo-ing" id="rd-debe-hint"></p>
-        <div class="form-actions"><button class="btn red big" type="submit">GUARDAR</button></div>
-      </form>
-      <div class="card">
-        <h2>Movimientos de caja</h2>
-        <div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>Tipo</th><th>Concepto</th><th>Cliente</th><th class="num">Total</th><th class="num">Entró a caja</th><th class="num">Debe</th><th></th></tr></thead>
-          <tbody id="rd-body"></tbody>
-          <tfoot><tr><td colspan="5">TOTAL EN CAJA DEL DÍA</td><td class="num" id="rd-total"></td><td></td><td></td></tr></tfoot>
-        </table></div>
-      </div>
       <div class="card">
         <h2 class="neon-tit">Quedaron debiendo hoy <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(pasan a Cartera con el cierre)</small></h2>
         <div class="table-wrap"><table>
@@ -1259,50 +1238,11 @@
 
     const fecha = () => $('#rd-fecha').value || today();
     const signed = (m) => (m.tipo === 'gasto' ? -num(m.monto) : num(m.monto));
-    let tipo = 'ingreso';
-
-    function setTipo(t) {
-      tipo = t;
-      $$('#rd-tipo button', el).forEach((b) => b.classList.toggle('on', b.dataset.t === t));
-      $$('.solo-ing', el).forEach((x) => (x.hidden = t !== 'ingreso'));
-      $('#rd-con-lab').textContent = t === 'ingreso' ? 'Modelo / trabajo' : 'Concepto del gasto';
-      $('#rd-con').placeholder = t === 'ingreso' ? 'Ej: Honor 400 Lite – FRP' : 'Ej: Almuerzo, repuesto…';
-      $('#rd-monto-lab').textContent = t === 'ingreso' ? 'Total a cobrar' : 'Monto';
-      debeHint();
-    }
-    function debeHint() {
-      const total = num($('#rd-monto').value);
-      const pago = $('#rd-pago').value === '' ? total : num($('#rd-pago').value);
-      const debe = Math.max(0, total - pago);
-      $('#rd-debe-hint').innerHTML = tipo === 'ingreso' && debe > 0
-        ? `⏳ Queda debiendo <b style="color:#ff7b7c">${money(debe)}</b>: pasa a Cartera al hacer el cierre del día.`
-        : '';
-    }
-
     function render() {
       const f = fecha();
       const rows = db.movimientos.filter((m) => m.fecha === f);
-      let acc = 0;
-      $('#rd-body').innerHTML = rows.length
-        ? rows.map((m, i) => {
-          acc += signed(m);
-          const total = m.total != null ? num(m.total) : num(m.monto);
-          const debe = m.total != null ? Math.max(0, num(m.total) - num(m.monto)) : 0;
-          return `<tr>
-            <td>${i + 1}</td>
-            <td>${m.tipo === 'gasto' ? '<span class="tag due">Gasto</span>' : m.origen === 'manual' ? '<span class="tag ok">Trabajo</span>' : '<span class="tag in">Abono</span>'}</td>
-            <td>${m.cantidad > 1 ? `<b>${m.cantidad} ×</b> ` : ''}${esc(m.concepto)}</td>
-            <td>${esc(clienteNombre(m.clienteId))}</td>
-            <td class="num">${m.tipo === 'gasto' ? '' : money(total)}</td>
-            <td class="num">${m.tipo === 'gasto' ? '-' : ''}${money(m.monto)}</td>
-            <td class="num">${debe > 0 ? `<span class="tag due">${money(debe)}</span>` : ''}</td>
-            <td class="actions">${m.origen === 'manual' ? `<button class="btn sm red" data-del="${m.id}">Borrar</button>` : '<small style="color:var(--muted)">auto</small>'}</td>
-          </tr>`;
-        }).join('')
-        : `<tr><td colspan="8" class="empty">Sin movimientos el ${fmtDate(f)}</td></tr>`;
       const ing = rows.filter((m) => m.tipo !== 'gasto').reduce((s, m) => s + num(m.monto), 0);
       const gas = rows.filter((m) => m.tipo === 'gasto').reduce((s, m) => s + num(m.monto), 0);
-      $('#rd-total').textContent = money(ing - gas);
 
       const pend = pendientesDelDia(f);
       const grupos = porCliente(pend);
@@ -1321,8 +1261,6 @@
 
       const enMora = pend.reduce((s, d) => s + saldo(d), 0);
       $('#rd-stats').innerHTML = `
-        <div class="stat green"><div class="label">Entró a caja</div><div class="value">${money(ing)}</div></div>
-        <div class="stat red"><div class="label">Gastos</div><div class="value">${money(gas)}</div></div>
         <div class="stat yellow"><div class="label">Total en caja</div><div class="value">${money(ing - gas)}</div></div>
         <div class="stat blue"><div class="label">Quedaron debiendo</div><div class="value">${money(enMora)}</div></div>`;
       const hist = db.cierres.slice().sort((x, z) => z.fecha.localeCompare(x.fecha));
@@ -1418,52 +1356,8 @@
       exportXLSX(`Cierre_${f}.xlsx`, { [`Caja ${f}`]: rows, 'Pasan a cartera': mora });
     }
 
-    $$('#rd-tipo button', el).forEach((b) => b.addEventListener('click', () => setTipo(b.dataset.t)));
-    ['#rd-monto', '#rd-pago'].forEach((s) => $(s).addEventListener('input', debeHint));
-    $('#rd-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const f = fecha();
-      const concepto = $('#rd-con').value.trim();
-      const total = num($('#rd-monto').value);
-      if (tipo === 'gasto') {
-        db.movimientos.push({ id: uid(), origen: 'manual', fecha: f, tipo: 'gasto', concepto, clienteId: '', monto: total });
-      } else {
-        const clienteId = $('#rd-cli').value;
-        const cantidad = Math.max(1, Math.round(num($('#rd-cant').value) || 1));
-        const pago = $('#rd-pago').value === '' ? total : Math.min(num($('#rd-pago').value), total);
-        const debe = Math.max(0, total - pago);
-        if (debe > 0 && !clienteId) {
-          toast('Para dejar saldo pendiente, elija el cliente que queda debiendo');
-          $('#rd-cli').focus();
-          return;
-        }
-        const movId = uid();
-        db.movimientos.push({ id: movId, origen: 'manual', fecha: f, tipo: 'ingreso', concepto, clienteId, cantidad, total, monto: pago });
-        if (debe > 0) {
-          db.cartera.push({
-            id: uid(), origen: 'diario', movimientoId: movId, clienteId, fecha: f,
-            concepto: (cantidad > 1 ? `${cantidad} × ` : '') + concepto, cantidad, monto: debe, abonos: [],
-          });
-        }
-      }
-      save();
-      ['#rd-con', '#rd-monto', '#rd-pago'].forEach((s) => ($(s).value = ''));
-      $('#rd-cant').value = 1;
-      debeHint();
-      toast('Guardado');
-      render();
-    });
     $('#rd-fecha').addEventListener('change', render);
     $('#rd-cierre').addEventListener('click', abrirCierre);
-    $('#rd-body').addEventListener('click', (e) => {
-      const del = e.target.closest('[data-del]');
-      if (del && confirm('¿Borrar este movimiento? (si dejó deuda, también se borra de Cartera)')) {
-        db.movimientos = db.movimientos.filter((mv) => mv.id !== del.dataset.del);
-        db.cartera = db.cartera.filter((d) => d.movimientoId !== del.dataset.del);
-        save();
-        render();
-      }
-    });
     $('#rd-xls').addEventListener('click', () => excelDia(fecha()));
     excelCierre = excelDia;
     refreshReporte = () => { if (document.body.contains(el)) render(); };
@@ -1481,7 +1375,6 @@
         Cierres: db.cierres.slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).map((c) => ({ Fecha: fmtDate(c.fecha), Hora: c.hora, 'En caja': c.total, 'Pasó a cartera': c.enMora, Clientes: c.deudores.map((d) => `${d.cliente} (${d.modelos})`).join('; ') })),
       });
     });
-    setTipo('ingreso');
     render();
   };
 
@@ -2037,7 +1930,7 @@
 
   views.orden = (el) => {
     el.innerHTML = `
-      ${head('ORDEN DE INGRESO', 'h-blue', `<button class="btn primary big" id="or-scan">📷 ESCANEAR</button>`)}
+      ${head('INGRESO Y ORDEN DE SERVICIO', 'h-blue', `<button class="btn primary big" id="or-scan">📷 ESCANEAR</button>`)}
       <form class="card" id="or-form" novalidate>
         <div class="paso-top">
           <h2>Plantilla de servicio técnico</h2>
