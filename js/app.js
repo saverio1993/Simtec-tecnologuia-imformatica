@@ -1746,19 +1746,59 @@
   function openReceipt(o) {
     const c = clienteById(o.clienteId) || {};
     const msg = `Hola ${c.nombre || ''}, le saluda ${db.config.negocio}.\nOrden de ingreso: ${o.numero}\nEquipo: ${equipoTxt(o)}\nFalla: ${o.falla}\nCosto: ${money(o.costo)} | Abono: ${money(num(o.abono) + abonosOrden(o))} | Saldo: ${money(saldoOrden(o))}\nEstado: ${o.estado}`;
-    openModal(`
+    const { el: m } = openModal(`
       <div class="modal-actions">
         <button class="btn primary" data-act="print">🖨 Imprimir / PDF</button>
         <button class="btn yellow" data-act="label">🏷 Etiqueta QR</button>
-        ${c.whatsapp ? `<a class="btn green" target="_blank" rel="noopener" href="${waLink(c.whatsapp, msg)}">💬 Enviar por WhatsApp</a>` : ''}
+        <button class="btn green" data-act="wa" disabled>⏳ Preparando…</button>
         <button class="btn" data-act="close">Cerrar</button>
       </div>
       ${receiptHTML(o)}`,
     (e, a) => {
       if (!a) return;
+      if (a.dataset.act === 'wa') {
+        if (!blob) return;
+        const fact = o.factura != null ? `N°${o.factura}` : o.numero;
+        compartirImagen(blob, `212VIP_orden_${o.factura != null ? o.factura : o.numero}.png`, `Orden de servicio ${fact} · ${db.config.negocio}`, c.whatsapp);
+      }
       if (a.dataset.act === 'print') printWithPage('@page { size: auto; margin: 12mm; }');
       if (a.dataset.act === 'label') openLabel(o);
     });
+    // la imagen se prepara al abrir, así el toque de enviar abre WhatsApp de inmediato
+    let blob = null;
+    imagenComprobante(o)
+      .then((b) => {
+        blob = b;
+        const btn = $('[data-act=wa]', m);
+        if (btn) { btn.disabled = false; btn.textContent = '💬 Enviar por WhatsApp'; }
+      })
+      .catch(() => { const btn = $('[data-act=wa]', m); if (btn) btn.textContent = 'No se pudo preparar la imagen'; });
+  }
+
+  // la orden de servicio tal cual se ve (estilo factura) convertida en imagen
+  let h2cPromise;
+  const loadH2C = () =>
+    h2cPromise || (h2cPromise = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'vendor/html2canvas.min.js';
+      s.onload = () => res(window.html2canvas);
+      s.onerror = () => { h2cPromise = null; rej(new Error('html2canvas')); };
+      document.head.appendChild(s);
+    }));
+  async function imagenComprobante(o) {
+    const h2c = await loadH2C();
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:-12000px;top:0;width:860px;background:#fff;padding:18px';
+    box.innerHTML = receiptHTML(o);
+    document.body.appendChild(box);
+    try {
+      await Promise.all(Array.from(box.querySelectorAll('img')).map((i) => (i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; }))));
+      // windowWidth grande: se dibuja con el diseño de PC aunque sea desde el celular
+      const cv = await h2c(box, { scale: 2, backgroundColor: '#ffffff', windowWidth: 1300, logging: false });
+      return await new Promise((r) => cv.toBlob(r, 'image/png'));
+    } finally {
+      box.remove();
+    }
   }
 
   // ---- escáner: cámara (celular o laptop) o lector de código USB (escribe y da Enter)
@@ -1930,7 +1970,7 @@
 
   views.orden = (el) => {
     el.innerHTML = `
-      ${head('INGRESO Y ORDEN DE SERVICIO', 'h-blue', `<button class="btn yellow big" id="or-totdia">📊 TOTAL DEL DÍA</button><button class="btn primary big" id="or-scan">📷 ESCANEAR</button>`)}
+      ${head('INGRESO Y ORDEN DE SERVICIO', 'h-blue', `<button class="btn primary big" id="or-scan">📷 ESCANEAR</button>`)}
       <form class="card" id="or-form" novalidate>
         <div class="paso-top">
           <h2>Plantilla de servicio técnico</h2>
@@ -1989,6 +2029,7 @@
           <button class="btn primary big" type="submit" id="or-guardar" hidden>GUARDAR E IMPRIMIR</button>
         </div>
       </form>
+      <button type="button" class="tot-dia" id="or-totbox"></button>
       <div class="toolbar">
         <div class="search"><input id="or-q" placeholder="Buscar por número, cliente, marca o modelo…"></div>
         <div class="seg" id="or-filtro"><button class="on" data-f="taller">En taller</button><button data-f="Entregado">Entregados</button></div>
@@ -2007,6 +2048,14 @@
     // En taller = todo lo que no se ha entregado (recibido, en reparación o listo)
     const pasaFiltro = (o) => (filtro === 'taller' ? o.estado !== 'Entregado' : o.estado === filtro);
     function render() {
+      const hoyF = today();
+      const cobradoHoy = db.movimientos.filter((x) => x.fecha === hoyF).reduce((t, x) => t + (x.tipo === 'gasto' ? -num(x.monto) : num(x.monto)), 0);
+      const ordsHoy = db.ordenes.filter((o) => o.fecha === hoyF);
+      $('#or-totbox').innerHTML = `
+        <span class="td-tit">📊 TOTAL DEL DÍA</span>
+        <span class="td-num">${money(cobradoHoy)}</span>
+        <span class="td-sub">${ordsHoy.length} ${ordsHoy.length === 1 ? 'equipo recibido' : 'equipos recibidos'} hoy · Trabajos ${money(ordsHoy.reduce((t, o) => t + num(o.costo), 0))}</span>
+        <span class="td-ver">Ver detalle ›</span>`;
       const q = $('#or-q').value.toLowerCase();
       const rows = db.ordenes
         .filter((o) => (q ? true : pasaFiltro(o)))
@@ -2165,7 +2214,7 @@
       render();
     }
     $('#or-scan').addEventListener('click', () => openScanner());
-    $('#or-totdia').addEventListener('click', () => totalDelDia());
+    $('#or-totbox').addEventListener('click', () => totalDelDia());
     $$('#or-filtro button', el).forEach((b) => b.addEventListener('click', () => {
       $$('#or-filtro button', el).forEach((x) => x.classList.toggle('on', x === b));
       filtro = b.dataset.f;
