@@ -1164,11 +1164,11 @@
   let refreshReporte = () => {};
   // Envía los PDF del cierre al encargado. Debe llamarse directo desde un toque (el navegador lo exige).
   async function enviarCierre(c, files) {
-    const texto = resumenCierreTexto(c);
+    // solo se envían los 2 PDF, sin mensaje de texto
     if (navigator.canShare && navigator.canShare({ files })) {
       // Android / Windows: menú de compartir con los PDF adjuntos → WhatsApp → encargado
       try {
-        await navigator.share({ files, title: `Cierre ${fmtDate(c.fecha)}`, text: texto });
+        await navigator.share({ files });
         marcarEnviado(c.fecha);
         toast('Cierre enviado ✅');
       } catch (err) {
@@ -1176,7 +1176,7 @@
       }
     } else {
       // sin compartir archivos: se abre directo el chat del encargado con el resumen y se descargan los PDF
-      window.open(waLink(encargado(), texto + '\n\n📎 Adjunto los PDF del cierre y de la cartera.'), '_blank', 'noopener');
+      window.open(waDigits(encargado()) ? 'https://wa.me/' + waDigits(encargado()) : 'https://wa.me/', '_blank', 'noopener');
       files.forEach(descargar);
       marcarEnviado(c.fecha);
       toast(`WhatsApp abierto con ${encargado()}: adjunte los 2 PDF descargados y toque Enviar`);
