@@ -522,7 +522,7 @@
       ['clientes', 'Clientes'],
       ['cartera', 'Cartera'],
       ['estadistica', 'Estadística'],
-      ['reporte', 'Reporte diario'],
+      ['reporte', 'Cierre diario', 'cierre-diario'],
       ['factura', 'Factura DGI'],
       ['orden', 'Orden de ingreso'],
       ['inventario', 'Inventario'],
@@ -530,7 +530,7 @@
     el.innerHTML = `
       <div class="menu-grid">
         <img class="menu-logo" src="assets/logo-212.jpg" alt="212 V.I.P Servicio Técnico de Celulares">
-        ${tiles.map(([k, label]) => `<button class="tile t-${k}" data-go="${k}" aria-label="${label}"><img src="assets/${k}.jpg" alt="${label}"></button>`).join('')}
+        ${tiles.map(([k, label, img]) => `<button class="tile t-${k}" data-go="${k}" aria-label="${label}"><img src="assets/${img || k}.jpg" alt="${label}"></button>`).join('')}
       </div>`;
   };
 
@@ -694,17 +694,7 @@
         <tfoot><tr><td id="ca-total-lab">TOTAL QUE ME DEBEN</td><td class="num" id="ca-total"></td><td></td></tr></tfoot>
       </table></div>
       <p id="ca-pend" class="hint-line"></p>
-      <form class="card" id="ca-form" style="margin-top:18px">
-        <h2>Agregar deuda a mano</h2>
-        <div class="form-grid">
-          <div class="field"><label for="ca-cli">Cliente</label><select id="ca-cli" required>${clienteOptions()}</select></div>
-          <div class="field"><label for="ca-con">Concepto / modelo</label><input id="ca-con" required placeholder="Ej: Honor 400 Lite"></div>
-          <div class="field"><label for="ca-monto">Monto</label><input id="ca-monto" type="number" step="0.01" min="0" required></div>
-          <div class="field"><label for="ca-fecha">Fecha</label><input id="ca-fecha" type="date" value="${today()}"></div>
-        </div>
-        <div class="form-actions"><button class="btn yellow big" type="submit">GUARDAR</button>
-        ${db.clientes.length ? '' : '<span style="color:var(--muted)">Primero cree clientes en la sección <a href="#clientes" style="color:#fff">Clientes</a>.</span>'}</div>
-      </form>`;
+      `;
 
     // una sola tabla: cada deuda pendiente con su cliente, y los botones en cada fila
     const filtro = 'pend';
@@ -785,7 +775,7 @@
           const m = Math.min(num(v), saldo(d));
           if (m <= 0) return;
           abonarCliente(d.clienteId, [d], m, `Abono cartera: ${modeloDe(d)}`);
-          toast('Abono registrado y sumado al reporte diario');
+          toast('Abono registrado y sumado al cierre diario');
           volver();
         }
         if (a.dataset.act === 'borrar-d') {
@@ -855,29 +845,13 @@
       $('#ca-stats').innerHTML = `
         <div class="stat yellow"><div class="label">Total por cobrar</div><div class="value">${money(total)}</div></div>
         <div class="stat red"><div class="label">Clientes que deben</div><div class="value">${deudores}</div></div>
-        <div class="stat green"><div class="label">Cobrado (abonos)</div><div class="value">${money(visibles.reduce((s, d) => s + abonado(d), 0))}</div></div>`;
+`;
       const pendHoy = db.cartera.filter((d) => !enCartera(d) && saldo(d) > 0);
       $('#ca-pend').innerHTML = pendHoy.length
         ? `⏳ Hay ${pendHoy.length} ${pendHoy.length === 1 ? 'trabajo' : 'trabajos'} de hoy con saldo (${money(pendHoy.reduce((s, d) => s + saldo(d), 0))}) que pasan a Cartera con el <a href="#reporte">cierre del día</a>.`
         : '';
     }
 
-    $('#ca-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      db.cartera.push({
-        id: uid(), origen: 'manual',
-        clienteId: $('#ca-cli').value,
-        concepto: $('#ca-con').value.trim(),
-        monto: num($('#ca-monto').value),
-        fecha: $('#ca-fecha').value || today(),
-        abonos: [],
-      });
-      save();
-      $('#ca-con').value = '';
-      $('#ca-monto').value = '';
-      toast('Deuda registrada');
-      render();
-    });
     $('#ca-q').addEventListener('input', render);
     const setVista = (v) => {
       vista = v;
@@ -891,7 +865,7 @@
       const m = Math.min(num(v), debe);
       if (m <= 0) return;
       abonarCliente(id, deudas, m, `Abono cartera: ${resumenModelos(deudas)}`);
-      toast('Abono registrado y sumado al reporte diario');
+      toast('Abono registrado y sumado al cierre diario');
       render();
     }
     $('#ca-body').addEventListener('click', (e) => {
@@ -915,7 +889,7 @@
         const m = Math.min(num(v), saldo(d));
         if (m <= 0) return;
         abonarCliente(d.clienteId, [d], m, `Abono cartera: ${modeloDe(d)}`);
-        toast('Abono registrado y sumado al reporte diario');
+        toast('Abono registrado y sumado al cierre diario');
         render();
       }
       if (del) {
@@ -1007,7 +981,7 @@
             <div class="bar-track"><div class="bar c${i % 5}" data-w="${Math.max(6, (r.trabajos / max) * 100)}">${r.trabajos} ${r.trabajos === 1 ? 'trabajo' : 'trabajos'} · ${money(r.dinero)}</div></div>
           </div>`;
         }).join('')
-        : `<p class="empty">Todavía no hay trabajos registrados. Cree órdenes de ingreso o ventas en el reporte diario.</p>`;
+        : `<p class="empty">Todavía no hay trabajos registrados. Cree órdenes de ingreso o ventas en el cierre diario.</p>`;
       requestAnimationFrame(() => requestAnimationFrame(() => $$('.bar', el).forEach((b) => (b.style.width = b.dataset.w + '%'))));
       const totalT = data.reduce((s, r) => s + r.trabajos, 0);
       const totalD = data.reduce((s, r) => s + r.dinero, 0);
@@ -1244,7 +1218,7 @@
 
   views.reporte = (el) => {
     el.innerHTML = `
-      ${head('REPORTE DIARIO', 'h-red', `<input type="date" id="rd-fecha" class="btn ghost" value="${today()}"><button class="btn yellow big" id="rd-cierre">🔒 CIERRE DEL DÍA</button><button class="btn green" id="rd-xls">⬇ Excel del día</button><button class="btn" id="rd-xls-all">⬇ Excel completo</button>`)}
+      ${head('CIERRE DIARIO', 'h-red', `<input type="date" id="rd-fecha" class="btn ghost" value="${today()}"><button class="btn yellow big" id="rd-cierre">🔒 CIERRE DEL DÍA</button><button class="btn green" id="rd-xls">⬇ Excel del día</button><button class="btn" id="rd-xls-all">⬇ Excel completo</button>`)}
       <div id="rd-cierre-estado"></div>
       <div class="stats-row" id="rd-stats"></div>
       <form class="card" id="rd-form">
@@ -2034,7 +2008,7 @@
           db.movimientos.push({ id: uid(), origen: 'abono', ordenId: o.id, fecha: today(), tipo: 'ingreso', concepto: `Pago al entregar ${o.numero}`, clienteId: o.clienteId, monto: s });
           setEstado(o, 'Entregado');
           toast(`Cobrado ${money(s)} y entregado`);
-          showResult(`📦 Entregado y cobrado ${money(s)} (sumado al reporte diario)`);
+          showResult(`📦 Entregado y cobrado ${money(s)} (sumado al cierre diario)`);
           break;
         }
         case 'entregar': setEstado(o, 'Entregado'); toast(`${o.numero} entregado`); showResult('📦 Marcado como ENTREGADO'); break;
@@ -2157,7 +2131,7 @@
             <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === (o.estado === 'Entregado' ? 'Entregado' : 'Recibido') ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
-            <td class="actions">${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al reporte diario y al cierre)">💵 Pagar</button>` : ''}<button class="btn sm" data-editar="${o.id}" title="Corregir datos o poner el precio">✏ Editar</button><button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
+            <td class="actions">${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al cierre diario)">💵 Pagar</button>` : ''}<button class="btn sm" data-editar="${o.id}" title="Corregir datos o poner el precio">✏ Editar</button><button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
         : `<tr><td colspan="7" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
@@ -2769,7 +2743,7 @@
       </div>
       <div class="card">
         <h2>Empezar de cero</h2>
-        <p style="color:var(--muted);margin-top:0">Borra <b>todos</b> los clientes, órdenes / equipos, cartera, reporte diario, cierres e inventario en <b>todas</b> las computadoras. La factura vuelve a empezar en 00. Se mantienen los datos del negocio, el WhatsApp del encargado y la contraseña. Antes de borrar se descarga una copia por si acaso.</p>
+        <p style="color:var(--muted);margin-top:0">Borra <b>todos</b> los clientes, órdenes / equipos, cartera, cierre diario, cierres e inventario en <b>todas</b> las computadoras. La factura vuelve a empezar en 00. Se mantienen los datos del negocio, el WhatsApp del encargado y la contraseña. Antes de borrar se descarga una copia por si acaso.</p>
         <div class="form-actions"><button class="btn yellow" id="aj-trabajos">🧽 Borrar trabajos (dejar clientes)</button><button class="btn red" id="aj-reset">🧹 Dejar todo en blanco</button></div>
       </div>`;
 
@@ -2827,7 +2801,7 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     });
     $('#aj-trabajos').addEventListener('click', () => {
-      if (!confirm(`Se borran ${db.ordenes.length} órdenes, la cartera, el reporte diario, los cierres y el inventario en todas las computadoras. Quedan los ${db.clientes.length} clientes y la factura vuelve a N°001. ¿Continuar?`)) return;
+      if (!confirm(`Se borran ${db.ordenes.length} órdenes, la cartera, el cierre diario, los cierres y el inventario en todas las computadoras. Quedan los ${db.clientes.length} clientes y la factura vuelve a N°001. ¿Continuar?`)) return;
       if ((prompt('Para confirmar escriba BORRAR') || '').trim().toUpperCase() !== 'BORRAR') { toast('No se borró nada'); return; }
       $('#aj-backup').click(); // copia de seguridad antes de borrar
       borrarTrabajos().then(() => toast('Listo: quedaron solo los clientes'), (err) => (err instanceof AuthError ? handleSyncError(err) : toast('No se pudo borrar: ' + err.message)));
@@ -2867,7 +2841,7 @@
         }
         const imp = prepararImport(data);
         if (!imp.total) { toast('Esos datos ya estaban en el sistema'); return; }
-        if (!confirm(`Se van a agregar ${imp.nC} clientes nuevos, ${imp.nM} trabajos al reporte diario y ${imp.nD} deudas a Cartera. ¿Continuar?`)) return;
+        if (!confirm(`Se van a agregar ${imp.nC} clientes nuevos, ${imp.nM} trabajos al cierre diario y ${imp.nD} deudas a Cartera. ¿Continuar?`)) return;
         imp.aplicar();
         save();
         toast(`Listo: ${imp.nC} clientes, ${imp.nM} trabajos y ${imp.nD} deudas agregados`);
