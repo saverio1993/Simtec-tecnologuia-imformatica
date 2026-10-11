@@ -785,3 +785,10 @@ html[data-tema="rojo"] #rd-fecha { --neon: #ff2a2a; background: #000; }
   .receipt { max-width: none; border-radius: 0; padding: 0; }
   .fact { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* falla de la orden: se elige con un clic */
+.sel-falla { background: #000; color: #ffd400; font-weight: 700; border-color: #ffd400; }
+html[data-tema="rojo"] .sel-falla { color: #fff; border-color: #ff2a2a; }
+.td-fallas { margin: 12px 0 16px; }
+.td-fallas .falla-k { font-size: 22px; }
+.td-fallas .falla-n { font-size: 34px; padding: 6px 4px 8px; }

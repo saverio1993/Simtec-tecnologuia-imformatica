@@ -1930,7 +1930,7 @@
 
   views.orden = (el) => {
     el.innerHTML = `
-      ${head('INGRESO Y ORDEN DE SERVICIO', 'h-blue', `<button class="btn primary big" id="or-scan">📷 ESCANEAR</button>`)}
+      ${head('INGRESO Y ORDEN DE SERVICIO', 'h-blue', `<button class="btn yellow big" id="or-totdia">📊 TOTAL DEL DÍA</button><button class="btn primary big" id="or-scan">📷 ESCANEAR</button>`)}
       <form class="card" id="or-form" novalidate>
         <div class="paso-top">
           <h2>Plantilla de servicio técnico</h2>
@@ -1994,7 +1994,7 @@
         <div class="seg" id="or-filtro"><button class="on" data-f="taller">En taller</button><button data-f="Entregado">Entregados</button></div>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th class="num">Saldo</th><th></th></tr></thead>
+        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Falla</th><th>Estado</th><th class="num">Saldo</th><th></th></tr></thead>
         <tbody id="or-body"></tbody>
       </table></div>`;
 
@@ -2022,14 +2022,66 @@
             <td>${fmtDate(o.fecha)}</td>
             <td>${esc(clienteNombre(o.clienteId))}</td>
             <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
+            <td>${selFalla(o)}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === (o.estado === 'Entregado' ? 'Entregado' : 'Recibido') ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
             <td class="actions">${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al cierre diario)">💵 Pagar</button>` : ''}<button class="btn sm" data-editar="${o.id}" title="Corregir datos o poner el precio">✏ Editar</button><button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
-        : `<tr><td colspan="7" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
+        : `<tr><td colspan="8" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
     }
     refreshOrdenList = render;
+
+    // falla de cada orden: se elige con un clic (FRP, KG o PayJoy)
+    const FALLAS_RAPIDAS = ['FRP', 'KG', 'PayJoy'];
+    function selFalla(o) {
+      const actual = (o.falla || '').trim();
+      const igual = FALLAS_RAPIDAS.find((f) => f.toLowerCase() === actual.toLowerCase());
+      const ops = [`<option value="" ${actual ? '' : 'selected'}>— Elegir —</option>`]
+        .concat(actual && !igual ? [`<option selected>${esc(actual)}</option>`] : [])
+        .concat(FALLAS_RAPIDAS.map((f) => `<option ${f === igual ? 'selected' : ''}>${f}</option>`));
+      return `<select data-falla="${o.id}" class="btn sm sel-falla">${ops.join('')}</select>`;
+    }
+
+    // total del día: lo que entró a caja ese día (pagos y abonos) y los equipos recibidos
+    function totalDelDia(f = today()) {
+      const pintar = (m, f) => {
+        const ords = db.ordenes.filter((o) => o.fecha === f).sort((a, b) => (Number(a.factura) || 0) - (Number(b.factura) || 0));
+        const movs = db.movimientos.filter((x) => x.fecha === f);
+        const cobrado = movs.reduce((t, x) => t + (x.tipo === 'gasto' ? -num(x.monto) : num(x.monto)), 0);
+        const facturado = ords.reduce((t, o) => t + num(o.costo), 0);
+        const debe = ords.reduce((t, o) => t + saldoOrden(o), 0);
+        const cuenta = (re) => ords.filter((o) => re.test(o.falla || '')).length;
+        m.querySelector('#td-cuerpo').innerHTML = `
+          <div class="stats-row">
+            <div class="stat green"><div class="label">Total cobrado del día</div><div class="value">${money(cobrado)}</div></div>
+            <div class="stat yellow"><div class="label">Total de trabajos</div><div class="value">${money(facturado)}</div></div>
+            <div class="stat red"><div class="label">Quedaron debiendo</div><div class="value">${money(debe)}</div></div>
+            <div class="stat blue"><div class="label">Equipos recibidos</div><div class="value">${ords.length}</div></div>
+          </div>
+          <div class="fallas-row td-fallas">
+            ${[['FRP', /\bFRP\b/i], ['KG', /\bKG\b/i], ['PAY', /\bPAY\s*JOY\b|\bPAY\b/i]].map(([k, re]) => `<div class="falla-box"><div class="falla-k">${k}</div><div class="falla-n">${cuenta(re)}</div></div>`).join('')}
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Factura</th><th>Cliente</th><th>Equipo</th><th>Falla</th><th class="num">Precio</th><th class="num">Debe</th></tr></thead>
+            <tbody>${ords.length ? ords.map((o) => `<tr>
+              <td><b class="fact-n">N°${esc(o.factura)}</b></td><td>${esc(clienteNombre(o.clienteId))}</td>
+              <td>${esc([o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo)}</td><td>${esc(o.falla || '—')}</td>
+              <td class="num">${num(o.costo) ? money(o.costo) : '<span class="tag gray">SIN PRECIO</span>'}</td>
+              <td class="num">${saldoOrden(o) > 0 ? `<span class="tag due">${money(saldoOrden(o))}</span>` : num(o.costo) ? '<span class="tag ok">PAGADO</span>' : ''}</td>
+            </tr>`).join('') : `<tr><td colspan="6" class="empty">No se recibieron equipos el ${fmtDate(f)}</td></tr>`}</tbody>
+          </table></div>
+          <p class="modal-hint">"Total cobrado" es el dinero que entró ese día (pagos y abonos), y es lo mismo que sale en el Cierre diario.</p>`;
+      };
+      const { el: m } = openModal(`
+        <div class="card cierre-box">
+          <div class="modal-actions"><input type="date" id="td-fecha" class="btn ghost" value="${f}"><button class="btn" data-act="close">Cerrar</button></div>
+          <h2 class="scan-title neon-tit">📊 TOTAL DEL DÍA</h2>
+          <div id="td-cuerpo"></div>
+        </div>`);
+      m.querySelector('#td-fecha').addEventListener('change', (e) => pintar(m, e.target.value || today()));
+      pintar(m, f);
+    }
 
     // editar una orden ya ingresada (por ejemplo, ponerle el precio cuando se sepa)
     function editarOrden(id) {
@@ -2113,6 +2165,7 @@
       render();
     }
     $('#or-scan').addEventListener('click', () => openScanner());
+    $('#or-totdia').addEventListener('click', () => totalDelDia());
     $$('#or-filtro button', el).forEach((b) => b.addEventListener('click', () => {
       $$('#or-filtro button', el).forEach((x) => x.classList.toggle('on', x === b));
       filtro = b.dataset.f;
@@ -2301,6 +2354,13 @@
     });
     $('#or-q').addEventListener('input', render);
     $('#or-body').addEventListener('change', (e) => {
+      const fa = e.target.closest('[data-falla]');
+      if (fa) {
+        const o = db.ordenes.find((x) => x.id === fa.dataset.falla);
+        if (o && fa.value) { o.falla = fa.value; save(); toast(`Falla: ${fa.value}`); }
+        render();
+        return;
+      }
       const s = e.target.closest('[data-estado]');
       if (s) {
         const o = db.ordenes.find((x) => x.id === s.dataset.estado);
