@@ -1579,6 +1579,8 @@
     const filas = [
       { icono: '📄', etiqueta: 'Factura:', valor: o.factura != null ? `N°${o.factura}` : o.numero, color: 'cian' },
       { icono: '📱', etiqueta: 'Equipo:', valor: [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || '-', color: 'turquesa' },
+      { icono: '🔧', etiqueta: 'Falla:', valor: o.falla || '-', color: 'cian' },
+      { icono: '💵', etiqueta: 'Precio:', valor: num(o.costo) ? money(o.costo) : 'Por definir', color: 'turquesa' },
     ];
     if (o.estado === 'Listo' || o.estado === 'Entregado') {
       filas.push(s > 0 ? { icono: '👛', etiqueta: 'A pagar:', valor: money(s), color: 'ambar' } : { icono: '✅', etiqueta: 'Pago:', valor: 'Completo', color: 'lima' });
