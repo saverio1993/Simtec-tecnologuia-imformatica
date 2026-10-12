@@ -1393,7 +1393,7 @@
 
   // ================================================================== ORDEN DE INGRESO
   const ESTADOS = ['Recibido', 'Entregado']; // Recibido = en el taller · Entregado = ya se lo llevó
-  const FALLAS = ['FRP', 'KG', 'PayJoy', 'Software', 'Cuenta Mi'];
+  const FALLAS = ['FRP', 'KG', 'PAY', 'Software', 'Cuenta Mi'];
   const MARCAS = ['Samsung', 'iPhone', 'Xiaomi', 'Honor', 'Huawei', 'Motorola', 'Oppo', 'Tecno', 'Infinix', 'ZTE'];
   // modelos más comunes por marca (se pueden escribir otros)
   const MODELOS = {
@@ -2031,15 +2031,15 @@
           <button class="btn primary big" type="submit" id="or-guardar" hidden>GUARDAR E IMPRIMIR</button>
         </div>
       </form>
-      <button type="button" class="tot-dia" id="or-totbox"></button>
       <div class="toolbar">
         <div class="search"><input id="or-q" placeholder="Buscar por número, cliente, marca o modelo…"></div>
         <div class="seg" id="or-filtro"><button class="on" data-f="taller">En taller</button><button data-f="Entregado">Entregados</button></div>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Falla</th><th>Estado</th><th class="num">Saldo</th><th></th></tr></thead>
+        <thead><tr><th>Orden</th><th>Fecha</th><th>Cliente</th><th>Equipo</th><th>Falla</th><th>Estado</th><th class="num">Saldo</th><th></th></tr></thead>
         <tbody id="or-body"></tbody>
-      </table></div>`;
+      </table></div>
+      <button type="button" class="tot-dia" id="or-totbox"></button>`;
 
     let modoNuevo = false; // los datos del cliente nuevo solo aparecen al elegir "Cliente nuevo"
     const toggleNuevo = () => $$('.field.nuevo', el).forEach((f) => (f.hidden = !modoNuevo || !!$('#or-cli').value));
@@ -2083,11 +2083,11 @@
     }
     refreshOrdenList = render;
 
-    // falla de cada orden: se elige con un clic (FRP, KG o PayJoy)
-    const FALLAS_RAPIDAS = ['FRP', 'KG', 'PayJoy'];
+    // falla de cada orden: se elige con un clic (FRP, KG o PAY)
+    const FALLAS_RAPIDAS = ['FRP', 'KG', 'PAY'];
     function selFalla(o) {
       const actual = (o.falla || '').trim();
-      const igual = FALLAS_RAPIDAS.find((f) => f.toLowerCase() === actual.toLowerCase());
+      const igual = FALLAS_RAPIDAS.find((f) => f.toLowerCase() === actual.replace(/^pay\s*joy$/i, 'PAY').toLowerCase());
       const ops = [`<option value="" ${actual ? '' : 'selected'}>— Elegir —</option>`]
         .concat(actual && !igual ? [`<option selected>${esc(actual)}</option>`] : [])
         .concat(FALLAS_RAPIDAS.map((f) => `<option ${f === igual ? 'selected' : ''}>${f}</option>`));
@@ -2147,7 +2147,7 @@
             <div class="field"><label for="ed-eq">Equipo</label><select id="ed-eq">${['Celular', 'Tablet', 'Laptop', 'PC', 'Otro'].map((e) => `<option ${e === o.equipo ? 'selected' : ''}>${e}</option>`).join('')}</select></div>
             <div class="field"><label for="ed-marca">Marca</label><input id="ed-marca" list="ed-marcas" value="${esc(o.marca || '')}"><datalist id="ed-marcas">${MARCAS.map((x) => `<option value="${x}">`).join('')}</datalist></div>
             <div class="field full"><label for="ed-modelo">Modelo</label><input id="ed-modelo" value="${esc(o.modelo || '')}"></div>
-            <div class="field full"><label for="ed-falla">Falla</label><input id="ed-falla" value="${esc(o.falla || '')}" placeholder="FRP, KG, PayJoy…"></div>
+            <div class="field full"><label for="ed-falla">Falla</label><input id="ed-falla" value="${esc(o.falla || '')}" placeholder="FRP, KG, PAY…"></div>
             <div class="field full"><label for="ed-nota">Nota</label><input id="ed-nota" value="${esc(o.trabajo || '')}"></div>
             <div class="field"><label for="ed-costo">Precio / costo</label><input id="ed-costo" type="number" step="0.01" min="0" value="${num(o.costo) || ''}" placeholder="Sin precio"></div>
           </div>

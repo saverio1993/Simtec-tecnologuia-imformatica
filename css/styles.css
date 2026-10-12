@@ -794,7 +794,7 @@ html[data-tema="rojo"] .sel-falla { color: #fff; border-color: #ff2a2a; }
 .td-fallas .falla-n { font-size: 34px; padding: 6px 4px 8px; }
 
 /* casilla "Total del día" en Ingreso y orden de servicio */
-.tot-dia { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; width: 100%; margin: 0 0 16px; padding: 14px 20px; text-align: left; cursor: pointer;
+.tot-dia { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; width: 100%; margin: 16px 0 0; padding: 14px 20px; text-align: left; cursor: pointer;
   background: #000; color: #fff; border: 3px solid #ffd400; border-radius: 16px; box-shadow: 0 0 8px #ffd400, 0 0 22px rgba(255,212,0,.35); font-family: var(--font-body); }
 .tot-dia:hover { box-shadow: 0 0 12px #ffd400, 0 0 30px rgba(255,212,0,.55); }
 .tot-dia .td-tit { font-family: var(--font-title); font-size: 24px; letter-spacing: 1px; color: #ffd400; }
