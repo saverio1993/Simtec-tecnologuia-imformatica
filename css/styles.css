@@ -804,3 +804,66 @@ html[data-tema="rojo"] .sel-falla { color: #fff; border-color: #ff2a2a; }
 html[data-tema="rojo"] .tot-dia { border-color: #ff2a2a; box-shadow: 0 0 8px #ff2a2a, 0 0 22px rgba(255,42,42,.35); }
 html[data-tema="rojo"] .tot-dia .td-tit, html[data-tema="rojo"] .tot-dia .td-ver { color: #fff; }
 @media (max-width: 600px) { .tot-dia { padding: 12px 14px; } .tot-dia .td-tit { font-size: 19px; } .tot-dia .td-num { font-size: 28px; } .tot-dia .td-ver { margin-left: 0; } }
+
+/* ================= MONITOREO (pantalla del televisor) ================= */
+.tv-btn { text-decoration: none; white-space: nowrap; border-color: #22d3ee; color: #22d3ee; box-shadow: 0 0 8px #22d3ee66; }
+html[data-tema="rojo"] .tv-btn { border-color: #fff; color: #fff; box-shadow: 0 0 8px #ff2a2a; }
+@media (max-width: 600px) { .tv-btn { padding: 6px 8px; font-size: 14px; } .tv-btn span { display: none; } }
+body.modo-tv { overflow: hidden; background: #02040a; }
+body.modo-tv .topbar, body.modo-tv #ptr, body.modo-tv .update-bar { display: none !important; }
+body.modo-tv main#view { padding: 0; max-width: none; margin: 0; }
+.tv-wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #02040a; }
+.tv { flex: none; position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: var(--font-body); color: #fff;
+  background: radial-gradient(1200px 700px at 50% -10%, #0d2b4a 0%, #050a14 60%, #02040a 100%); }
+.tv-top { display: flex; align-items: center; gap: 26px; height: 130px; padding: 0 48px; border-bottom: 2px solid #13314f; background: linear-gradient(#06101e, #040912); }
+.tv-top img { width: 104px; height: 104px; border-radius: 50%; box-shadow: 0 0 24px #22d3ee88; }
+.tv-brand b { font-family: var(--font-title); font-weight: 400; font-size: 58px; letter-spacing: 2px; display: block; line-height: 1; }
+.tv-brand span { font-size: 24px; color: #7dd3fc; letter-spacing: 3px; }
+.tv-live { margin-left: 24px; display: flex; align-items: center; gap: 10px; background: #3a0b0b; border: 2px solid #ef4444; color: #fecaca; padding: 8px 18px; border-radius: 40px; font-weight: 700; font-size: 22px; letter-spacing: 2px; }
+.tv-live i { width: 14px; height: 14px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 12px #ef4444; animation: tvPunto 1.2s infinite; }
+@keyframes tvPunto { 50% { opacity: .2; } }
+.tv-clock { margin-left: auto; text-align: right; }
+.tv-clock b { font-family: var(--font-title); font-weight: 400; font-size: 78px; line-height: 1; color: #22d3ee; text-shadow: 0 0 18px #22d3ee88; }
+.tv-clock span { display: block; font-size: 24px; color: #94a3b8; letter-spacing: 1px; }
+.tv-call { margin: 24px 48px 0; height: 280px; border-radius: 28px; display: flex; align-items: stretch; overflow: hidden;
+  background: linear-gradient(100deg, #052e16, #064e3b 55%, #065f46); border: 4px solid #4ade80; box-shadow: 0 0 40px #22c55e66, inset 0 0 60px #00000055; }
+.tv-call .lbl { width: 430px; flex: none; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #22c55e; color: #04210f; }
+.tv-call .lbl small { font-family: var(--font-title); font-size: 40px; letter-spacing: 3px; }
+.tv-call .lbl b { font-family: var(--font-title); font-weight: 400; font-size: 140px; line-height: 1; }
+.tv-call .info { flex: 1; min-width: 0; padding: 26px 50px; display: flex; flex-direction: column; justify-content: center; }
+.tv-call .tag { font-family: var(--font-title); font-size: 44px; letter-spacing: 3px; color: #bbf7d0; }
+.tv-call .name { font-family: var(--font-title); font-size: 108px; line-height: 1.05; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tv-call .dev { font-size: 40px; font-weight: 700; color: #d1fae5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tv-call .bell { width: 220px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 130px; }
+.tv-call.espera { background: linear-gradient(100deg, #071a33, #0b2a52); border-color: #22d3ee; box-shadow: 0 0 40px #22d3ee55, inset 0 0 60px #00000055; }
+.tv-call.espera .tag { color: #7dd3fc; }
+.tv-call.espera .dev { color: #bae6fd; font-weight: 400; }
+.tv-call.nuevo { animation: tvLlamado .7s ease-in-out infinite alternate; }
+.tv-call.nuevo .bell { animation: tvCampana .5s ease-in-out infinite alternate; }
+@keyframes tvLlamado { from { box-shadow: 0 0 20px #22c55e66; filter: brightness(1); } to { box-shadow: 0 0 90px #4ade80, 0 0 30px #4ade80 inset; filter: brightness(1.25); } }
+@keyframes tvCampana { from { transform: rotate(-16deg); } to { transform: rotate(16deg); } }
+.tv-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 28px; margin: 24px 48px 0; }
+.tv-col { position: relative; border-radius: 24px; background: #0a1322; border: 3px solid var(--c); box-shadow: 0 0 22px color-mix(in srgb, var(--c) 35%, transparent); overflow: hidden; height: 474px; }
+.tv-col h2 { margin: 0; display: flex; justify-content: space-between; align-items: center; padding: 12px 26px; background: var(--c); color: #02101a; font-family: var(--font-title); font-weight: 400; font-size: 42px; letter-spacing: 2px; }
+.tv-col h2 span { background: #02101a; color: var(--c); border-radius: 14px; padding: 0 18px; font-size: 44px; }
+.tv-row { display: grid; grid-template-columns: 130px 1fr auto; align-items: center; gap: 12px; height: 88px; padding: 0 26px; border-bottom: 1px solid #16263d; font-size: 30px; animation: tvEntra .5s ease-out; }
+@keyframes tvEntra { from { opacity: 0; transform: translateY(10px); } }
+.tv-row .n { font-family: var(--font-title); font-size: 40px; color: var(--c); }
+.tv-row .w { font-weight: 700; line-height: 1.1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tv-row .w small { display: block; font-weight: 400; font-size: 24px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; }
+.tv-row .f { font-family: var(--font-title); font-size: 26px; padding: 4px 14px; border-radius: 10px; background: #111c2e; border: 2px solid #334155; color: #e2e8f0; }
+.tv-row.nueva { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 25%, transparent), transparent); }
+.tv-vacio { text-align: center; color: #334155; font-family: var(--font-title); font-size: 60px; padding-top: 110px; }
+.tv-pag { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; justify-content: center; gap: 10px; }
+.tv-pag i { width: 14px; height: 14px; border-radius: 50%; background: #1e3a5f; }
+.tv-pag i.on { background: var(--c); box-shadow: 0 0 8px var(--c); }
+.tv-foot { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; display: flex; align-items: center; gap: 22px; padding: 0 48px; background: #040912; border-top: 2px solid #13314f; }
+.tv-k { display: flex; align-items: center; gap: 14px; background: #0a1322; border: 2px solid #1e3a5f; border-radius: 18px; padding: 8px 26px; flex: none; }
+.tv-k > b { font-family: var(--font-title); font-weight: 400; font-size: 54px; line-height: 1; }
+.tv-k span { font-size: 22px; color: #94a3b8; letter-spacing: 1px; line-height: 1.1; }
+.tv-k span b { font-family: var(--font-title); font-weight: 400; font-size: 40px; color: #fff; }
+.tv-ticker { flex: 1; min-width: 0; overflow: hidden; border-left: 3px solid #22d3ee; margin-left: 20px; }
+.tv-ticker div { display: inline-block; white-space: nowrap; padding-left: 100%; font-size: 30px; color: #e2e8f0; animation: tvTicker 30s linear infinite; }
+.tv-ticker b { color: #22d3ee; }
+@keyframes tvTicker { to { transform: translateX(-100%); } }
+.tv-sonido { position: fixed; right: 24px; bottom: 24px; z-index: 50; background: #22d3ee; color: #02101a; border: 0; border-radius: 14px; padding: 14px 22px; font-weight: 700; font-size: 18px; cursor: pointer; box-shadow: 0 0 20px #22d3ee99; }
