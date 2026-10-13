@@ -1423,7 +1423,8 @@
       const enMora = pend.reduce((s, d) => s + saldo(d), 0);
       $('#rd-stats').innerHTML = `
         <div class="stat yellow"><div class="label">Total en caja</div><div class="value">${money(ing - gas)}</div></div>
-        <div class="stat blue"><div class="label">Quedaron debiendo</div><div class="value">${money(enMora)}</div></div>`;
+        <div class="stat blue"><div class="label">Quedaron debiendo</div><div class="value">${money(enMora)}</div></div>
+        <div class="stat red"><div class="label">Saldo total (todo lo que deben)</div><div class="value">${money(db.cartera.reduce((t, d) => t + saldo(d), 0))}</div></div>`;
       const hist = db.cierres.slice().sort((x, z) => z.fecha.localeCompare(x.fecha));
       $('#rd-hist').innerHTML = hist.length
         ? hist.map((c) => `<tr>
@@ -1433,6 +1434,12 @@
             <td class="actions"><button class="btn sm green" data-cierre="${esc(c.fecha)}">📄 PDF / Enviar</button></td>
           </tr>`).join('')
         : '<tr><td colspan="6" class="empty">Todavía no hay cierres</td></tr>';
+      // deudas de clientes que ya salieron en el cierre pero quedaron sin marcar (falla de sincronización ya corregida)
+      if (cierre) {
+        const yaCerrados = new Set(cierre.deudores.map((x) => x.clienteId));
+        const sueltas = pend.filter((d) => !d.cerrado && yaCerrados.has(d.clienteId));
+        if (sueltas.length) { sueltas.forEach((d) => { d.cerrado = f; }); save(); }
+      }
       const sinCerrar = pend.filter((d) => !d.cerrado).length;
       $('#rd-cierre-estado').innerHTML = cierre
         ? `<div class="cierre-ok">🔒 Día cerrado a las ${esc(cierre.hora)} · En caja ${money(cierre.total)} · ${cierre.deudores.length} ${cierre.deudores.length === 1 ? 'cliente pasó' : 'clientes pasaron'} a Cartera (${money(cierre.enMora)})${sinCerrar ? ` · <b>Hay ${sinCerrar} pendiente(s) nuevos: vuelva a cerrar</b>` : ''}</div>`
