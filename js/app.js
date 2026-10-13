@@ -1423,7 +1423,7 @@
       $('#rd-stats').innerHTML = `
         <div class="stat yellow"><div class="label">💵 Pagaron (en caja)</div><div class="value">${money(ing - gas)}</div></div>
         <div class="stat blue"><div class="label">⏳ Quedaron debiendo</div><div class="value">${money(enMora)}</div></div>
-        <div class="stat red"><div class="label">🧾 Total del día (pagaron + deben)</div><div class="value">${money(ing - gas + enMora)}</div></div>`;
+        <div class="stat red"><div class="label">🧾 Total del día</div><div class="value">${money(ing - gas + enMora)}</div></div>`;
       const hist = db.cierres.slice().sort((x, z) => z.fecha.localeCompare(x.fecha));
       $('#rd-hist').innerHTML = hist.length
         ? hist.map((c) => `<tr>
