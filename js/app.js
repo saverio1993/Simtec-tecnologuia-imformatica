@@ -798,7 +798,8 @@
   const abonado = (d) => (d.abonos || []).reduce((s, a) => s + num(a.monto), 0);
   // Las deudas de órdenes pasan a Cartera con el CIERRE DEL DÍA (o solas al día siguiente si no se cerró).
   const esperaCierre = (d) => d.origen === 'orden' || d.origen === 'diario';
-  const enCartera = (d) => !esperaCierre(d) || !!d.cerrado || d.fecha < today();
+  // pasa a cartera al cerrar el día (o si ese día ya tiene cierre guardado, o ya pasó)
+  const enCartera = (d) => !esperaCierre(d) || !!d.cerrado || d.fecha < today() || !!db.cierres.find((c) => c.fecha === d.fecha);
   const ordenById = (id) => db.ordenes.find((o) => o.id === id);
   const modeloDe = (d) => {
     const o = d.ordenId && ordenById(d.ordenId);
@@ -1472,7 +1473,8 @@
         </div>`,
       (e, a) => {
         if (!a || a.dataset.act !== 'confirmar' || !files) return;
-        pend.forEach((d) => { if (!d.cerrado) d.cerrado = f; });
+        // se buscan de nuevo: la sincronización cada 10 s pudo cambiar los datos mientras la ventana estaba abierta
+        pendientesDelDia(f).forEach((d) => { if (!d.cerrado) d.cerrado = f; });
         const i = db.cierres.findIndex((c) => c.fecha === f);
         if (i >= 0) db.cierres[i] = registro; else db.cierres.push(registro);
         save();
