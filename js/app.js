@@ -877,7 +877,7 @@
         filas: [
           { icono: '📌', etiqueta: 'Fecha:', valor: fmtDate(today()), color: 'azul' },
           // cada equipo con lo que vale el trabajo: "Honor X7D 5G ($ 15,00)"
-          { icono: '📱', etiqueta: 'Equipos:', valor: ds.map(modeloFact).join(', ') || '-', color: 'rosa' },
+          { icono: '📱', etiqueta: 'Equipos:', valor: ds.map((d) => modeloFact(d).replace(/ /g, '\u00a0')).join(', ') || '-', color: 'rosa' },
           { icono: '🧾', etiqueta: 'Deudas:', valor: `${ds.length} ${ds.length === 1 ? 'pendiente' : 'pendientes'}`, color: 'amarillo' },
           { icono: '💵', etiqueta: 'Total:', valor: money(total), color: 'verde' },
           { icono: '💳', etiqueta: 'Abonado:', valor: money(total - debe), color: 'morado' },
