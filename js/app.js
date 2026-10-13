@@ -294,6 +294,13 @@
     return isFinite(n) ? n : 0;
   };
   const money = (n) => db.config.moneda + ' ' + num(n).toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // hora normal (12 h): "19:34" → "7:34 PM"
+  const hora12 = (h) => {
+    const m = /^(\d{1,2}):(\d{2})/.exec(String(h || ''));
+    if (!m) return h || '';
+    const H = +m[1];
+    return `${H % 12 || 12}:${m[2]} ${H < 12 ? 'AM' : 'PM'}`;
+  };
   const fmtDate = (s) => (s ? s.split('-').reverse().join('/') : '');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -1235,7 +1242,7 @@
     for (let i = 1; i <= n; i++) {
       doc.setPage(i);
       const h = doc.internal.pageSize.getHeight();
-      doc.setFontSize(8).setTextColor(120).text(`Generado por 212 V.I.P · ${new Date().toLocaleString('es')} · Página ${i} de ${n}`, 105, h - 8, { align: 'center' });
+      doc.setFontSize(8).setTextColor(120).text(`Generado por 212 V.I.P · ${fmtDate(today())} ${hora12(new Date().toTimeString().slice(0, 5))} · Página ${i} de ${n}`, 105, h - 8, { align: 'center' });
     }
     doc.setTextColor(0);
   }
@@ -1257,7 +1264,7 @@
     const JsPDF = await loadPdf();
     const doc = new JsPDF({ unit: 'mm', format: 'letter' });
     const s = c.snap || snapshotCierre(c.fecha);
-    let y = await pdfHeader(doc, 'CIERRE DEL DÍA', `${fmtDate(c.fecha)} · ${c.hora}`);
+    let y = await pdfHeader(doc, 'CIERRE DEL DÍA', `${fmtDate(c.fecha)} · ${hora12(c.hora)}`);
     y = tabla(doc, y, ['Entró a caja', 'Gastos', 'Total en caja', 'Trabajos del día', 'Quedaron debiendo'],
       [[money(c.ingresos), money(c.gastos), money(c.total), String(c.trabajos), money(c.enMora)]],
       { styles: { fontSize: 11, halign: 'center', fontStyle: 'bold' } });
@@ -1298,7 +1305,7 @@
   const resumenCierreTexto = (c) => {
     const s = c.snap || snapshotCierre(c.fecha);
     return [
-      `🔒 *Cierre del día ${fmtDate(c.fecha)}* (${c.hora}) — ${db.config.negocio}`,
+      `🔒 *Cierre del día ${fmtDate(c.fecha)}* (${hora12(c.hora)}) — ${db.config.negocio}`,
       `💵 Entró a caja: ${money(c.ingresos)}`,
       `🧾 Gastos: ${money(c.gastos)}`,
       `✅ *Total en caja: ${money(c.total)}*`,
@@ -1428,7 +1435,7 @@
       const hist = db.cierres.slice().sort((x, z) => z.fecha.localeCompare(x.fecha));
       $('#rd-hist').innerHTML = hist.length
         ? hist.map((c) => `<tr>
-            <td><b>${fmtDate(c.fecha)}</b></td><td>${esc(c.hora)}</td>
+            <td><b>${fmtDate(c.fecha)}</b></td><td>${esc(hora12(c.hora))}</td>
             <td class="num">${money(c.total)}</td><td class="num">${money(c.enMora)}</td>
             <td>${c.enviado ? '<span class="tag ok">✓ Enviado</span>' : '<span class="tag gray">No</span>'}</td>
             <td class="actions"><button class="btn sm green" data-cierre="${esc(c.fecha)}">📄 PDF / Enviar</button></td>
@@ -1442,7 +1449,7 @@
       }
       const sinCerrar = pend.filter((d) => !d.cerrado).length;
       $('#rd-cierre-estado').innerHTML = cierre
-        ? `<div class="cierre-ok">🔒 Día cerrado a las ${esc(cierre.hora)} · En caja ${money(cierre.total)} · ${cierre.deudores.length} ${cierre.deudores.length === 1 ? 'cliente pasó' : 'clientes pasaron'} a Cartera (${money(cierre.enMora)})${sinCerrar ? ` · <b>Hay ${sinCerrar} pendiente(s) nuevos: vuelva a cerrar</b>` : ''}</div>`
+        ? `<div class="cierre-ok">🔒 Día cerrado a las ${esc(hora12(cierre.hora))} · En caja ${money(cierre.total)} · ${cierre.deudores.length} ${cierre.deudores.length === 1 ? 'cliente pasó' : 'clientes pasaron'} a Cartera (${money(cierre.enMora)})${sinCerrar ? ` · <b>Hay ${sinCerrar} pendiente(s) nuevos: vuelva a cerrar</b>` : ''}</div>`
         : '';
     }
 
@@ -1541,7 +1548,7 @@
       exportXLSX(`Reporte_Completo_212VIP_${today()}.xlsx`, {
         Movimientos: toRows(all),
         'Total por día': Object.entries(porDia).map(([f, t]) => ({ Fecha: fmtDate(f), Total: t })),
-        Cierres: db.cierres.slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).map((c) => ({ Fecha: fmtDate(c.fecha), Hora: c.hora, 'En caja': c.total, 'Pasó a cartera': c.enMora, Clientes: c.deudores.map((d) => `${d.cliente} (${d.modelos})`).join('; ') })),
+        Cierres: db.cierres.slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).map((c) => ({ Fecha: fmtDate(c.fecha), Hora: hora12(c.hora), 'En caja': c.total, 'Pasó a cartera': c.enMora, Clientes: c.deudores.map((d) => `${d.cliente} (${d.modelos})`).join('; ') })),
       });
     });
     render();
