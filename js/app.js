@@ -1665,16 +1665,19 @@
       ctx.font = `700 ${size}px ${BODY}`;
       const out = [];
       let cur = '';
-      String(txt).split(' ').forEach((w) => {
+      const cabe = (t) => ctx.measureText(t).width <= maxW;
+      // un equipo que no cabe solo en la línea se corta antes del precio "(…)" y, si aún no cabe, en sus espacios
+      const trozos = String(txt).split(' ').flatMap((w) => (cabe(w) ? [w] : w.split(/\u00a0(?=\()/).flatMap((x) => (cabe(x) ? [x] : x.split('\u00a0')))));
+      trozos.forEach((w) => {
         const t = cur ? cur + ' ' + w : w;
-        if (ctx.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t;
+        if (!cabe(t) && cur) { out.push(cur); cur = w; } else cur = t;
       });
       if (cur) out.push(cur);
       return out;
     };
     const filasMed = filas.map((f) => {
-      let size = 54, ls = lineas(f.valor, RW - LW - 50, size);
-      while (ls.length > 1 && size > 38) { size -= 4; ls = lineas(f.valor, RW - LW - 50, size); }
+      let size = 54, ls = lineas(f.valor, RW - LW - 80, size);
+      while (ls.length > 1 && size > 38) { size -= 4; ls = lineas(f.valor, RW - LW - 80, size); }
       ls = ls.slice(0, 4);
       return { ...f, size, ls, h: Math.max(104, ls.length * size * 1.15 + 40) };
     });
