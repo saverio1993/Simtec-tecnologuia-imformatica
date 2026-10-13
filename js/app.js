@@ -2218,14 +2218,9 @@
     // En taller = todo lo que no se ha entregado (recibido, en reparación o listo)
     const pasaFiltro = (o) => (filtro === 'taller' ? o.estado !== 'Entregado' : o.estado === filtro);
     function render() {
-      const hoyF = today();
-      const cobradoHoy = db.movimientos.filter((x) => x.fecha === hoyF).reduce((t, x) => t + (x.tipo === 'gasto' ? -num(x.monto) : num(x.monto)), 0);
-      const ordsHoy = db.ordenes.filter((o) => o.fecha === hoyF);
       $('#or-totbox').innerHTML = `
-        <span class="td-tit">📊 TOTAL DEL DÍA</span>
-        <span class="td-num">${money(cobradoHoy)}</span>
-        <span class="td-sub">${ordsHoy.length} ${ordsHoy.length === 1 ? 'equipo recibido' : 'equipos recibidos'} hoy · Trabajos ${money(ordsHoy.reduce((t, o) => t + num(o.costo), 0))}</span>
-        <span class="td-ver">Ver detalle ›</span>`;
+        <span class="td-tit">📊 RESUMEN DEL DÍA</span>
+        <span class="td-ver">Ver detalles ›</span>`;
       const q = $('#or-q').value.toLowerCase();
       const rows = db.ordenes
         .filter((o) => (q ? true : pasaFiltro(o)))
@@ -2282,7 +2277,7 @@
             ${[['FRP', /\bFRP\b/i], ['KG', /\bKG\b/i], ['PAY', /\bPAY\s*JOY\b|\bPAY\b/i]].map(([k, re]) => `<div class="falla-box"><div class="falla-k">${k}</div><div class="falla-n">${cuenta(re)}</div></div>`).join('')}
           </div>
           <div class="table-wrap"><table>
-            <thead><tr><th>Factura</th><th>Cliente</th><th>Equipo</th><th>Falla</th><th class="num">Precio</th><th class="num">Debe</th></tr></thead>
+            <thead><tr><th>Orden</th><th>Cliente</th><th>Equipo</th><th>Falla</th><th class="num">Precio</th><th class="num">Debe</th></tr></thead>
             <tbody>${ords.length ? ords.map((o) => `<tr>
               <td><b class="fact-n">N°${esc(o.factura)}</b></td><td>${esc(clienteNombre(o.clienteId))}</td>
               <td>${esc([o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo)}</td><td>${esc(o.falla || '—')}</td>
@@ -2295,7 +2290,7 @@
       const { el: m } = openModal(`
         <div class="card cierre-box">
           <div class="modal-actions"><input type="date" id="td-fecha" class="btn ghost" value="${f}"><button class="btn" data-act="close">Cerrar</button></div>
-          <h2 class="scan-title neon-tit">📊 TOTAL DEL DÍA</h2>
+          <h2 class="scan-title neon-tit">📊 RESUMEN DEL DÍA</h2>
           <div id="td-cuerpo"></div>
         </div>`);
       m.querySelector('#td-fecha').addEventListener('change', (e) => pintar(m, e.target.value || today()));
