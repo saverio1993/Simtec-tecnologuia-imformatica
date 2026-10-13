@@ -47,9 +47,9 @@
     del(k) { try { localStorage.removeItem(k); } catch (e) { /* almacenamiento bloqueado */ } },
   };
 
-  // Colores de la app (se guarda en este equipo): 'clasico' o 'rojo' (solo rojo, blanco y negro)
+  // Colores de la app (se guarda en este equipo): 'clasico', 'rojo' (rojo, blanco y negro) o 'fucsia' (fucsia, blanco y negro)
   const TEMA_KEY = 'simtec_tema';
-  const aplicarTema = (t) => { document.documentElement.dataset.tema = t === 'rojo' ? 'rojo' : 'clasico'; };
+  const aplicarTema = (t) => { document.documentElement.dataset.tema = ['rojo', 'fucsia'].includes(t) ? t : 'clasico'; };
   aplicarTema(ls.get(TEMA_KEY));
 
   // db = lo que se ve y edita; synced = última versión confirmada por el servidor.
@@ -2883,6 +2883,7 @@
         <div class="chips" id="aj-tema">
           <button type="button" class="chip big" data-tema="clasico">Clásico</button>
           <button type="button" class="chip big" data-tema="rojo">Rojo, blanco y negro</button>
+          <button type="button" class="chip big" data-tema="fucsia">Fucsia, blanco y negro</button>
         </div>
         <p style="color:var(--muted);margin:10px 0 0">Se aplica al instante en este equipo. Si no le gusta, toque <b>Clásico</b> para dejarlo como estaba.</p>
       </div>
