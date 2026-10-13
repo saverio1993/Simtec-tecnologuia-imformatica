@@ -876,8 +876,8 @@
         aviso: 'ESTADO DE CUENTA',
         filas: [
           { icono: '📌', etiqueta: 'Fecha:', valor: fmtDate(today()), color: 'azul' },
-          // cada equipo con la fecha en que se hizo el trabajo: "Honor X7D 5G (05/10)"
-          { icono: '📱', etiqueta: 'Equipos:', valor: ds.map((d) => { const o = d.ordenId && ordenById(d.ordenId); const f = (o && o.fecha) || d.fecha; return `${modeloDe(d)} ${money(valorTrabajo(d))} (${fmtDate(f).slice(0, 5)})`; }).join(', ') || '-', color: 'rosa' },
+          // cada equipo con lo que vale el trabajo: "Honor X7D 5G ($ 15,00)"
+          { icono: '📱', etiqueta: 'Equipos:', valor: ds.map(modeloFact).join(', ') || '-', color: 'rosa' },
           { icono: '🧾', etiqueta: 'Deudas:', valor: `${ds.length} ${ds.length === 1 ? 'pendiente' : 'pendientes'}`, color: 'amarillo' },
           { icono: '💵', etiqueta: 'Total:', valor: money(total), color: 'verde' },
           { icono: '💳', etiqueta: 'Abonado:', valor: money(total - debe), color: 'morado' },
