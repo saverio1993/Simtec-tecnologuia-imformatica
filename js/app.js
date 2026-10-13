@@ -1003,13 +1003,9 @@
       const total = visibles.reduce((s, d) => s + saldo(d), 0);
       const deudores = new Set(visibles.filter((d) => saldo(d) > 0).map((d) => d.clienteId)).size;
       $('#ca-total').textContent = money(total);
-      // lo que entró a caja hoy (igual que en el Cierre diario)
-      const cajaHoy = db.movimientos.filter((m) => m.fecha === today()).reduce((t, m) => t + (m.tipo === 'gasto' ? -num(m.monto) : num(m.monto)), 0);
       $('#ca-stats').innerHTML = `
         <div class="stat yellow"><div class="label">Total por cobrar</div><div class="value">${money(total)}</div></div>
-        <div class="stat red"><div class="label">Clientes que deben</div><div class="value">${deudores}</div></div>
-        <div class="stat green"><div class="label">💵 Pagaron hoy (en caja)</div><div class="value">${money(cajaHoy)}</div></div>
-        <div class="stat blue"><div class="label">🧾 Total (pagaron hoy + por cobrar)</div><div class="value">${money(cajaHoy + total)}</div></div>`;
+        <div class="stat red"><div class="label">Clientes que deben</div><div class="value">${deudores}</div></div>`;
       const pendHoy = db.cartera.filter((d) => !enCartera(d) && saldo(d) > 0);
       $('#ca-pend').innerHTML = pendHoy.length
         ? `⏳ Hay ${pendHoy.length} ${pendHoy.length === 1 ? 'trabajo' : 'trabajos'} de hoy con saldo (${money(pendHoy.reduce((s, d) => s + saldo(d), 0))}) que pasan a Cartera con el <a href="#reporte">cierre del día</a>.`
