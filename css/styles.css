@@ -947,3 +947,7 @@ body.modo-tv main#view { padding: 0; max-width: none; margin: 0; }
 .tv-ticker b { color: #22d3ee; }
 @keyframes tvTicker { to { transform: translateX(-100%); } }
 .tv-sonido { position: fixed; right: 24px; bottom: 24px; z-index: 50; background: #22d3ee; color: #02101a; border: 0; border-radius: 14px; padding: 14px 22px; font-weight: 700; font-size: 18px; cursor: pointer; box-shadow: 0 0 20px #22d3ee99; }
+
+/* fecha del día que se muestra en la lista de órdenes */
+.or-dia { display: inline-flex; align-items: center; gap: 6px; font-size: 22px; }
+.or-dia input[type="date"] { font-size: 16px; padding: 10px 12px; border-radius: 12px; border: 2px solid #000; background: #fff; color: #000; font-weight: 700; }

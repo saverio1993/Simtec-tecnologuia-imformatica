@@ -2208,6 +2208,7 @@
         </div>
       </form>
       <div class="toolbar">
+        <label class="or-dia" title="Día que se muestra en la lista">📅 <input type="date" id="or-fecha" value="${today()}"><button type="button" class="btn sm" id="or-hoy">Hoy</button></label>
         <div class="search"><input id="or-q" placeholder="Buscar por número, cliente, marca o modelo…"></div>
         <div class="seg" id="or-filtro"><button class="on" data-f="taller">En taller</button><button data-f="Entregado">Entregados</button></div>
       </div>
@@ -2225,16 +2226,23 @@
     let filtro = 'taller';
     // En taller = todo lo que no se ha entregado (recibido, en reparación o listo)
     const pasaFiltro = (o) => (filtro === 'taller' ? o.estado !== 'Entregado' : o.estado === filtro);
+    // la lista muestra solo el día que se está operando (o el que se elija arriba):
+    // las órdenes recibidas ese día y las que se entregaron ese día
+    const diaSel = () => $('#or-fecha').value || today();
+    const delDia = (o, f) => o.fecha === f || (o.historial || []).some((x) => x.estado === 'Entregado' && fechaLocal(x.fecha) === f);
+    const fechaLocal = (iso) => { const d = new Date(iso); return isNaN(d) ? String(iso || '').slice(0, 10) : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
     function render() {
       $('#or-totbox').innerHTML = `
         <span class="td-tit">📊 RESUMEN DEL DÍA</span>
         <span class="td-ver">Ver detalles ›</span>`;
       const q = $('#or-q').value.toLowerCase();
+      const f = diaSel();
+      $('#or-hoy').hidden = f === today();
       const rows = db.ordenes
-        .filter((o) => (q ? true : pasaFiltro(o)))
+        .filter((o) => (q ? true : pasaFiltro(o) && delDia(o, f)))
         .filter((o) => !q || [o.numero, o.factura != null ? 'N°' + o.factura : '', clienteNombre(o.clienteId), o.marca, o.modelo, o.imei, o.falla].join(' ').toLowerCase().includes(q))
         .slice().sort((a, b) => (Number(a.factura) || 0) - (Number(b.factura) || 0));
-      const cuenta = (f) => db.ordenes.filter((o) => (f === 'taller' ? o.estado !== 'Entregado' : o.estado === f)).length;
+      const cuenta = (t) => db.ordenes.filter((o) => delDia(o, f) && (t === 'taller' ? o.estado !== 'Entregado' : o.estado === t)).length;
       $$('#or-filtro button', el).forEach((b) => (b.textContent = b.textContent.replace(/ \(\d+\)$/, '') + ` (${cuenta(b.dataset.f)})`));
       $('#or-body').innerHTML = rows.length
         ? rows.map((o) => {
@@ -2250,7 +2258,7 @@
             <td class="actions">${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al cierre diario)">💵 Pagar</button>` : ''}<button class="btn sm" data-editar="${o.id}" title="Corregir datos o poner el precio">✏ Editar</button>${o.estado !== 'Entregado' ? `<button class="btn sm yellow" data-llamar="${o.id}" title="Llamar al cliente en la pantalla de monitoreo">📢 Llamar</button>` : ''}<button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
-        : `<tr><td colspan="8" class="empty">${db.ordenes.length ? 'No hay órdenes en este filtro' : 'Aún no hay órdenes de ingreso'}</td></tr>`;
+        : `<tr><td colspan="8" class="empty">${db.ordenes.length ? `No hay órdenes ${filtro === 'taller' ? 'en taller' : 'entregadas'} del ${fmtDate(f)}` : 'Aún no hay órdenes de ingreso'}</td></tr>`;
     }
     refreshOrdenList = render;
 
@@ -2387,7 +2395,7 @@
       render();
     }
     $('#or-scan').addEventListener('click', () => openScanner());
-    $('#or-totbox').addEventListener('click', () => totalDelDia());
+    $('#or-totbox').addEventListener('click', () => totalDelDia(diaSel()));
     $$('#or-filtro button', el).forEach((b) => b.addEventListener('click', () => {
       $$('#or-filtro button', el).forEach((x) => x.classList.toggle('on', x === b));
       filtro = b.dataset.f;
@@ -2575,6 +2583,8 @@
       openReceipt(final);
     });
     $('#or-q').addEventListener('input', render);
+    $('#or-fecha').addEventListener('change', render);
+    $('#or-hoy').addEventListener('click', () => { $('#or-fecha').value = today(); render(); });
     $('#or-body').addEventListener('change', (e) => {
       const fa = e.target.closest('[data-falla]');
       if (fa) {
