@@ -884,7 +884,7 @@
         filas: [
           { icono: '📌', etiqueta: 'Fecha:', valor: fmtDate(today()), color: 'azul' },
           // cada equipo con lo que vale el trabajo: "Honor X7D 5G ($ 15,00)"
-          { icono: '📱', etiqueta: 'Equipos:', valor: ds.map((d) => modeloFact(d).replace(/ /g, '\u00a0')).join(', ') || '-', color: 'rosa' },
+          { icono: '📱', etiqueta: 'Equipos:', valor: ds.map((d) => modeloFact(d).replace(/ /g, '\u00a0')).join('\n') || '-', color: 'rosa' },
           { icono: '🧾', etiqueta: 'Deudas:', valor: `${ds.length} ${ds.length === 1 ? 'pendiente' : 'pendientes'}`, color: 'amarillo' },
           { icono: '💵', etiqueta: 'Total:', valor: money(total), color: 'verde' },
           { icono: '💳', etiqueta: 'Abonado:', valor: money(total - debe), color: 'morado' },
@@ -1665,21 +1665,25 @@
     const lineas = (txt, maxW, size) => {
       ctx.font = `700 ${size}px ${BODY}`;
       const out = [];
-      let cur = '';
       const cabe = (t) => ctx.measureText(t).width <= maxW;
-      // un equipo que no cabe solo en la línea se corta antes del precio "(…)" y, si aún no cabe, en sus espacios
-      const trozos = String(txt).split(' ').flatMap((w) => (cabe(w) ? [w] : w.split(/\u00a0(?=\()/).flatMap((x) => (cabe(x) ? [x] : x.split('\u00a0')))));
-      trozos.forEach((w) => {
-        const t = cur ? cur + ' ' + w : w;
-        if (!cabe(t) && cur) { out.push(cur); cur = w; } else cur = t;
+      // "\n" fuerza un renglón nuevo (un equipo por renglón)
+      String(txt).split('\n').forEach((parr) => {
+        let cur = '';
+        // un equipo que no cabe solo en la línea se corta antes del precio "(…)" y, si aún no cabe, en sus espacios
+        const trozos = parr.split(' ').flatMap((w) => (cabe(w) ? [w] : w.split(/\u00a0(?=\()/).flatMap((x) => (cabe(x) ? [x] : x.split('\u00a0')))));
+        trozos.forEach((w) => {
+          const t = cur ? cur + ' ' + w : w;
+          if (!cabe(t) && cur) { out.push(cur); cur = w; } else cur = t;
+        });
+        if (cur) out.push(cur);
       });
-      if (cur) out.push(cur);
       return out;
     };
     const filasMed = filas.map((f) => {
+      // se muestran todos los renglones (antes se cortaba en 4 y se perdían equipos)
+      const parrafos = String(f.valor).split('\n').length;
       let size = 54, ls = lineas(f.valor, RW - LW - 80, size);
-      while (ls.length > 1 && size > 38) { size -= 4; ls = lineas(f.valor, RW - LW - 80, size); }
-      ls = ls.slice(0, 4);
+      while (ls.length > parrafos && size > 38) { size -= 4; ls = lineas(f.valor, RW - LW - 80, size); }
       return { ...f, size, ls, h: Math.max(104, ls.length * size * 1.15 + 40) };
     });
     const top = 520 + (aviso ? 90 : 0);
