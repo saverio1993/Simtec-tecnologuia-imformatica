@@ -959,3 +959,17 @@ html[data-tema="fucsia"] .stat-lista.activo { box-shadow: 0 0 0 3px #ff1aa3, 0 0
   html[data-tema="rojo"] .table-wrap tbody tr.fila-cli td.cli-barra { background: #000; }
   html[data-tema="fucsia"] .table-wrap tbody tr.fila-cli td.cli-barra { background: #000; }
 }
+
+/* celular: cuenta del cliente con tarjetas compactas (fecha y equipo arriba; valor, abonado y debe en una fila) */
+@media (max-width: 600px) {
+  .cuenta-box .table-wrap tbody tr { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 6px; padding: 6px 4px; margin-bottom: 8px; border-radius: 12px; }
+  .cuenta-box .table-wrap td { text-align: left; padding: 3px 8px; font-size: 15px; min-width: 0; }
+  .cuenta-box .table-wrap td::before { float: none; display: block; margin: 0 0 1px; max-width: none; font-size: 10px; }
+  .cuenta-box .table-wrap tbody td:first-child { font-size: 15px; }
+  .cuenta-box .table-wrap td:nth-child(2) { grid-column: span 2; font-weight: 700; }
+  .cuenta-box .table-wrap td[colspan], .cuenta-box .table-wrap td.actions { grid-column: 1 / -1; }
+  .cuenta-box .table-wrap td .tag { font-size: 12px; padding: 2px 8px; }
+  .cuenta-box .table-wrap td.actions { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 8px 2px; margin-top: 2px; }
+  .cuenta-box .table-wrap td.actions .btn { padding: 5px 12px; font-size: 13px; margin: 0; }
+  .cuenta-box .stat .value { font-size: 20px; }
+}
