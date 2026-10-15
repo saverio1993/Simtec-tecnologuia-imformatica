@@ -980,3 +980,25 @@ body.modo-tv main#view { padding: 0; max-width: none; margin: 0; }
 .rd-antes { margin: -4px 0 14px; padding: 8px 12px; border: 2px dashed #ffffff66; border-radius: 12px; font-size: 14px; color: var(--muted); }
 .rd-antes b { color: #fff; }
 @media (max-width: 600px) { .rd-antes { font-size: 12px; padding: 6px 10px; margin: 0 0 10px; } }
+
+/* celular: tarjetas de órdenes compactas (2 columnas) y sin salirse de la pantalla */
+@media (max-width: 600px) {
+  .table-wrap table { display: block; width: 100%; }
+  .table-wrap td.actions { white-space: normal; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  .table-wrap td.actions .btn { margin: 0; }
+  #or-body tr { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; padding: 8px 4px; }
+  #or-body td { text-align: left; padding: 4px 8px; min-width: 0; }
+  #or-body td::before { float: none; display: block; margin: 0 0 1px; max-width: none; font-size: 10px; }
+  #or-body td:first-child { font-size: 17px; }
+  #or-body td[colspan], #or-body td.actions { grid-column: 1 / -1; }
+  #or-body td select { max-width: 100%; width: 100%; font-size: 13px; padding: 5px 8px; }
+  #or-body td.actions { justify-content: stretch; display: grid; grid-template-columns: repeat(3, 1fr); padding: 8px 6px 2px; }
+  #or-body td.actions .btn { width: 100%; padding: 7px 4px; font-size: 12px; white-space: nowrap; }
+  .or-dia { font-size: 18px; }
+  .or-dia input[type="date"] { font-size: 14px; padding: 7px 10px; }
+  .tot-dia { margin-top: 10px; }
+}
+@media (max-width: 600px) {
+  .paso-nav .btn.big { font-size: 20px; padding: 10px 12px; }
+  .paso-t { font-size: 20px; }
+}
