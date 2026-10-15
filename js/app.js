@@ -1327,6 +1327,7 @@
           <thead><tr><th>Fecha</th><th>Hora</th><th class="num">Pagaron</th><th class="num">Quedaron debiendo</th><th class="num">Total del día</th><th>Enviado</th><th></th></tr></thead>
           <tbody id="rd-hist"></tbody>
         </table></div>
+        <div class="acum-cierres" id="rd-acum" hidden></div>
       </div>`;
 
     const fecha = () => $('#rd-fecha').value || today();
@@ -1373,6 +1374,16 @@
       $('#rd-antes').innerHTML = avisos.join('<br>');
       $('#rd-antes').hidden = !avisos.length;
       const hist = db.cierres.slice().sort((x, z) => z.fecha.localeCompare(x.fecha));
+      // marcador: la suma de todos los cierres hechos (lo que se ha hecho en total)
+      const acum = hist.reduce((t, c) => { const x = numerosDelDia(c.fecha); t.pag += x.pagaron; t.deb += x.debiendo; t.tot += x.total; return t; }, { pag: 0, deb: 0, tot: 0 });
+      $('#rd-acum').hidden = !hist.length;
+      $('#rd-acum').innerHTML = hist.length ? `
+        <div class="acum-tit">🏆 TOTAL DE LOS CIERRES <small>${hist.length} ${hist.length === 1 ? 'día' : 'días'} · desde ${fmtDate(hist[hist.length - 1].fecha)}</small></div>
+        <div class="acum-fila">
+          <div><span>💵 Pagaron</span><b>${money(acum.pag)}</b></div>
+          <div><span>⏳ Quedaron debiendo</span><b>${money(acum.deb)}</b></div>
+        </div>
+        <div class="acum-total"><span>TOTAL DE GANANCIAS</span><b>${money(acum.tot)}</b></div>` : '';
       $('#rd-hist').innerHTML = hist.length
         ? hist.map((c) => `<tr>
             <td><b>${fmtDate(c.fecha)}</b></td><td>${esc(hora12(c.hora))}</td>

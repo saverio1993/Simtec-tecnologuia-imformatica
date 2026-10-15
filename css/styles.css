@@ -973,3 +973,19 @@ html[data-tema="fucsia"] .stat-lista.activo { box-shadow: 0 0 0 3px #ff1aa3, 0 0
   .cuenta-box .table-wrap td.actions .btn { padding: 5px 12px; font-size: 13px; margin: 0; }
   .cuenta-box .stat .value { font-size: 20px; }
 }
+
+/* historial de cierres: marcador con la suma de todos los cierres */
+.acum-cierres { margin-top: 14px; padding: 16px; border-radius: 16px; background: #0a0006; border: 3px solid #ffd400; box-shadow: 0 0 10px #ffd40088, 0 0 26px #ffd40044; color: #fff; }
+.acum-tit { font-family: var(--font-title); font-size: 22px; letter-spacing: .5px; color: #ffd400; }
+.acum-tit small { display: block; font-family: var(--font-body); font-size: 13px; color: #ffffffaa; letter-spacing: 0; }
+.acum-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+.acum-fila div { background: #ffffff10; border-radius: 12px; padding: 8px 12px; }
+.acum-fila span, .acum-total span { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #ffffffbb; }
+.acum-fila b { font-size: 22px; }
+.acum-total { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 2px dashed #ffd40066; padding-top: 12px; }
+.acum-total span { font-size: 16px; color: #ffd400; }
+.acum-total b { font-family: var(--font-title); font-weight: 400; font-size: 36px; color: #ffd400; text-shadow: 0 0 12px #ffd40099; }
+html[data-tema="rojo"] .acum-cierres, html[data-tema="fucsia"] .acum-cierres { background: #000; border-color: #fff; box-shadow: 0 4px 0 #0006; }
+html[data-tema="rojo"] .acum-tit, html[data-tema="rojo"] .acum-total span, html[data-tema="rojo"] .acum-total b { color: #fff; text-shadow: 0 0 10px #ff2a2a; }
+html[data-tema="fucsia"] .acum-tit, html[data-tema="fucsia"] .acum-total span, html[data-tema="fucsia"] .acum-total b { color: #fff; text-shadow: 0 0 10px #ff2fb0; }
+@media (max-width: 600px) { .acum-cierres { padding: 12px; } .acum-tit { font-size: 19px; } .acum-fila b { font-size: 18px; } .acum-total b { font-size: 28px; } }
