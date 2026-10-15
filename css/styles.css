@@ -951,3 +951,27 @@ body.modo-tv main#view { padding: 0; max-width: none; margin: 0; }
 /* fecha del día que se muestra en la lista de órdenes */
 .or-dia { display: inline-flex; align-items: center; gap: 6px; font-size: 22px; }
 .or-dia input[type="date"] { font-size: 16px; padding: 10px 12px; border-radius: 12px; border: 2px solid #000; background: #fff; color: #000; font-weight: 700; }
+
+/* celular: cierre diario y cuadros más pequeños */
+@media (max-width: 600px) {
+  .topbar { padding-top: 6px; padding-bottom: 6px; }
+  .top-actions .btn { padding: 5px 7px; font-size: 13px; }
+  .sync { font-size: 11px; padding: 3px 7px; }
+  .section-head h1 { font-size: 26px; }
+  .section-head .toolbar .btn, .section-head .toolbar input { font-size: 15px; padding: 8px 6px; min-height: 0; }
+  .section-head .toolbar .btn.big { font-size: 19px; padding: 10px; }
+  .cierre-ok { font-size: 14px; padding: 8px 12px; margin-bottom: 10px; border-radius: 12px; }
+  .stat { padding: 8px 10px; border-radius: 14px; }
+  .stat .label { font-size: 11px; }
+  .stat .value { font-size: 22px; }
+  html[data-tema="rojo"] .stat .label, html[data-tema="fucsia"] .stat .label { padding: 6px 10px; }
+  html[data-tema="rojo"] .stat .value, html[data-tema="fucsia"] .stat .value { padding: 4px 10px 8px; }
+  /* cierre diario: los 3 cuadros en una sola fila */
+  #rd-stats { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  #rd-stats .stat:last-child:nth-child(odd) { grid-column: auto; }
+  #rd-stats .stat { padding: 0; }
+  #rd-stats .stat .label { font-size: 10px; letter-spacing: 0; padding: 6px 6px; min-height: 34px; }
+  #rd-stats .stat .value { font-size: 18px; padding: 6px 6px 8px; }
+  .card h2.neon-tit { font-size: 22px; }
+  .card h2.neon-tit small { font-size: 12px !important; }
+}
