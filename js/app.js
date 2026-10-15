@@ -1093,7 +1093,7 @@
       ${head('ESTADÍSTICA', 'h-blue')}
       <div class="stats-row" id="es-stats"></div>
       <div class="card fallas-card"><h2>Trabajos</h2><div class="fallas-row" id="es-fallas"></div></div>
-      <div class="card"><h2>🏆 Ranking de clientes</h2><p class="es-sub">Del que más trabajos trae al que menos · en cada barra: trabajos y dinero</p><div class="rank" id="es-rank"></div></div>`;
+      <div class="card"><h2>🏆 Ranking de clientes</h2><p class="es-sub">Del que más ganancia deja al que menos · en cada barra: ganancia y trabajos</p><div class="rank" id="es-rank"></div></div>`;
 
     // Trabajos: órdenes de ingreso + ventas manuales del reporte + deudas manuales de cartera.
     // Consumo: costo de órdenes + ventas manuales + deudas manuales (los abonos no cuentan doble).
@@ -1138,15 +1138,16 @@
           <div class="falla-k">${f.k}</div>
           <div class="falla-n" data-count="${f.total}">0</div>
         </div>`).join('');
-      const data = compute().sort((a, b) => b.trabajos - a.trabajos || b.dinero - a.dinero);
-      const max = Math.max(1, ...data.map((r) => r.trabajos));
+      // por utilidad: el que más ganancia deja va de primero
+      const data = compute().sort((a, b) => b.dinero - a.dinero || b.trabajos - a.trabajos);
+      const max = Math.max(1, ...data.map((r) => r.dinero));
       $('#es-rank').innerHTML = data.length
         ? data.map((r, i) => {
           const c = clienteById(r.id);
           return `<div class="rank-row" style="animation-delay:${i * 0.06}s">
             <div class="rank-pos">${i + 1}</div>
             <div class="rank-name">${esc(c.nombre)}<small>${esc(c.tienda || '')}</small></div>
-            <div class="bar-track"><div class="bar c${i % 5}" data-w="${Math.max(6, (r.trabajos / max) * 100)}">${r.trabajos} ${r.trabajos === 1 ? 'trabajo' : 'trabajos'} · ${money(r.dinero)}</div></div>
+            <div class="bar-track"><div class="bar c${i % 5}" data-w="${Math.max(6, (r.dinero / max) * 100)}">${money(r.dinero)} · ${r.trabajos} ${r.trabajos === 1 ? 'trabajo' : 'trabajos'}</div></div>
           </div>`;
         }).join('')
         : `<p class="empty">Todavía no hay trabajos registrados. Cree órdenes de ingreso o ventas en el cierre diario.</p>`;
@@ -1156,7 +1157,7 @@
       $('#es-stats').innerHTML = `
         <div class="stat blue"><div class="label">Clientes registrados</div><div class="value" data-count="${db.clientes.length}">0</div></div>
         <div class="stat green"><div class="label">Trabajos totales</div><div class="value" data-count="${totalT}">0</div></div>
-        <div class="stat yellow"><div class="label">Consumo total</div><div class="value" data-count="${totalD}" data-money="1">0</div></div>
+        <div class="stat yellow"><div class="label">Ganancia total</div><div class="value" data-count="${totalD}" data-money="1">0</div></div>
         <div class="stat red"><div class="label">Mejor cliente</div><div class="value" style="font-size:24px">${data[0] ? esc(clienteById(data[0].id).nombre) : '—'}</div></div>`;
       countUp();
     }
