@@ -1213,19 +1213,38 @@
     return cambio;
   }
   // números del día, sacados de las órdenes de ese día (lo mismo que se ve en la lista de órdenes)
+  // números del día f tal como quedaron AL FINAL de ese día (lo que se pagó después cuenta en el día que se pagó):
+  //  Pagaron = lo pagado ese día por los trabajos de ese día · Quedaron debiendo = lo que quedó pendiente de esos trabajos
+  //  Total del día = Pagaron + Quedaron debiendo. Es lo mismo para los cuadros, el historial, los PDF y el mensaje.
+  const pagadoAl = (d, f) => (d.abonos || []).filter((a) => String(a.fecha || '') <= f).reduce((t, a) => t + num(a.monto), 0);
+  const saldoAl = (d, f) => Math.max(0, num(d.monto) - pagadoAl(d, f));
   function numerosDelDia(f) {
     const ords = db.ordenes.filter((o) => o.fecha === f);
-    const conPrecio = ords.filter((o) => num(o.costo) > 0);
-    const pagoOrd = conPrecio.reduce((t, o) => t + (num(o.costo) - saldoOrden(o)), 0);
     const movs = db.movimientos.filter((m) => m.fecha === f);
-    const ventas = movs.filter((m) => m.origen === 'manual' && m.tipo !== 'gasto').reduce((t, m) => t + num(m.monto), 0);
+    const pagos = new Map();
+    const sumarPago = (id, txt, m) => {
+      if (m <= 0) return;
+      const r = pagos.get(id || '') || { clienteId: id, eq: [], total: 0 };
+      r.eq.push(`${txt} (${money(m)})`); r.total += m; pagos.set(id || '', r);
+    };
+    ords.filter((o) => num(o.costo) > 0).forEach((o) => {
+      const d = db.cartera.find((x) => x.ordenId === o.id);
+      const pag = Math.min(num(o.costo), num(o.abono) + (d ? pagadoAl(d, f) : 0));
+      sumarPago(o.clienteId, [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || o.numero, pag);
+    });
+    movs.filter((m) => m.origen === 'manual' && m.tipo !== 'gasto').forEach((m) => sumarPago(m.clienteId, m.concepto || 'Venta', num(m.monto)));
     const gas = movs.filter((m) => m.tipo === 'gasto').reduce((t, m) => t + num(m.monto), 0);
-    const pagaron = pagoOrd + ventas - gas;
-    // lo mismo que suma la lista "Quedaron debiendo" (repararDeudasDelDia ya dejó cada orden con su deuda correcta)
-    const debiendo = pendientesDelDia(f).reduce((t, d) => t + saldo(d), 0);
-    // lo que entró a caja ese día por trabajos de otros días (pagos y abonos de deudas viejas)
-    const antes = movs.filter((m) => m.tipo !== 'gasto' && !cobroDelDia(m, f)).reduce((t, m) => t + num(m.monto), 0);
-    return { pagaron, debiendo, total: pagaron + debiendo, antes, sinPrecio: ords.filter((o) => !num(o.costo)).length, trabajos: ords.length };
+    // quedaron debiendo: deudas de los trabajos de ese día con lo pendiente al final de ese día
+    const g = new Map();
+    db.cartera.filter((d) => esperaCierre(d) && d.fecha === f && saldoAl(d, f) > 0).forEach((d) => {
+      const r = g.get(d.clienteId) || { clienteId: d.clienteId, deudas: [], debe: 0 };
+      r.deudas.push(d); r.debe += saldoAl(d, f); g.set(d.clienteId, r);
+    });
+    const deudores = [...g.values()].sort((a, b) => b.debe - a.debe);
+    const listaPagos = [...pagos.values()].sort((a, b) => b.total - a.total);
+    const pagaron = listaPagos.reduce((t, r) => t + r.total, 0) - gas;
+    const debiendo = deudores.reduce((t, r) => t + r.debe, 0);
+    return { pagaron, debiendo, total: pagaron + debiendo, gastos: gas, pagos: listaPagos, deudores, sinPrecio: ords.filter((o) => !num(o.costo)).length, trabajos: ords.length };
   }
   // ¿este cobro es de un trabajo de ese mismo día? (los pagos de deudas de días anteriores no cuentan como "Pagaron" del día)
   const cobroDelDia = (m, f) => {
@@ -1316,23 +1335,29 @@
     const doc = new JsPDF({ unit: 'mm', format: 'letter' });
     const s = c.snap || snapshotCierre(c.fecha);
     let y = await pdfHeader(doc, 'CIERRE DEL DÍA', `${fmtDate(c.fecha)} · ${hora12(c.hora)}`);
-    y = tabla(doc, y, ['Entró a caja', 'Gastos', 'Total en caja', 'Trabajos del día', 'Quedaron debiendo'],
-      [[money(c.ingresos), money(c.gastos), money(c.total), String(c.trabajos), money(c.enMora)]],
+    const nd = numerosDelDia(c.fecha); // los mismos números del Cierre diario y del historial
+    y = tabla(doc, y, ['Pagaron', 'Quedaron debiendo', 'Total del día', 'Trabajos del día'],
+      [[money(nd.pagaron), money(nd.debiendo), money(nd.total), String(nd.trabajos)]],
       { styles: { fontSize: 11, halign: 'center', fontStyle: 'bold' } });
-    y = subtitulo(doc, y, 'Movimientos de caja');
-    y = tabla(doc, y, ['#', 'Tipo', 'Concepto', 'Cliente', 'Total', 'Entró a caja', 'Debe'],
-      s.movs.length ? s.movs.map((m, i) => [i + 1, m.tipo, m.concepto, m.cliente, m.tipo === 'Gasto' ? '' : money(m.total), money(m.caja), m.debe ? money(m.debe) : '']) : [['', '', 'Sin movimientos', '', '', '', '']],
-      { columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right', textColor: [200, 0, 0] } },
-        foot: [['', '', 'TOTAL EN CAJA', '', '', money(c.total), '']], footStyles: { fillColor: [235, 235, 235], textColor: 0, halign: 'right' } });
-    if (s.ordenes.length) {
+    y = subtitulo(doc, y, `Pagaron (${money(nd.pagaron)})`);
+    y = tabla(doc, y, ['Cliente', 'Equipos / modelos', 'Pagó'],
+      nd.pagos.length ? nd.pagos.map((r) => [clienteNombre(r.clienteId) || '(sin cliente)', r.eq.join(', '), money(r.total)]) : [['Nadie pagó', '', '']],
+      { columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } },
+        foot: nd.gastos ? [['', 'Gastos del día', '-' + money(nd.gastos)]] : undefined, footStyles: { fillColor: [235, 235, 235], textColor: 0, halign: 'right' } });
+    const ords = db.ordenes.filter((o) => o.fecha === c.fecha).sort((a, b) => (Number(a.factura) || 0) - (Number(b.factura) || 0));
+    if (ords.length) {
       y = subtitulo(doc, y, 'Órdenes de ingreso del día');
-      y = tabla(doc, y, ['Factura', 'Orden', 'Cliente', 'Equipo', 'Falla', 'Total', 'Debe'],
-        s.ordenes.map((o) => [o.factura, o.orden, o.cliente, o.equipo, o.falla, money(o.total), o.debe ? money(o.debe) : '']),
-        { columnStyles: { 5: { halign: 'right' }, 6: { halign: 'right', textColor: [200, 0, 0] } } });
+      y = tabla(doc, y, ['Factura', 'Cliente', 'Equipo', 'Falla', 'Precio', 'Debe'],
+        ords.map((o) => {
+          const d = db.cartera.find((x) => x.ordenId === o.id);
+          const debe = num(o.costo) ? Math.max(0, num(o.costo) - num(o.abono) - (d ? pagadoAl(d, c.fecha) : 0)) : 0;
+          return [o.factura != null ? 'N°' + o.factura : o.numero, clienteNombre(o.clienteId), [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo, o.falla || '', num(o.costo) ? money(o.costo) : 'Sin precio', debe ? money(debe) : ''];
+        }),
+        { columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right', textColor: [200, 0, 0] } } });
     }
-    y = subtitulo(doc, y, `Pasaron a Cartera (${money(c.enMora)})`);
+    y = subtitulo(doc, y, `Quedaron debiendo (${money(nd.debiendo)})`);
     tabla(doc, y, ['Cliente', 'Equipos / modelos', 'Debe'],
-      c.deudores.length ? c.deudores.map((d) => [d.cliente, d.modelos, money(d.debe)]) : [['Nadie quedó debiendo', '', '']],
+      nd.deudores.length ? nd.deudores.map((g) => [clienteNombre(g.clienteId) || '(sin cliente)', resumenModelos(g.deudas), money(g.debe)]) : [['Nadie quedó debiendo', '', '']],
       { columnStyles: { 2: { halign: 'right', textColor: [200, 0, 0], fontStyle: 'bold' } } });
     pdfFooter(doc);
     return new File([doc.output('blob')], `Cierre_${c.fecha}.pdf`, { type: 'application/pdf' });
@@ -1355,13 +1380,13 @@
 
   const resumenCierreTexto = (c) => {
     const s = c.snap || snapshotCierre(c.fecha);
+    const nd = numerosDelDia(c.fecha);
     return [
       `🔒 *Cierre del día ${fmtDate(c.fecha)}* (${hora12(c.hora)}) — ${db.config.negocio}`,
-      `💵 Entró a caja: ${money(c.ingresos)}`,
-      `🧾 Gastos: ${money(c.gastos)}`,
-      `✅ *Total en caja: ${money(c.total)}*`,
-      `📱 Trabajos del día: ${c.trabajos}`,
-      `⏳ Quedaron debiendo: ${money(c.enMora)}${c.deudores.length ? ' — ' + c.deudores.map((d) => `${d.cliente} (${d.modelos})`).join('; ') : ''}`,
+      `💵 Pagaron: ${money(nd.pagaron)}`,
+      `⏳ Quedaron debiendo: ${money(nd.debiendo)}${nd.deudores.length ? ' — ' + nd.deudores.map((g) => `${clienteNombre(g.clienteId)} (${resumenModelos(g.deudas)})`).join('; ') : ''}`,
+      `🧾 *Total del día: ${money(nd.total)}*`,
+      `📱 Trabajos del día: ${nd.trabajos}`,
       `📒 Cartera total: ${money(s.carteraTotal)} (${s.cartera.length} clientes)`,
     ].join('\n');
   };
@@ -1442,14 +1467,14 @@
       <div class="stats-row" id="rd-stats"></div>
       <p class="rd-antes" id="rd-antes" hidden></p>
       <div class="card" id="rd-card-pago" hidden>
-        <h2 class="neon-tit">Pagaron hoy <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(lo que pagaron por los trabajos del día)</small></h2>
+        <h2 class="neon-tit">Pagaron <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(lo que pagaron por los trabajos del día)</small></h2>
         <div class="table-wrap"><table>
           <thead><tr><th>Cliente</th><th>Equipos / modelos</th><th class="num">Pagó</th></tr></thead>
           <tbody id="rd-pago"></tbody>
         </table></div>
       </div>
       <div class="card" id="rd-card-mora">
-        <h2 class="neon-tit">Quedaron debiendo hoy <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(pasan a Cartera con el cierre)</small></h2>
+        <h2 class="neon-tit">Quedaron debiendo <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(pasan a Cartera con el cierre)</small></h2>
         <div class="table-wrap"><table>
           <thead><tr><th>Cliente</th><th>Equipos / modelos</th><th class="num">Debe</th><th>Estado</th></tr></thead>
           <tbody id="rd-mora"></tbody>
@@ -1458,7 +1483,7 @@
       <div class="card">
         <h2>Historial de cierres <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(PDF guardados en la plataforma)</small></h2>
         <div class="table-wrap"><table>
-          <thead><tr><th>Fecha</th><th>Hora</th><th class="num">En caja</th><th class="num">Pasó a cartera</th><th>Enviado</th><th></th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Hora</th><th class="num">Pagaron</th><th class="num">Quedaron debiendo</th><th class="num">Total del día</th><th>Enviado</th><th></th></tr></thead>
           <tbody id="rd-hist"></tbody>
         </table></div>
       </div>`;
@@ -1472,10 +1497,9 @@
       const nd = numerosDelDia(f);
 
       const pend = pendientesDelDia(f);
-      const grupos = porCliente(pend);
       const cierre = cierreDe(f);
-      $('#rd-mora').innerHTML = grupos.length
-        ? grupos.map((g) => {
+      $('#rd-mora').innerHTML = nd.deudores.length
+        ? nd.deudores.map((g) => {
           const enCart = g.deudas.every(enCartera);
           return `<tr>
             <td><b>${esc(clienteNombre(g.clienteId) || '(sin cliente)')}</b></td>
@@ -1487,14 +1511,9 @@
         : `<tr><td colspan="4" class="empty">Nadie quedó debiendo ${f === today() ? 'hoy' : 'ese día'} 🎉</td></tr>`;
 
       // pagaron: por cliente, cada equipo del día con lo que pagó
-      const pagos = new Map();
-      const sumar = (id, txt, m) => { if (m <= 0) return; const r = pagos.get(id || '') || { id, eq: [], total: 0 }; r.eq.push(`${txt} (${money(m)})`); r.total += m; pagos.set(id || '', r); };
-      db.ordenes.filter((o) => o.fecha === f && num(o.costo) > 0).forEach((o) => sumar(o.clienteId, [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || o.numero, num(o.costo) - saldoOrden(o)));
-      db.movimientos.filter((m) => m.fecha === f && m.origen === 'manual' && m.tipo !== 'gasto').forEach((m) => sumar(m.clienteId, m.concepto || 'Venta', num(m.monto)));
-      const pagRows = [...pagos.values()].sort((a, b) => b.total - a.total);
-      $('#rd-pago').innerHTML = pagRows.length
-        ? pagRows.map((r) => `<tr>
-            <td><b>${esc(clienteNombre(r.id) || '(sin cliente)')}</b></td>
+      $('#rd-pago').innerHTML = nd.pagos.length
+        ? nd.pagos.map((r) => `<tr>
+            <td><b>${esc(clienteNombre(r.clienteId) || '(sin cliente)')}</b></td>
             <td>${esc(r.eq.join(', '))}</td>
             <td class="num"><span class="tag ok">${money(r.total)}</span></td>
           </tr>`).join('')
@@ -1516,11 +1535,11 @@
       $('#rd-hist').innerHTML = hist.length
         ? hist.map((c) => `<tr>
             <td><b>${fmtDate(c.fecha)}</b></td><td>${esc(hora12(c.hora))}</td>
-            <td class="num">${money(c.total)}</td><td class="num">${money(c.enMora)}</td>
+            ${(() => { const x = numerosDelDia(c.fecha); return `<td class="num">${money(x.pagaron)}</td><td class="num">${money(x.debiendo)}</td><td class="num"><b>${money(x.total)}</b></td>`; })()}
             <td>${c.enviado ? '<span class="tag ok">✓ Enviado</span>' : '<span class="tag gray">No</span>'}</td>
             <td class="actions"><button class="btn sm green" data-cierre="${esc(c.fecha)}">📄 PDF / Enviar</button></td>
           </tr>`).join('')
-        : '<tr><td colspan="6" class="empty">Todavía no hay cierres</td></tr>';
+        : '<tr><td colspan="7" class="empty">Todavía no hay cierres</td></tr>';
       // deudas de clientes que ya salieron en el cierre pero quedaron sin marcar (falla de sincronización ya corregida)
       if (cierre) {
         const yaCerrados = new Set(cierre.deudores.map((x) => x.clienteId));
@@ -1535,19 +1554,20 @@
       const rows = db.movimientos.filter((m) => m.fecha === f);
       const ing = rows.filter((m) => m.tipo !== 'gasto').reduce((s, m) => s + num(m.monto), 0);
       const gas = rows.filter((m) => m.tipo === 'gasto').reduce((s, m) => s + num(m.monto), 0);
-      const pend = pendientesDelDia(f);
-      const grupos = porCliente(pend);
-      const enMora = pend.reduce((s, d) => s + saldo(d), 0);
+      if (repararDeudasDelDia(f)) save();
+      const nd = numerosDelDia(f); // los mismos números de los cuadros del Cierre diario
+      const grupos = nd.deudores;
+      const enMora = nd.debiendo;
       const trabajos = rows.filter((m) => m.origen === 'manual' && m.tipo !== 'gasto').reduce((s, m) => s + (num(m.cantidad) || 1), 0) + db.ordenes.filter((o) => o.fecha === f).length;
       const { el: m, close } = openModal(`
         <div class="cierre-box">
           <div class="modal-actions"><button class="btn" data-act="close">Cancelar</button></div>
           <h2 class="scan-title">🔒 CIERRE DEL DÍA ${fmtDate(f)}</h2>
           <div class="stats-row">
-            <div class="stat green"><div class="label">Entró a caja</div><div class="value">${money(ing)}</div></div>
-            <div class="stat red"><div class="label">Gastos</div><div class="value">${money(gas)}</div></div>
-            <div class="stat yellow"><div class="label">Total en caja</div><div class="value">${money(ing - gas)}</div></div>
-            <div class="stat blue"><div class="label">Trabajos del día</div><div class="value">${trabajos}</div></div>
+            <div class="stat yellow"><div class="label">💵 Pagaron</div><div class="value">${money(nd.pagaron)}</div></div>
+            <div class="stat blue"><div class="label">⏳ Quedaron debiendo</div><div class="value">${money(nd.debiendo)}</div></div>
+            <div class="stat red"><div class="label">🧾 Total del día</div><div class="value">${money(nd.total)}</div></div>
+            <div class="stat green"><div class="label">Trabajos del día</div><div class="value">${trabajos}</div></div>
           </div>
           <div class="card">
             <h2>Pasan a Cartera (${money(enMora)})</h2>
@@ -1577,6 +1597,7 @@
       const registro = {
         id: 'cierre-' + f, fecha: f, hora: new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }),
         ingresos: ing, gastos: gas, total: ing - gas, trabajos, enMora,
+        pagaron: nd.pagaron, debiendo: nd.debiendo, totalDia: nd.total,
         deudores: grupos.map((g) => ({ clienteId: g.clienteId, cliente: clienteNombre(g.clienteId), modelos: resumenModelos(g.deudas), debe: g.debe })),
         snap: snapshotCierre(f), // queda guardado en la nube para volver a sacar el PDF
       };
@@ -1632,7 +1653,7 @@
       exportXLSX(`Reporte_Completo_212VIP_${today()}.xlsx`, {
         Movimientos: toRows(all),
         'Total por día': Object.entries(porDia).map(([f, t]) => ({ Fecha: fmtDate(f), Total: t })),
-        Cierres: db.cierres.slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).map((c) => ({ Fecha: fmtDate(c.fecha), Hora: hora12(c.hora), 'En caja': c.total, 'Pasó a cartera': c.enMora, Clientes: c.deudores.map((d) => `${d.cliente} (${d.modelos})`).join('; ') })),
+        Cierres: db.cierres.slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).map((c) => { const x = numerosDelDia(c.fecha); return { Fecha: fmtDate(c.fecha), Hora: hora12(c.hora), Pagaron: x.pagaron, 'Quedaron debiendo': x.debiendo, 'Total del día': x.total, Clientes: x.deudores.map((g) => `${clienteNombre(g.clienteId)} (${resumenModelos(g.deudas)})`).join('; ') }; }),
       });
     });
     render();
