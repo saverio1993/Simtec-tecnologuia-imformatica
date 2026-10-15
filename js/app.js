@@ -1216,14 +1216,13 @@
   function numerosDelDia(f) {
     const ords = db.ordenes.filter((o) => o.fecha === f);
     const conPrecio = ords.filter((o) => num(o.costo) > 0);
-    const debeOrd = conPrecio.reduce((t, o) => t + saldoOrden(o), 0);
     const pagoOrd = conPrecio.reduce((t, o) => t + (num(o.costo) - saldoOrden(o)), 0);
     const movs = db.movimientos.filter((m) => m.fecha === f);
     const ventas = movs.filter((m) => m.origen === 'manual' && m.tipo !== 'gasto').reduce((t, m) => t + num(m.monto), 0);
     const gas = movs.filter((m) => m.tipo === 'gasto').reduce((t, m) => t + num(m.monto), 0);
-    const debeDiario = db.cartera.filter((d) => d.origen === 'diario' && d.fecha === f).reduce((t, d) => t + saldo(d), 0);
     const pagaron = pagoOrd + ventas - gas;
-    const debiendo = debeOrd + debeDiario;
+    // lo mismo que suma la lista "Quedaron debiendo" (repararDeudasDelDia ya dejó cada orden con su deuda correcta)
+    const debiendo = pendientesDelDia(f).reduce((t, d) => t + saldo(d), 0);
     // lo que entró a caja ese día por trabajos de otros días (pagos y abonos de deudas viejas)
     const antes = movs.filter((m) => m.tipo !== 'gasto' && !cobroDelDia(m, f)).reduce((t, m) => t + num(m.monto), 0);
     return { pagaron, debiendo, total: pagaron + debiendo, antes, sinPrecio: ords.filter((o) => !num(o.costo)).length, trabajos: ords.length };
@@ -1528,10 +1527,7 @@
         const sueltas = pend.filter((d) => !d.cerrado && yaCerrados.has(d.clienteId));
         if (sueltas.length) { sueltas.forEach((d) => { d.cerrado = f; }); save(); }
       }
-      const sinCerrar = pend.filter((d) => !d.cerrado).length;
-      $('#rd-cierre-estado').innerHTML = cierre
-        ? `<div class="cierre-ok">🔒 Día cerrado a las ${esc(hora12(cierre.hora))} · En caja ${money(cierre.total)} · ${cierre.deudores.length} ${cierre.deudores.length === 1 ? 'cliente pasó' : 'clientes pasaron'} a Cartera (${money(cierre.enMora)})${sinCerrar ? ` · <b>Hay ${sinCerrar} pendiente(s) nuevos: vuelva a cerrar</b>` : ''}</div>`
-        : '';
+      $('#rd-cierre-estado').innerHTML = ''; // el aviso "Día cerrado… En caja…" se quitó: mostraba otros valores
     }
 
     function abrirCierre() {
