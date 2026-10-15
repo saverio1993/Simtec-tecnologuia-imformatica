@@ -841,13 +841,16 @@
   // registra un abono a un cliente repartiéndolo en sus deudas, de la más vieja a la más nueva
   function abonarCliente(clienteId, deudas, monto, concepto) {
     let resto = monto;
+    const deudaFechas = [];
     deudas.filter((d) => saldo(d) > 0).sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach((d) => {
       if (resto <= 0) return;
       const m = Math.min(resto, saldo(d));
       d.abonos.push({ fecha: today(), monto: m });
+      deudaFechas.push(d.fecha);
       resto -= m;
     });
-    db.movimientos.push({ id: uid(), origen: 'abono', fecha: today(), tipo: 'ingreso', concepto, clienteId, monto: monto - resto });
+    // deudaFechas: de qué días eran las deudas que se pagaron (para separar lo de hoy de lo de días anteriores)
+    db.movimientos.push({ id: uid(), origen: 'abono', fecha: today(), tipo: 'ingreso', concepto, clienteId, monto: monto - resto, deudaFechas });
     save();
   }
 
@@ -1185,6 +1188,12 @@
   // (de aquí y de las órdenes de ingreso) pasa solo a Cartera con el CIERRE DEL DÍA.
   const pendientesDelDia = (f) => db.cartera.filter((d) => esperaCierre(d) && d.fecha === f && saldo(d) > 0);
   const cierreDe = (f) => db.cierres.find((c) => c.fecha === f);
+  // ¿este cobro es de un trabajo de ese mismo día? (los pagos de deudas de días anteriores no cuentan como "Pagaron" del día)
+  const cobroDelDia = (m, f) => {
+    if (m.ordenId) { const o = db.ordenes.find((x) => x.id === m.ordenId); return !o || o.fecha === f; }
+    if (Array.isArray(m.deudaFechas) && m.deudaFechas.length) return m.deudaFechas.every((x) => x === f);
+    return m.origen !== 'abono'; // abonos viejos de cartera sin dato: son de deudas anteriores
+  };
 
   // ---- PDF del cierre y de la cartera (se guardan como datos en la nube y se pueden volver a generar)
   const loadScript = (src) => new Promise((res, rej) => {
@@ -1390,6 +1399,7 @@
       ${head('CIERRE DIARIO', 'h-red', `<input type="date" id="rd-fecha" class="btn ghost" value="${today()}"><button class="btn yellow big" id="rd-cierre">🔒 CIERRE DEL DÍA</button><button class="btn green" id="rd-xls">⬇ Excel del día</button><button class="btn" id="rd-xls-all">⬇ Excel completo</button>`)}
       <div id="rd-cierre-estado"></div>
       <div class="stats-row" id="rd-stats"></div>
+      <p class="rd-antes" id="rd-antes" hidden></p>
       <div class="card">
         <h2 class="neon-tit">Quedaron debiendo hoy <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(pasan a Cartera con el cierre)</small></h2>
         <div class="table-wrap"><table>
@@ -1410,7 +1420,9 @@
     function render() {
       const f = fecha();
       const rows = db.movimientos.filter((m) => m.fecha === f);
-      const ing = rows.filter((m) => m.tipo !== 'gasto').reduce((s, m) => s + num(m.monto), 0);
+      const cobros = rows.filter((m) => m.tipo !== 'gasto');
+      const ingHoy = cobros.filter((m) => cobroDelDia(m, f)).reduce((s, m) => s + num(m.monto), 0);
+      const ingAntes = cobros.filter((m) => !cobroDelDia(m, f)).reduce((s, m) => s + num(m.monto), 0);
       const gas = rows.filter((m) => m.tipo === 'gasto').reduce((s, m) => s + num(m.monto), 0);
 
       const pend = pendientesDelDia(f);
@@ -1430,9 +1442,12 @@
 
       const enMora = pend.reduce((s, d) => s + saldo(d), 0);
       $('#rd-stats').innerHTML = `
-        <div class="stat yellow"><div class="label">💵 Pagaron</div><div class="value">${money(ing - gas)}</div></div>
+        <div class="stat yellow"><div class="label">💵 Pagaron</div><div class="value">${money(ingHoy - gas)}</div></div>
         <div class="stat blue"><div class="label">⏳ Quedaron debiendo</div><div class="value">${money(enMora)}</div></div>
-        <div class="stat red"><div class="label">🧾 Total del día</div><div class="value">${money(ing - gas + enMora)}</div></div>`;
+        <div class="stat red"><div class="label">🧾 Total del día</div><div class="value">${money(ingHoy - gas + enMora)}</div></div>`;
+      // lo cobrado ese día de deudas de días anteriores va aparte (sí entra a caja, pero no es trabajo del día)
+      $('#rd-antes').innerHTML = ingAntes > 0 ? `💰 Además cobraste <b>${money(ingAntes)}</b> de deudas de días anteriores (entra a caja, no se suma arriba)` : '';
+      $('#rd-antes').hidden = !(ingAntes > 0);
       const hist = db.cierres.slice().sort((x, z) => z.fecha.localeCompare(x.fecha));
       $('#rd-hist').innerHTML = hist.length
         ? hist.map((c) => `<tr>
@@ -2286,7 +2301,7 @@
       const pintar = (m, f) => {
         const ords = db.ordenes.filter((o) => o.fecha === f).sort((a, b) => (Number(a.factura) || 0) - (Number(b.factura) || 0));
         const movs = db.movimientos.filter((x) => x.fecha === f);
-        const cobrado = movs.reduce((t, x) => t + (x.tipo === 'gasto' ? -num(x.monto) : num(x.monto)), 0);
+        const cobrado = movs.filter((x) => x.tipo === 'gasto' || cobroDelDia(x, f)).reduce((t, x) => t + (x.tipo === 'gasto' ? -num(x.monto) : num(x.monto)), 0);
         const facturado = ords.reduce((t, o) => t + num(o.costo), 0);
         const debe = ords.reduce((t, o) => t + saldoOrden(o), 0);
         const cuenta = (re) => ords.filter((o) => re.test(o.falla || '')).length;
@@ -2309,7 +2324,7 @@
               <td class="num">${saldoOrden(o) > 0 ? `<span class="tag due">${money(saldoOrden(o))}</span>` : num(o.costo) ? '<span class="tag ok">PAGADO</span>' : ''}</td>
             </tr>`).join('') : `<tr><td colspan="6" class="empty">No se recibieron equipos el ${fmtDate(f)}</td></tr>`}</tbody>
           </table></div>
-          <p class="modal-hint">"Total cobrado" es el dinero que entró ese día (pagos y abonos), y es lo mismo que sale en el Cierre diario.</p>`;
+          <p class="modal-hint">"Total cobrado" es lo que pagaron ese día por los trabajos de ese día (lo mismo que "Pagaron" en el Cierre diario).</p>`;
       };
       const { el: m } = openModal(`
         <div class="card cierre-box">
@@ -2385,7 +2400,7 @@
       let d = db.cartera.find((x) => x.ordenId === o.id);
       const pendiente = Math.max(0, num(o.costo) - num(o.abono) - (d ? abonado(d) : 0));
       if (!d && pendiente > 0) {
-        d = { id: uid(), origen: 'orden', ordenId: o.id, clienteId: o.clienteId, concepto: `Orden ${o.numero} - ${equipoTxt(o)}`, monto: num(o.costo) - num(o.abono), fecha: today(), abonos: [] };
+        d = { id: uid(), origen: 'orden', ordenId: o.id, clienteId: o.clienteId, concepto: `Orden ${o.numero} - ${equipoTxt(o)}`, monto: num(o.costo) - num(o.abono), fecha: o.fecha || today(), abonos: [] };
         db.cartera.push(d);
       } else if (d) {
         d.monto = num(o.costo) - num(o.abono); // por si se le acaba de poner precio

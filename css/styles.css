@@ -975,3 +975,8 @@ body.modo-tv main#view { padding: 0; max-width: none; margin: 0; }
   .card h2.neon-tit { font-size: 22px; }
   .card h2.neon-tit small { font-size: 12px !important; }
 }
+
+/* cierre diario: cobros de deudas de días anteriores (aparte) */
+.rd-antes { margin: -4px 0 14px; padding: 8px 12px; border: 2px dashed #ffffff66; border-radius: 12px; font-size: 14px; color: var(--muted); }
+.rd-antes b { color: #fff; }
+@media (max-width: 600px) { .rd-antes { font-size: 12px; padding: 6px 10px; margin: 0 0 10px; } }
