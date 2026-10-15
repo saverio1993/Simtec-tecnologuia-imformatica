@@ -1442,7 +1442,14 @@
       <div id="rd-cierre-estado"></div>
       <div class="stats-row" id="rd-stats"></div>
       <p class="rd-antes" id="rd-antes" hidden></p>
-      <div class="card">
+      <div class="card" id="rd-card-pago" hidden>
+        <h2 class="neon-tit">Pagaron hoy <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(lo que pagaron por los trabajos del día)</small></h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Cliente</th><th>Equipos / modelos</th><th class="num">Pagó</th></tr></thead>
+          <tbody id="rd-pago"></tbody>
+        </table></div>
+      </div>
+      <div class="card" id="rd-card-mora">
         <h2 class="neon-tit">Quedaron debiendo hoy <small style="font-family:var(--font-body);font-size:15px;color:var(--muted)">(pasan a Cartera con el cierre)</small></h2>
         <div class="table-wrap"><table>
           <thead><tr><th>Cliente</th><th>Equipos / modelos</th><th class="num">Debe</th><th>Estado</th></tr></thead>
@@ -1458,6 +1465,7 @@
       </div>`;
 
     const fecha = () => $('#rd-fecha').value || today();
+    let lista = 'mora'; // qué lista se ve abajo: 'mora' (quedaron debiendo, por defecto) o 'pago' (pagaron)
     const signed = (m) => (m.tipo === 'gasto' ? -num(m.monto) : num(m.monto));
     function render() {
       const f = fecha();
@@ -1479,13 +1487,28 @@
         }).join('')
         : `<tr><td colspan="4" class="empty">Nadie quedó debiendo ${f === today() ? 'hoy' : 'ese día'} 🎉</td></tr>`;
 
+      // pagaron: por cliente, cada equipo del día con lo que pagó
+      const pagos = new Map();
+      const sumar = (id, txt, m) => { if (m <= 0) return; const r = pagos.get(id || '') || { id, eq: [], total: 0 }; r.eq.push(`${txt} (${money(m)})`); r.total += m; pagos.set(id || '', r); };
+      db.ordenes.filter((o) => o.fecha === f && num(o.costo) > 0).forEach((o) => sumar(o.clienteId, [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || o.numero, num(o.costo) - saldoOrden(o)));
+      db.movimientos.filter((m) => m.fecha === f && m.origen === 'manual' && m.tipo !== 'gasto').forEach((m) => sumar(m.clienteId, m.concepto || 'Venta', num(m.monto)));
+      const pagRows = [...pagos.values()].sort((a, b) => b.total - a.total);
+      $('#rd-pago').innerHTML = pagRows.length
+        ? pagRows.map((r) => `<tr>
+            <td><b>${esc(clienteNombre(r.id) || '(sin cliente)')}</b></td>
+            <td>${esc(r.eq.join(', '))}</td>
+            <td class="num"><span class="tag ok">${money(r.total)}</span></td>
+          </tr>`).join('')
+        : `<tr><td colspan="3" class="empty">Nadie ha pagado ${f === today() ? 'hoy' : 'ese día'} todavía</td></tr>`;
+      $('#rd-card-pago').hidden = lista !== 'pago';
+      $('#rd-card-mora').hidden = lista !== 'mora';
+
       $('#rd-stats').innerHTML = `
-        <div class="stat yellow"><div class="label">💵 Pagaron</div><div class="value">${money(nd.pagaron)}</div></div>
-        <div class="stat blue"><div class="label">⏳ Quedaron debiendo</div><div class="value">${money(nd.debiendo)}</div></div>
+        <div class="stat yellow stat-lista ${lista === 'pago' ? 'activo' : ''}" data-lista="pago" title="Ver la lista de los que pagaron"><div class="label">💵 Pagaron</div><div class="value">${money(nd.pagaron)}</div></div>
+        <div class="stat blue stat-lista ${lista === 'mora' ? 'activo' : ''}" data-lista="mora" title="Ver la lista de los que quedaron debiendo"><div class="label">⏳ Quedaron debiendo</div><div class="value">${money(nd.debiendo)}</div></div>
         <div class="stat red"><div class="label">🧾 Total del día</div><div class="value">${money(nd.total)}</div></div>`;
-      // avisos: lo cobrado de deudas de días anteriores (sí entra a caja, no se suma arriba) y órdenes sin precio
+      // aviso de órdenes sin precio
       const avisos = [
-        nd.antes > 0 ? `💰 Además cobraste <b>${money(nd.antes)}</b> de deudas de días anteriores (entra a caja, no se suma arriba)` : '',
         nd.sinPrecio ? `⚠ <b>${nd.sinPrecio}</b> ${nd.sinPrecio === 1 ? 'orden' : 'órdenes'} de ${f === today() ? 'hoy' : 'ese día'} sin precio: no se ${nd.sinPrecio === 1 ? 'suma' : 'suman'} hasta ponerle${nd.sinPrecio === 1 ? '' : 's'} precio` : '',
       ].filter(Boolean);
       $('#rd-antes').innerHTML = avisos.join('<br>');
@@ -1591,6 +1614,13 @@
     }
 
     $('#rd-fecha').addEventListener('change', render);
+    // tocar "Pagaron" o "Quedaron debiendo" cambia la lista de abajo
+    $('#rd-stats').addEventListener('click', (e) => {
+      const st = e.target.closest('[data-lista]');
+      if (!st || st.dataset.lista === lista) return;
+      lista = st.dataset.lista;
+      render();
+    });
     $('#rd-cierre').addEventListener('click', abrirCierre);
     $('#rd-xls').addEventListener('click', () => excelDia(fecha()));
     excelCierre = excelDia;

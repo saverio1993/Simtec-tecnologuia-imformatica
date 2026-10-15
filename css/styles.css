@@ -1002,3 +1002,10 @@ body.modo-tv main#view { padding: 0; max-width: none; margin: 0; }
   .paso-nav .btn.big { font-size: 20px; padding: 10px 12px; }
   .paso-t { font-size: 20px; }
 }
+
+/* cierre diario: tocar Pagaron / Quedaron debiendo muestra su lista (sin verse como botón) */
+.stat-lista { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform .15s; }
+.stat-lista:active { transform: scale(.98); }
+.stat-lista.activo { box-shadow: 0 0 0 3px var(--blue), 0 0 14px #2f8bff88; }
+html[data-tema="rojo"] .stat-lista.activo { box-shadow: 0 0 0 3px #ff1a1a, 0 0 14px #ff1a1a88; }
+html[data-tema="fucsia"] .stat-lista.activo { box-shadow: 0 0 0 3px #ff1aa3, 0 0 14px #ff1aa388; }
