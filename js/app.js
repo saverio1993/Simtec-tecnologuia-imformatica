@@ -809,21 +809,21 @@
       const match = (d) => !q || [clienteNombre(d.clienteId), d.concepto, modeloDe(d)].join(' ').toLowerCase().includes(q);
 
       if (vista === 'cliente') {
-        $('#ca-head').innerHTML = '<tr><th>Cliente</th><th>Equipos / modelos</th><th class="num">Total</th><th class="num">Abonado</th><th class="num">Debe</th><th></th></tr>';
-        $('#ca-total-lab').colSpan = 4;
+        // cada cliente es una barra: al tocarla se abre su cuenta (los equipos se ven ahí)
+        $('#ca-head').innerHTML = '<tr><th>Cliente</th><th class="num">Total</th><th class="num">Abonado</th><th class="num">Debe</th><th></th></tr>';
+        $('#ca-total-lab').colSpan = 3;
         const grupos = porCliente(deudas.filter(match));
         $('#ca-body').innerHTML = grupos.length
           ? grupos.map((g) => {
             const c = clienteById(g.clienteId) || {};
             return `<tr class="fila-cli" data-cuenta="${g.clienteId}" title="Ver la cuenta de ${esc(c.nombre || '')}">
-              <td><b>${esc(c.nombre || '(cliente borrado)')}</b>${c.tienda ? `<br><small style="color:var(--muted)">${esc(c.tienda)}</small>` : ''}</td>
-              <td>${esc(resumenModelos(g.deudas))}<br><small style="color:var(--muted)">${g.deudas.length} ${g.deudas.length === 1 ? 'deuda' : 'deudas'} · desde ${fmtDate(g.deudas.map((d) => d.fecha).sort()[0])}</small></td>
+              <td class="cli-barra"><b>${esc(c.nombre || '(cliente borrado)')}</b>${c.tienda ? `<small>${esc(c.tienda)}</small>` : ''}<span class="cli-flecha">›</span></td>
               <td class="num">${money(g.monto)}</td>
               <td class="num">${money(g.abonado)}</td>
               <td class="num">${g.debe > 0 ? `<span class="tag due">${money(g.debe)}</span>` : '<span class="tag ok">PAGADO</span>'}</td>
-              <td class="actions"><span class="ver-cli">Ver cuenta ›</span></td></tr>`;
+              <td></td></tr>`;
           }).join('')
-          : `<tr><td colspan="6" class="empty">Nadie le debe 🎉</td></tr>`;
+          : `<tr><td colspan="5" class="empty">Nadie le debe 🎉</td></tr>`;
       } else {
         $('#ca-head').innerHTML = '<tr><th>Fecha</th><th>Cliente</th><th>Equipo / modelo</th><th class="num">Monto</th><th class="num">Abonado</th><th class="num">Debe</th><th></th></tr>';
         $('#ca-total-lab').colSpan = 5;

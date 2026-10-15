@@ -946,3 +946,16 @@ html[data-tema="fucsia"] .tot-dia .td-tit, html[data-tema="fucsia"] .tot-dia .td
 .stat-lista.activo { box-shadow: 0 0 0 3px var(--blue), 0 0 14px #2f8bff88; }
 html[data-tema="rojo"] .stat-lista.activo { box-shadow: 0 0 0 3px #ff1a1a, 0 0 14px #ff1a1a88; }
 html[data-tema="fucsia"] .stat-lista.activo { box-shadow: 0 0 0 3px #ff1aa3, 0 0 14px #ff1aa388; }
+
+/* cartera: el nombre del cliente es la barra que abre su cuenta */
+.cli-barra { position: relative; }
+.cli-barra small { display: block; color: var(--muted); font-weight: 400; }
+.cli-flecha { margin-left: 10px; font-weight: 700; font-size: 20px; opacity: .7; }
+@media (max-width: 600px) {
+  .table-wrap tbody tr.fila-cli td.cli-barra { display: flex; align-items: center; gap: 8px; text-align: left; background: var(--blue); color: #fff; border-radius: 10px; margin: 0 6px 6px; padding: 10px 12px; font-size: 18px; }
+  .table-wrap tbody tr.fila-cli td.cli-barra small { color: #ffffffcc; font-size: 12px; }
+  .table-wrap tbody tr.fila-cli td.cli-barra .cli-flecha { margin-left: auto; opacity: 1; font-size: 24px; }
+  .table-wrap tbody tr.fila-cli td.cli-barra::before { content: none; }
+  html[data-tema="rojo"] .table-wrap tbody tr.fila-cli td.cli-barra { background: #000; }
+  html[data-tema="fucsia"] .table-wrap tbody tr.fila-cli td.cli-barra { background: #000; }
+}
