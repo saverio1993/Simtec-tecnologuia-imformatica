@@ -10,7 +10,6 @@
   const OLD_LOCAL_KEY = 'simtec_db_v1'; // datos de la versión anterior (solo en este navegador)
   const COLLECTIONS = ['clientes', 'cartera', 'movimientos', 'ordenes', 'inventario', 'cierres'];
   const ENCARGADO_WA = '6240-9181'; // recibe siempre el cierre del día (se puede cambiar en Ajustes)
-  let refrescarMonitor = null; // pantalla de monitoreo (televisor), si está abierta
   const encargado = () => db.config.encargadoWa || ENCARGADO_WA;
 
   // ------------------------------------------------------------------ datos
@@ -206,7 +205,6 @@
 
   // Actualiza la pantalla con datos nuevos solo si el usuario no está escribiendo.
   function refreshView() {
-    if (location.hash === '#monitor') { if (refrescarMonitor) refrescarMonitor(); return; }
     const active = document.activeElement;
     const typing = active && $('#view').contains(active) && /INPUT|SELECT|TEXTAREA/.test(active.tagName);
     const filled = $$('#view form input, #view form textarea').some((i) => i.type !== 'date' && i.type !== 'number' && i.value);
@@ -221,7 +219,7 @@
   let ultimoPull = 0;
   setInterval(() => {
     if (document.visibilityState !== 'visible') return;
-    const espera = location.hash === '#monitor' ? 5000 : Date.now() - ultimoUso > 300000 ? 60000 : 10000;
+    const espera = Date.now() - ultimoUso > 300000 ? 60000 : 10000;
     if (Date.now() - ultimoPull < espera) return;
     ultimoPull = Date.now();
     pull({ rerender: true });
@@ -478,8 +476,6 @@
       history.replaceState(null, '', '#orden');
     }
     const view = views[name] || views.menu;
-    document.body.classList.toggle('modo-tv', name === 'monitor');
-    if (name !== 'monitor') refrescarMonitor = null;
     const main = $('#view');
     const y = window.scrollY;
     main.innerHTML = '';
@@ -545,161 +541,6 @@
       </div>`;
   };
 
-
-  // ================================================================== MONITOREO (pantalla del televisor)
-  // Se abre en otra pestaña con el botón 📺 de arriba. Muestra en tiempo real lo que entra, lo que está
-  // en el taller y lo que sale, y "llama" al cliente como en un banco cuando se toca 📢 Llamar en la orden.
-  let ultimoLlamadoVisto = null;
-  let audioTv = null;
-  function dingDong() {
-    try {
-      audioTv = audioTv || new (window.AudioContext || window.webkitAudioContext)();
-      if (audioTv.state === 'suspended') audioTv.resume();
-      [[784, 0], [587, 0.45]].forEach(([f, t]) => {
-        const o = audioTv.createOscillator();
-        const g = audioTv.createGain();
-        o.type = 'sine';
-        o.frequency.value = f;
-        const t0 = audioTv.currentTime + t;
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.03);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.2);
-        o.connect(g).connect(audioTv.destination);
-        o.start(t0);
-        o.stop(t0 + 1.3);
-      });
-    } catch (e) { /* sin sonido */ }
-  }
-  views.monitor = (el) => {
-    const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    el.innerHTML = `
-      <div class="tv-wrap"><div class="tv" id="tv">
-        <div class="tv-top">
-          <img src="assets/logo-212.jpg" alt="">
-          <div class="tv-brand"><b>212 V.I.P</b><span>SERVICIO TÉCNICO DE CELULARES</span></div>
-          <div class="tv-live"><i></i>EN VIVO</div>
-          <div class="tv-clock"><b id="tv-hora"></b><span id="tv-fecha"></span></div>
-        </div>
-        <div class="tv-call" id="tv-call"></div>
-        <div class="tv-cols">
-          <div class="tv-col" style="--c:#22d3ee"><h2>📥 ENTRANDO HOY <span id="tv-n-in">0</span></h2><div id="tv-in"></div></div>
-          <div class="tv-col" style="--c:#fbbf24"><h2>🔧 EN TALLER <span id="tv-n-tal">0</span></h2><div id="tv-tal"></div></div>
-          <div class="tv-col" style="--c:#4ade80"><h2>📦 SALIENDO HOY <span id="tv-n-out">0</span></h2><div id="tv-out"></div></div>
-        </div>
-        <div class="tv-foot">
-          <div class="tv-k"><b style="color:#f87171">FRP</b><span>HOY<br><b id="tv-frp">0</b></span></div>
-          <div class="tv-k"><b style="color:#fbbf24">KG</b><span>HOY<br><b id="tv-kg">0</b></span></div>
-          <div class="tv-k"><b style="color:#a78bfa">PAY</b><span>HOY<br><b id="tv-pay">0</b></span></div>
-          <div class="tv-ticker"><div>📢 <b>Recuerde</b> sacar siempre su SIM CARD y su MEMORIA del celular antes de dejar su equipo &nbsp;·&nbsp; Desbloqueos FRP · KG · PAY &nbsp;·&nbsp; Gracias por confiar en <b>212 V.I.P</b> Servicio Técnico &nbsp;&nbsp;&nbsp;&nbsp;</div></div>
-        </div>
-      </div></div>
-      <button class="tv-sonido" id="tv-sonido">🔊 Toque aquí para activar el sonido y la pantalla completa</button>`;
-
-    // el panel mide 1920 × 1080 y se agranda o achica para llenar cualquier televisor
-    const ajustar = () => {
-      const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
-      $('#tv').style.transform = `scale(${k})`;
-    };
-    ajustar();
-    window.addEventListener('resize', ajustar);
-    // el navegador solo deja sonar después de un toque en la pantalla
-    $('#tv-sonido').addEventListener('click', (e) => {
-      dingDong();
-      e.currentTarget.remove();
-      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
-    });
-    if (audioTv && audioTv.state === 'running') $('#tv-sonido').remove();
-
-    const reloj = () => {
-      if (!document.body.contains(el)) return clearInterval(tReloj);
-      const d = new Date();
-      $('#tv-hora').textContent = d.toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?a\.?\s?m\.?/i, ' AM').replace(/\s?p\.?\s?m\.?/i, ' PM');
-      $('#tv-fecha').textContent = `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
-    };
-    const tReloj = setInterval(reloj, 1000);
-    reloj();
-
-    const nombreCorto = (o) => (clienteNombre(o.clienteId) || 'Cliente').split(/\s+/).slice(0, 2).join(' ');
-    const modelo = (o) => [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || '';
-    const fallaCorta = (o) => {
-      const f = o.falla || '';
-      if (/\bFRP\b/i.test(f)) return 'FRP';
-      if (/\bKG\b/i.test(f)) return 'KG';
-      if (/\bPAY/i.test(f)) return 'PAY';
-      return f.slice(0, 9);
-    };
-    const fechaLocal = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-    const entregadoEl = (o) => {
-      const h = (o.historial || []).filter((x) => x.estado === 'Entregado').pop();
-      return h ? fechaLocal(h.fecha) : '';
-    };
-    const POR_PAG = 4;
-    let pagina = 0;
-    const fila = (o, nueva) => `<div class="tv-row${nueva ? ' nueva' : ''}">
-        <div class="n">N°${esc(o.factura != null ? o.factura : '—')}</div>
-        <div class="w">${esc(nombreCorto(o))}<small>${esc(modelo(o))}</small></div>
-        ${fallaCorta(o) ? `<div class="f">${esc(fallaCorta(o))}</div>` : '<div></div>'}
-      </div>`;
-    // si hay más de 4 en una columna, se van pasando las páginas solas
-    const columna = (sel, lista, nuevaId) => {
-      const pags = Math.max(1, Math.ceil(lista.length / POR_PAG));
-      const pg = pagina % pags;
-      $(sel).innerHTML = lista.length
-        ? lista.slice(pg * POR_PAG, pg * POR_PAG + POR_PAG).map((o) => fila(o, o.id === nuevaId)).join('') +
-          (pags > 1 ? `<div class="tv-pag">${Array.from({ length: pags }, (_, i) => `<i class="${i === pg ? 'on' : ''}"></i>`).join('')}</div>` : '')
-        : '<div class="tv-vacio">—</div>';
-    };
-
-    function pintar() {
-      if (!document.body.contains(el)) return;
-      const hoy = today();
-      const porNum = (a, b) => (Number(b.factura) || 0) - (Number(a.factura) || 0);
-      const entrando = db.ordenes.filter((o) => o.fecha === hoy).sort(porNum);
-      const taller = db.ordenes.filter((o) => o.estado !== 'Entregado').sort(porNum);
-      const saliendo = db.ordenes.filter((o) => o.estado === 'Entregado' && entregadoEl(o) === hoy).sort(porNum);
-      $('#tv-n-in').textContent = entrando.length;
-      $('#tv-n-tal').textContent = taller.length;
-      $('#tv-n-out').textContent = saliendo.length;
-      columna('#tv-in', entrando, entrando[0] && entrando[0].id);
-      columna('#tv-tal', taller);
-      columna('#tv-out', saliendo, saliendo[0] && saliendo[0].id);
-      const cuenta = (re) => entrando.filter((o) => re.test(o.falla || '')).length;
-      $('#tv-frp').textContent = cuenta(/\bFRP\b/i);
-      $('#tv-kg').textContent = cuenta(/\bKG\b/i);
-      $('#tv-pay').textContent = cuenta(/\bPAY/i);
-
-      // llamado: la última orden a la que se le tocó 📢 Llamar hoy
-      const llam = db.ordenes.filter((o) => o.llamado && fechaLocal(o.llamado) === hoy).sort((a, b) => b.llamado.localeCompare(a.llamado))[0];
-      const call = $('#tv-call');
-      const clave = llam ? llam.id + llam.llamado : '';
-      if (call.dataset.clave !== clave) {
-        call.dataset.clave = clave;
-        call.className = 'tv-call' + (llam ? '' : ' espera');
-        call.innerHTML = llam
-          ? `<div class="lbl"><small>ORDEN</small><b>N°${esc(llam.factura)}</b></div>
-             <div class="info"><div class="tag">✅ SU EQUIPO ESTÁ LISTO — PASE A RETIRARLO</div>
-             <div class="name">${esc(nombreCorto(llam).toUpperCase())}</div>
-             <div class="dev">${esc([modelo(llam), fallaCorta(llam)].filter(Boolean).join(' · '))}</div></div>
-             <div class="bell">🔔</div>`
-          : `<div class="info"><div class="tag">BIENVENIDOS</div><div class="name">212 V.I.P</div><div class="dev">Cuando su equipo esté listo, lo llamaremos en esta pantalla</div></div><div class="bell">📱</div>`;
-        // suena y parpadea solo cuando llega un llamado nuevo (no al abrir la pantalla)
-        if (llam && ultimoLlamadoVisto !== null && ultimoLlamadoVisto !== clave) {
-          call.classList.add('nuevo');
-          dingDong();
-          setTimeout(() => call.classList.remove('nuevo'), 12000);
-        }
-        ultimoLlamadoVisto = clave;
-      }
-    }
-    const tPag = setInterval(() => {
-      if (!document.body.contains(el)) return clearInterval(tPag);
-      pagina++;
-      pintar();
-    }, 8000);
-    refrescarMonitor = pintar;
-    pintar();
-  };
 
   // ================================================================== CLIENTES
   views.clientes = (el) => {
@@ -2367,7 +2208,7 @@
             <td>${selFalla(o)}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === (o.estado === 'Entregado' ? 'Entregado' : 'Recibido') ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
-            <td class="actions">${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al cierre diario)">💵 Pagar</button>` : ''}<button class="btn sm" data-editar="${o.id}" title="Corregir datos o poner el precio">✏ Editar</button>${o.estado !== 'Entregado' ? `<button class="btn sm yellow" data-llamar="${o.id}" title="Llamar al cliente en la pantalla de monitoreo">📢 Llamar</button>` : ''}<button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
+            <td class="actions">${s > 0 || !num(o.costo) ? `<button class="btn sm green" data-pagar="${o.id}" title="Registrar un pago (entra al cierre diario)">💵 Pagar</button>` : ''}<button class="btn sm" data-editar="${o.id}" title="Corregir datos o poner el precio">✏ Editar</button><button class="btn sm" data-img="${o.id}" title="Enviar la orden en imagen por WhatsApp">🖼 Enviar</button><button class="btn sm" data-ver="${o.id}">Ver / Imprimir</button><button class="btn sm red" data-del="${o.id}">Borrar</button></td>
           </tr>`;
         }).join('')
         : `<tr><td colspan="8" class="empty">${db.ordenes.length ? `No hay órdenes ${filtro === 'taller' ? 'en taller' : 'entregadas'} del ${fmtDate(f)}` : 'Aún no hay órdenes de ingreso'}</td></tr>`;
@@ -2719,15 +2560,6 @@
       if (ed) editarOrden(ed.dataset.editar);
       const pag = e.target.closest('[data-pagar]');
       if (pag) pagarOrden(pag.dataset.pagar);
-      const ll = e.target.closest('[data-llamar]');
-      if (ll) {
-        const o = db.ordenes.find((x) => x.id === ll.dataset.llamar);
-        if (o) {
-          o.llamado = new Date().toISOString();
-          save();
-          toast(`📢 Llamando en la pantalla: N°${o.factura} ${clienteNombre(o.clienteId)}`);
-        }
-      }
       const img = e.target.closest('[data-img]');
       if (img) enviarImagenOrden(db.ordenes.find((o) => o.id === img.dataset.img));
       const lab = e.target.closest('[data-label]');
