@@ -553,6 +553,45 @@
   const MARCA_DE = [[/samsung/i, 'Samsung'], [/apple|iphone/i, 'iPhone'], [/xiaomi|redmi|poco/i, 'Xiaomi'], [/honor/i, 'Honor'], [/huawei/i, 'Huawei'],
     [/motorola|moto/i, 'Motorola'], [/oppo/i, 'Oppo'], [/tecno/i, 'Tecno'], [/infinix/i, 'Infinix'], [/zte/i, 'ZTE']];
   const marcaNormal = (t) => { const m = MARCA_DE.find(([re]) => re.test(String(t || ''))); return m ? m[1] : String(t || '').replace(/^./, (c) => c.toUpperCase()); };
+  // código Samsung → nombre comercial (SM-G990E → S21 FE). Se busca por la letra y los 3 números del código.
+  const SAMSUNG_NOMBRES = {
+    A013: 'A01 Core', A015: 'A01', A022: 'A02', A025: 'A02s', A032: 'A03 Core', A035: 'A03', A037: 'A03s', A042: 'A04e', A045: 'A04', A047: 'A04s',
+    A055: 'A05', A057: 'A05s', A065: 'A06', A066: 'A06 5G', A102: 'A10e', A105: 'A10', A107: 'A10s', A115: 'A11', A125: 'A12', A127: 'A12',
+    A135: 'A13', A137: 'A13', A136: 'A13 5G', A145: 'A14', A146: 'A14 5G', A155: 'A15', A156: 'A15 5G', A165: 'A16', A166: 'A16 5G', A202: 'A20e',
+    A205: 'A20', A207: 'A20s', A215: 'A21', A217: 'A21s', A225: 'A22', A226: 'A22 5G', A235: 'A23', A236: 'A23 5G', A245: 'A24', A256: 'A25 5G',
+    A260: 'A2 Core', A305: 'A30', A307: 'A30s', A315: 'A31', A325: 'A32', A326: 'A32 5G', A336: 'A33 5G', A346: 'A34 5G', A356: 'A35 5G',
+    A366: 'A36 5G', A405: 'A40', A415: 'A41', A505: 'A50', A507: 'A50s', A515: 'A51', A516: 'A51 5G', A525: 'A52', A526: 'A52 5G', A528: 'A52s 5G',
+    A536: 'A53 5G', A546: 'A54 5G', A556: 'A55 5G', A566: 'A56 5G', A705: 'A70', A715: 'A71', A716: 'A71 5G', A725: 'A72', A736: 'A73 5G',
+    A530: 'A8 (2018)', A600: 'A6 (2018)', A605: 'A6+ (2018)', A750: 'A7 (2018)', A920: 'A9 (2018)', J250: 'J2 Pro', J260: 'J2 Core', J400: 'J4',
+    J410: 'J4 Core', J415: 'J4+', J600: 'J6', J610: 'J6+', J701: 'J7 Neo', J730: 'J7 Pro', J737: 'J7 (2018)', G532: 'J2 Prime', G570: 'J5 Prime',
+    G610: 'J7 Prime', M015: 'M01', M115: 'M11', M127: 'M12', M135: 'M13', M145: 'M14', M156: 'M15 5G', M215: 'M21', M225: 'M22', M236: 'M23 5G',
+    M315: 'M31', M325: 'M32', M336: 'M33 5G', M346: 'M34 5G', M515: 'M51', M526: 'M52 5G', M536: 'M53 5G', M546: 'M54 5G', G930: 'S7', G935: 'S7 Edge',
+    G950: 'S8', G955: 'S8+', G960: 'S9', G965: 'S9+', G970: 'S10e', G973: 'S10', G975: 'S10+', G977: 'S10 5G', G770: 'S10 Lite', G980: 'S20',
+    G981: 'S20 5G', G985: 'S20+', G986: 'S20+ 5G', G988: 'S20 Ultra', G780: 'S20 FE', G781: 'S20 FE 5G', G990: 'S21 FE', G991: 'S21', G996: 'S21+',
+    G998: 'S21 Ultra', S901: 'S22', S906: 'S22+', S908: 'S22 Ultra', S711: 'S23 FE', S911: 'S23', S916: 'S23+', S918: 'S23 Ultra', S721: 'S24 FE',
+    S921: 'S24', S926: 'S24+', S928: 'S24 Ultra', S931: 'S25', S936: 'S25+', S938: 'S25 Ultra', S937: 'S25 Edge', N950: 'Note 8', N960: 'Note 9',
+    N970: 'Note 10', N975: 'Note 10+', N770: 'Note 10 Lite', N980: 'Note 20', N981: 'Note 20 5G', N985: 'Note 20 Ultra', N986: 'Note 20 Ultra 5G',
+    F700: 'Z Flip', F707: 'Z Flip 5G', F711: 'Z Flip3', F721: 'Z Flip4', F731: 'Z Flip5', F741: 'Z Flip6', F916: 'Z Fold2', F926: 'Z Fold3',
+    F936: 'Z Fold4', F946: 'Z Fold5', F956: 'Z Fold6', T290: 'Tab A 8.0 (2019)', T295: 'Tab A 8.0 (2019)', T500: 'Tab A7', T505: 'Tab A7',
+    T220: 'Tab A7 Lite', T225: 'Tab A7 Lite', X200: 'Tab A8', X205: 'Tab A8', X110: 'Tab A9', X115: 'Tab A9', X210: 'Tab A9+', X216: 'Tab A9+'
+  };
+  const nombreSamsung = (codigo) => {
+    const m = /^(?:SM-)?([A-Z])(\d{3})/i.exec(String(codigo || '').trim());
+    return m ? SAMSUNG_NOMBRES[(m[1] + m[2]).toUpperCase()] || '' : '';
+  };
+  const modeloConNombre = (codigo) => { const n = nombreSamsung(codigo); return n ? `${codigo} (${n})` : codigo; };
+  // para mostrar: si el modelo guardado es solo el código Samsung, se le agrega el nombre comercial
+  const modeloVer = (o) => (o.modelo && !/\(/.test(o.modelo) && (!o.marca || /samsung/i.test(o.marca)) ? modeloConNombre(o.modelo) : o.modelo || '');
+  // tipo de memoria que da el modo descarga: PRODUCT (chip) y VENDOR (fabricante) → "UFS Samsung", "eMMC Micron"…
+  const FABRICANTES = { SAMSUNG: 'Samsung', MICRON: 'Micron', SKHYNIX: 'SK Hynix', HYNIX: 'SK Hynix', 'SK HYNIX': 'SK Hynix', TOSHIBA: 'Kioxia', KIOXIA: 'Kioxia', SANDISK: 'SanDisk', WDC: 'SanDisk', YMTC: 'YMTC' };
+  const tipoMemoria = (producto, fabricante) => {
+    const v = String(fabricante || '').trim().toUpperCase();
+    const fab = FABRICANTES[v] || (v ? v.charAt(0) + v.slice(1).toLowerCase() : '');
+    const pr = String(producto || '').trim().toUpperCase();
+    if (!pr) return fab;
+    const tipo = /^KLM/.test(pr) ? 'eMMC' : /^KLU/.test(pr) ? 'UFS' : pr.length <= 6 ? 'eMMC' : 'UFS';
+    return [tipo, fab].filter(Boolean).join(' ');
+  };
   const conTiempo = (p, ms, msg) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(msg)), ms))]);
   const sinSerial = () => { if (!('serial' in navigator)) throw new Error('Este navegador no puede leer el puerto COM. Use Chrome o Edge en una computadora.'); };
   const sinUsb = () => { if (!('usb' in navigator)) throw new Error('Este navegador no puede leer por USB. Use Chrome o Edge en una computadora.'); };
@@ -611,7 +650,7 @@
       if (cuerpo) {
         const info = {};
         cuerpo.split(';').forEach((kv) => { const i = kv.indexOf('='); if (i > 0) info[kv.slice(0, i).trim()] = kv.slice(i + 1).trim(); });
-        if (info.MODEL) return { modo: 'Samsung modo descarga', marca: 'Samsung', modelo: info.MODEL, version: info.VER || '', bit: bitDe(info.VER) };
+        if (info.MODEL) return { modo: 'Samsung modo descarga', marca: 'Samsung', modelo: modeloConNombre(info.MODEL), version: info.VER || '', bit: bitDe(info.VER), memoria: tipoMemoria(info.PRODUCT, info.VENDOR) };
       }
       log('No está en modo descarga: se prueba encendido…');
       const at = async (cmd) => {
@@ -631,7 +670,7 @@
       }
       if (!modelo) throw new Error('El equipo no respondió. Póngalo en modo descarga (pantalla azul «Downloading») y pruebe otro cable o puerto USB.');
       const ver = (info.VER || '').split('/')[0] || info.BASE || '';
-      return { modo: 'Samsung encendido', marca: 'Samsung', modelo, version: ver, bit: bitDe(ver) };
+      return { modo: 'Samsung encendido', marca: 'Samsung', modelo: modeloConNombre(modelo), version: ver, bit: bitDe(ver) };
     } finally {
       await port.close().catch(() => {});
     }
@@ -723,7 +762,8 @@
         resEl.innerHTML = `
           <div class="lr-fila"><span>Marca</span><b>${esc(r.marca || '—')}</b></div>
           <div class="lr-fila"><span>Modelo</span><b>${esc(r.modelo)}</b></div>
-          ${r.bit ? `<div class="lr-fila"><span>Binario (bit)</span><b>${esc(r.bit)}</b></div>` : ''}`;
+          ${r.bit ? `<div class="lr-fila"><span>Binario (bit)</span><b>${esc(r.bit)}</b></div>` : ''}
+          ${r.memoria ? `<div class="lr-fila"><span>Memoria</span><b>${esc(r.memoria)}</b></div>` : ''}`;
         // quien abrió la ventana puede seguir aquí mismo (cliente, falla y precio); si no, se cierra
         const sigue = alListo(r, { cont: resEl, close, modal: m });
         if (sigue) { m.querySelector('.lector-modos').hidden = true; logEl.hidden = true; } else setTimeout(close, 900);
@@ -1964,6 +2004,7 @@
       o.clave && 'Clave / patrón: ' + o.clave,
       'Estado: ' + o.estado,
       o.binario && 'Binario: ' + o.binario, // el bit que se leyó del equipo
+      o.memoria && 'Tipo de memoria: ' + o.memoria,
     ].filter(Boolean);
     while (lineas.length < 6) lineas.push('');
     const entregado = (o.historial || []).filter((x) => x.estado === 'Entregado').pop();
@@ -1994,7 +2035,7 @@
         <div class="f-bar"><span style="flex:1">MARCA</span><span style="flex:1.3">MODELO</span><span style="flex:2.2">IMEI</span></div>
         <div class="f-row f-cells">
           <div style="flex:1">${esc(o.marca || o.equipo || '')}</div>
-          <div style="flex:1.3">${esc(o.modelo || '')}</div>
+          <div style="flex:1.3">${esc(modeloVer(o))}</div>
           <div class="f-imei" style="flex:2.2">${imei.map((ch) => `<span>${ch.trim() ? esc(ch) : ''}</span>`).join('')}</div>
         </div>
       </div>
@@ -2366,7 +2407,7 @@
           <button class="btn primary big" type="button" id="or-sig">SIGUIENTE →</button>
           <button class="btn big btn-rgb" type="button" id="or-leer" title="Leer marca, modelo y binario del teléfono por cable USB">🔌 LEER EQUIPO</button>
           <span class="or-leido" id="or-leido" hidden></span>
-          <input type="hidden" id="or-bin">
+          <input type="hidden" id="or-bin"><input type="hidden" id="or-mem">
           <button class="btn primary big" type="submit" id="or-guardar" hidden>GUARDAR E IMPRIMIR</button>
         </div>
       </form>
@@ -2414,7 +2455,7 @@
             <td><b class="fact-n">${o.factura != null ? 'N°' + esc(o.factura) : '—'}</b></td>
             <td>${fmtDate(o.fecha)}</td>
             <td>${esc(clienteNombre(o.clienteId))}</td>
-            <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}${o.binario ? ` <small class="bit-tag">Bit ${esc(o.binario)}</small>` : ''}</td>
+            <td>${esc([o.equipo, o.marca, modeloVer(o)].filter(Boolean).join(' '))}${o.binario ? ` <small class="bit-tag">Bit ${esc(o.binario)}</small>` : ''}</td>
             <td>${selFalla(o)}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === (o.estado === 'Entregado' ? 'Entregado' : 'Recibido') ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
@@ -2491,6 +2532,7 @@
             <div class="field"><label for="ed-marca">Marca</label><input id="ed-marca" list="ed-marcas" value="${esc(o.marca || '')}"><datalist id="ed-marcas">${MARCAS.map((x) => `<option value="${x}">`).join('')}</datalist></div>
             <div class="field full"><label for="ed-modelo">Modelo</label><input id="ed-modelo" value="${esc(o.modelo || '')}"></div>
             <div class="field"><label for="ed-bin">Binario (bit)</label><input id="ed-bin" value="${esc(o.binario || '')}" placeholder="Solo Samsung"></div>
+            <div class="field"><label for="ed-mem">Tipo de memoria</label><input id="ed-mem" value="${esc(o.memoria || '')}" placeholder="Ej: UFS Samsung"></div>
             <div class="field full"><label for="ed-falla">Falla</label><input id="ed-falla" value="${esc(o.falla || '')}" placeholder="FRP, KG, PAY…"></div>
             <div class="field full"><label for="ed-nota">Nota</label><input id="ed-nota" value="${esc(o.trabajo || '')}"></div>
             <div class="field"><label for="ed-costo">Precio / costo</label><input id="ed-costo" type="number" step="0.01" min="0" value="${num(o.costo) || ''}" placeholder="Sin precio"></div>
@@ -2509,7 +2551,7 @@
         const q = (sel) => m.querySelector(sel).value.trim();
         if (!q('#ed-falla')) { toast('Escriba la falla'); return; }
         Object.assign(x, {
-          clienteId: q('#ed-cli') || x.clienteId, equipo: q('#ed-eq'), marca: q('#ed-marca'), modelo: q('#ed-modelo'), binario: q('#ed-bin'),
+          clienteId: q('#ed-cli') || x.clienteId, equipo: q('#ed-eq'), marca: q('#ed-marca'), modelo: q('#ed-modelo'), binario: q('#ed-bin'), memoria: q('#ed-mem'),
           falla: q('#ed-falla'), trabajo: q('#ed-nota'), costo: num(q('#ed-costo')),
         });
         // la deuda de esta orden en cartera queda igual al nuevo precio
@@ -2697,6 +2739,7 @@
       fillModelos();
       $('#or-modelo').value = r.modelo;
       $('#or-bin').value = r.bit || '';
+      $('#or-mem').value = r.memoria || '';
       $('#or-leido').hidden = false;
       $('#or-leido').textContent = `✅ ${[r.marca, r.modelo].filter(Boolean).join(' ')}${r.bit ? ' · Bit ' + r.bit : ''}`;
       toast('Equipo leído: ' + [r.marca, r.modelo].filter(Boolean).join(' ') + (r.bit ? ' · Bit ' + r.bit : ''));
@@ -2709,7 +2752,7 @@
       let cliNuevo = '';
       const fq = new Set();
       cont.innerHTML = `
-        <div class="lq-eq">📱 ${esc([r.marca, r.modelo].filter(Boolean).join(' '))}${r.bit ? ` <span class="bit-tag">Bit ${esc(r.bit)}</span>` : ''}</div>
+        <div class="lq-eq">📱 ${esc([r.marca, r.modelo].filter(Boolean).join(' '))}${r.bit ? ` <span class="bit-tag">Bit ${esc(r.bit)}</span>` : ''}${r.memoria ? ` <span class="bit-tag">${esc(r.memoria)}</span>` : ''}</div>
         <label class="lq-lab">👤 Cliente</label>
         <input id="lq-cli" placeholder="🔎 Escriba el nombre…" autocomplete="off" value="${esc(cliSel ? clienteNombre(cliSel) : '')}">
         <div class="cli-sug" id="lq-sug"></div>
@@ -2823,7 +2866,7 @@
       }
       const o = {
         id: uid(), numero: nuevoNumeroOrden(), factura: nuevaFactura(), fecha: today(), clienteId,
-        equipo: $('#or-eq').value, marca, modelo: $('#or-modelo').value.trim(), binario: $('#or-bin').value.trim(), falla, trabajo: $('#or-trab').value.trim(),
+        equipo: $('#or-eq').value, marca, modelo: $('#or-modelo').value.trim(), binario: $('#or-bin').value.trim(), memoria: $('#or-mem').value.trim(), falla, trabajo: $('#or-trab').value.trim(),
         costo: num($('#or-costo').value), abono: num($('#or-abono').value), estado: 'Recibido',
         historial: [{ estado: 'Recibido', fecha: new Date().toISOString() }],
       };
@@ -2841,6 +2884,7 @@
       resetChips();
       leido = null;
       $('#or-bin').value = '';
+      $('#or-mem').value = '';
       $('#or-leido').hidden = true;
       $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo —');
       $('#or-buscar').value = '';
