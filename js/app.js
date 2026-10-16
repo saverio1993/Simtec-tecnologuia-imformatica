@@ -724,7 +724,9 @@
           <div class="lr-fila"><span>Marca</span><b>${esc(r.marca || '—')}</b></div>
           <div class="lr-fila"><span>Modelo</span><b>${esc(r.modelo)}</b></div>
           ${r.bit ? `<div class="lr-fila"><span>Binario (bit)</span><b>${esc(r.bit)}</b></div>` : ''}`;
-        setTimeout(() => { close(); alListo(r); }, 900);
+        // quien abrió la ventana puede seguir aquí mismo (cliente, falla y precio); si no, se cierra
+        const sigue = alListo(r, { cont: resEl, close, modal: m });
+        if (sigue) { m.querySelector('.lector-modos').hidden = true; logEl.hidden = true; } else setTimeout(close, 900);
       } catch (err) {
         log('❌ ' + (err && err.message ? err.message : String(err)));
       } finally {
@@ -2699,7 +2701,93 @@
       toast('Equipo leído: ' + [r.marca, r.modelo].filter(Boolean).join(' ') + (r.bit ? ' · Bit ' + r.bit : ''));
       if (clienteTxt()) irPaso(3); else irPaso(paso); // sin cliente todavía: se queda en el paso 1
     }
-    $('#or-leer').addEventListener('click', () => abrirLectorEquipo(aplicarLectura));
+    // después de leer, en la misma ventana: cliente, falla y precio, y se guarda sin pasar por los pasos
+    function seguirEnVentana(r, { cont, close }) {
+      aplicarLectura(r);
+      let cliSel = $('#or-cli').value || '';
+      let cliNuevo = '';
+      const fq = new Set();
+      cont.innerHTML = `
+        <div class="lq-eq">📱 ${esc([r.marca, r.modelo].filter(Boolean).join(' '))}${r.bit ? ` <span class="bit-tag">Bit ${esc(r.bit)}</span>` : ''}</div>
+        <label class="lq-lab">👤 Cliente</label>
+        <input id="lq-cli" placeholder="🔎 Escriba el nombre…" autocomplete="off" value="${esc(cliSel ? clienteNombre(cliSel) : '')}">
+        <div class="cli-sug" id="lq-sug"></div>
+        <label class="lq-lab">🔧 Falla</label>
+        <div class="chips" id="lq-fallas">${FALLAS.map((f) => `<button type="button" class="chip" data-f="${esc(f)}">${esc(f)}</button>`).join('')}<button type="button" class="chip" data-f="otra">Otra…</button></div>
+        <input id="lq-otra" placeholder="Describa la falla" hidden>
+        <div class="lq-precios">
+          <label class="lq-lab">💵 Precio<input id="lq-costo" type="number" step="0.01" min="0" placeholder="0,00"></label>
+          <label class="lq-lab">Abono<input id="lq-abono" type="number" step="0.01" min="0" placeholder="0,00"></label>
+        </div>
+        <button type="button" class="btn primary big lq-guardar" id="lq-guardar">GUARDAR E IMPRIMIR</button>`;
+      cont.classList.add('lq');
+      const q = (sel) => cont.querySelector(sel);
+      const pintarSug = () => {
+        const t = llaveCli(q('#lq-cli').value.trim());
+        if (!t || cliSel) { q('#lq-sug').innerHTML = ''; return; }
+        const lista = db.clientes.filter((c) => llaveCli(`${c.nombre} ${c.tienda || ''}`).includes(t))
+          .sort((a, b) => (llaveCli(a.nombre).startsWith(t) ? 0 : 1) - (llaveCli(b.nombre).startsWith(t) ? 0 : 1) || a.nombre.localeCompare(b.nombre)).slice(0, 5);
+        q('#lq-sug').innerHTML = lista.map((c) => `<button type="button" class="cli-op" data-cli="${c.id}"><b>${esc(c.nombre)}</b>${c.tienda ? `<small>${esc(c.tienda)}</small>` : ''}</button>`).join('')
+          + `<button type="button" class="cli-op nuevo-op" data-cli-nuevo>➕ Cliente nuevo: <b>${esc(q('#lq-cli').value.trim())}</b></button>`;
+      };
+      q('#lq-cli').addEventListener('input', () => { cliSel = ''; cliNuevo = ''; q('#lq-cli').classList.remove('ok'); pintarSug(); });
+      q('#lq-sug').addEventListener('click', (e) => {
+        const c = e.target.closest('[data-cli]');
+        if (c) { cliSel = c.dataset.cli; q('#lq-cli').value = clienteNombre(cliSel); }
+        else if (e.target.closest('[data-cli-nuevo]')) cliNuevo = q('#lq-cli').value.trim();
+        else return;
+        q('#lq-cli').classList.add('ok');
+        q('#lq-sug').innerHTML = '';
+      });
+      q('#lq-cli').addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const op = q('#lq-sug [data-cli]');
+        if (op) op.click(); else if (q('#lq-cli').value.trim()) q('#lq-sug [data-cli-nuevo]')?.click();
+      });
+      q('#lq-fallas').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-f]');
+        if (!b) return;
+        const f = b.dataset.f;
+        fq.has(f) ? fq.delete(f) : fq.add(f);
+        b.classList.toggle('on', fq.has(f));
+        q('#lq-otra').hidden = !fq.has('otra');
+        if (fq.has('otra')) q('#lq-otra').focus();
+      });
+      q('#lq-guardar').addEventListener('click', () => {
+        if (!cliSel && !cliNuevo) {
+          if (q('#lq-cli').value.trim() && !q('#lq-sug [data-cli]')) cliNuevo = q('#lq-cli').value.trim();
+          else { toast('Busque y toque el cliente'); q('#lq-cli').focus(); return; }
+        }
+        if (!fq.size || (fq.has('otra') && fq.size === 1 && !q('#lq-otra').value.trim())) { toast('Toque la falla del equipo'); return; }
+        // se pasa todo a la plantilla y se guarda con el mismo proceso de siempre
+        if (cliSel) {
+          if (![...$('#or-cli').options].some((op) => op.value === cliSel)) $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo —');
+          $('#or-cli').value = cliSel;
+          modoNuevo = false;
+          $('#or-buscar').value = clienteNombre(cliSel);
+        } else {
+          $('#or-cli').value = '';
+          modoNuevo = true;
+          $('#or-nom').value = cliNuevo;
+          $('#or-buscar').value = cliNuevo;
+        }
+        toggleNuevo();
+        fallasSel.clear();
+        fq.forEach((f) => fallasSel.add(f));
+        $$('#or-fallas .chip', el).forEach((x) => x.classList.toggle('on', fallasSel.has(x.dataset.falla)));
+        $('#or-falla-otra').hidden = !fallasSel.has('otra');
+        $('#or-falla-otra').value = q('#lq-otra').value.trim();
+        $('#or-costo').value = q('#lq-costo').value || '0';
+        $('#or-abono').value = q('#lq-abono').value || '0';
+        close();
+        irPaso(4);
+        $('#or-form').requestSubmit();
+      });
+      setTimeout(() => (cliSel ? q('#lq-costo') : q('#lq-cli')).focus(), 50);
+      return true;
+    }
+    $('#or-leer').addEventListener('click', () => abrirLectorEquipo(seguirEnVentana));
     $('#or-sig').addEventListener('click', siguiente);
     $('#or-atras').addEventListener('click', () => irPaso(Math.max(1, paso - 1)));
     $('#or-resumen').addEventListener('click', (e) => { const b = e.target.closest('[data-volver]'); if (b) irPaso(Number(b.dataset.volver)); });

@@ -1020,3 +1020,16 @@ html[data-tema="fucsia"] .acum-tit, html[data-tema="fucsia"] .acum-total span, h
 .lector-modo { grid-template-columns: auto 1fr; grid-template-rows: auto; padding: 10px 12px; }
 .lector-modo .lm-ic { grid-row: auto; font-size: 24px; }
 @media (max-width: 600px) { .paso-nav .btn.btn-rgb { font-size: 18px; } }
+
+/* ventana Leer equipo: después de leer, cliente, falla y precio en la misma ventana */
+.lector-res.lq { background: #101016; border-color: #00e5ff; display: flex; flex-direction: column; gap: 6px; animation: lqEntra .25s ease-out; }
+@keyframes lqEntra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.lq-eq { font-weight: 700; font-size: 17px; color: #fff; padding-bottom: 4px; border-bottom: 1px solid #ffffff22; }
+.lq-lab { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #ffffffbb; margin-top: 4px; }
+.lector-res.lq input { width: 100%; padding: 9px 12px; border-radius: 10px; border: 2px solid #ffffff55; background: #000; color: #fff; font: inherit; font-size: 16px; }
+.lector-res.lq input.ok { border-color: #4ade80; }
+.lector-res.lq .chips { gap: 6px; }
+.lector-res.lq .chip { padding: 6px 12px; font-size: 14px; }
+.lq-precios { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lq-precios .lq-lab { display: flex; flex-direction: column; gap: 4px; }
+.lq-guardar { margin-top: 6px; width: 100%; }
