@@ -1963,6 +1963,7 @@
       o.accesorios && 'Accesorios: ' + o.accesorios,
       o.clave && 'Clave / patrón: ' + o.clave,
       'Estado: ' + o.estado,
+      o.binario && 'Binario: ' + o.binario, // el bit que se leyó del equipo
     ].filter(Boolean);
     while (lineas.length < 6) lineas.push('');
     const entregado = (o.historial || []).filter((x) => x.estado === 'Entregado').pop();
@@ -1993,7 +1994,7 @@
         <div class="f-bar"><span style="flex:1">MARCA</span><span style="flex:1.3">MODELO</span><span style="flex:2.2">IMEI</span></div>
         <div class="f-row f-cells">
           <div style="flex:1">${esc(o.marca || o.equipo || '')}</div>
-          <div style="flex:1.3">${esc(o.modelo || '')}${o.binario ? ` <small>(Bit ${esc(o.binario)})</small>` : ''}</div>
+          <div style="flex:1.3">${esc(o.modelo || '')}</div>
           <div class="f-imei" style="flex:2.2">${imei.map((ch) => `<span>${ch.trim() ? esc(ch) : ''}</span>`).join('')}</div>
         </div>
       </div>
