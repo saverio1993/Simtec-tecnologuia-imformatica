@@ -552,7 +552,12 @@
   const bitDe = (ver) => { const v = String(ver || '').trim(); return v.length >= 5 ? v.charAt(v.length - 5) : ''; };
   const MARCA_DE = [[/samsung/i, 'Samsung'], [/apple|iphone/i, 'iPhone'], [/xiaomi|redmi|poco/i, 'Xiaomi'], [/honor/i, 'Honor'], [/huawei/i, 'Huawei'],
     [/motorola|moto/i, 'Motorola'], [/oppo/i, 'Oppo'], [/tecno/i, 'Tecno'], [/infinix/i, 'Infinix'], [/zte/i, 'ZTE']];
-  const marcaNormal = (t) => { const m = MARCA_DE.find(([re]) => re.test(String(t || ''))); return m ? m[1] : String(t || '').replace(/^./, (c) => c.toUpperCase()); };
+  const marcaNormal = (t) => {
+    const m = MARCA_DE.find(([re]) => re.test(String(t || '')));
+    if (m) return m[1];
+    const w = String(t || '').trim().split(/\s+/)[0] || '';
+    return /mediatek|qualcomm|unisoc|spreadtrum|android|google|fastboot/i.test(w) ? '' : w.replace(/^./, (c) => c.toUpperCase()); // el fabricante del chip no es la marca
+  };
   // código Samsung → nombre comercial (SM-G990E → S21 FE). Se busca por la letra y los 3 números del código.
   const SAMSUNG_NOMBRES = {
     A013: 'A01 Core', A015: 'A01', A022: 'A02', A025: 'A02s', A032: 'A03 Core', A035: 'A03', A037: 'A03s', A042: 'A04e', A045: 'A04', A047: 'A04s',
@@ -603,6 +608,28 @@
   const nombreHuawei = (codigo) => {
     const m = /^([A-Z]{3})-([A-Z])/i.exec(String(codigo || '').trim());
     return m ? HUAWEI_NOMBRES[`${m[1]}-${m[2]}`.toUpperCase()] || null : null;
+  };
+  // Xiaomi / Redmi / POCO en Fastboot dan el nombre clave (emerald_global) → nombre comercial
+  const XIAOMI_NOMBRES = {
+    emerald: 'Redmi Note 13 Pro 4G / POCO M6 Pro', sapphire: 'Redmi Note 13 4G', sapphiren: 'Redmi Note 13 4G NFC', gold: 'Redmi Note 13 5G',
+    garnet: 'Redmi Note 13 Pro 5G / POCO X6', zircon: 'Redmi Note 13 Pro+', tapas: 'Redmi Note 12 4G', topaz: 'Redmi Note 12 4G NFC',
+    sunstone: 'Redmi Note 12 5G', ruby: 'Redmi Note 12 Pro 5G', sweet: 'Redmi Note 10 Pro', mojito: 'Redmi Note 10', rosemary: 'Redmi Note 10S',
+    secret: 'Redmi Note 10S', camellia: 'Redmi Note 10 5G', camellian: 'Redmi Note 10 5G', spes: 'Redmi Note 11', spesn: 'Redmi Note 11 NFC',
+    veux: 'Redmi Note 11 Pro 5G', viva: 'Redmi Note 11 Pro 4G', vida: 'Redmi Note 11 Pro 4G', fleur: 'Redmi Note 11S / POCO M4 Pro', miel: 'Redmi Note 11S',
+    merlin: 'Redmi Note 9', merlinnfc: 'Redmi Note 9', joyeuse: 'Redmi Note 9 Pro', curtana: 'Redmi Note 9S', ginkgo: 'Redmi Note 8', willow: 'Redmi Note 8T',
+    begonia: 'Redmi Note 8 Pro', lavender: 'Redmi Note 7', violet: 'Redmi Note 7 Pro', lancelot: 'Redmi 9', dandelion: 'Redmi 9A', angelica: 'Redmi 9C',
+    angelican: 'Redmi 9C NFC', lime: 'Redmi 9T', selene: 'Redmi 10', fog: 'Redmi 10C', earth: 'Redmi 12C', fire: 'Redmi 12', sky: 'Redmi 12 5G',
+    alioth: 'POCO F3', munch: 'POCO F4', marble: 'POCO F5', surya: 'POCO X3 NFC', karna: 'POCO X3', vayu: 'POCO X3 Pro', bhima: 'POCO X3 Pro',
+    citrus: 'POCO M3', duchamp: 'POCO X6 Pro', ice: 'Redmi A1', water: 'Redmi A2',
+  };
+  const nombreXiaomi = (codigo) => {
+    const k = String(codigo || '').trim().toLowerCase().replace(/_(global|eea|in|ru|tw|id|tr|jp|cn|mx|lm|lx)$/, '');
+    return XIAOMI_NOMBRES[k] || '';
+  };
+  // nombres que el técnico corrigió a mano: la próxima vez que se lea ese código sale igual
+  const nombreAprendido = (codigo) => {
+    const k = String(codigo || '').trim().toUpperCase();
+    return k && db.config.modelosAprendidos ? db.config.modelosAprendidos[k] || null : null;
   };
   // tipo de memoria que da el modo descarga: PRODUCT (chip) y VENDOR (fabricante) → "UFS Samsung", "eMMC Micron"…
   const FABRICANTES = { SAMSUNG: 'Samsung', MICRON: 'Micron', SKHYNIX: 'SK Hynix', HYNIX: 'SK Hynix', 'SK HYNIX': 'SK Hynix', TOSHIBA: 'Kioxia', KIOXIA: 'Kioxia', SANDISK: 'SanDisk', WDC: 'SanDisk', YMTC: 'YMTC' };
@@ -672,7 +699,7 @@
       if (cuerpo) {
         const info = {};
         cuerpo.split(';').forEach((kv) => { const i = kv.indexOf('='); if (i > 0) info[kv.slice(0, i).trim()] = kv.slice(i + 1).trim(); });
-        if (info.MODEL) return { modo: 'Samsung modo descarga', marca: 'Samsung', modelo: modeloConNombre(info.MODEL), version: info.VER || '', bit: bitDe(info.VER), memoria: tipoMemoria(info.PRODUCT, info.VENDOR), huella: info.UN || '' };
+        if (info.MODEL) return { modo: 'Samsung modo descarga', marca: 'Samsung', codigo: info.MODEL, modelo: (nombreAprendido(info.MODEL) || {}).modelo || modeloConNombre(info.MODEL), version: info.VER || '', bit: bitDe(info.VER), memoria: tipoMemoria(info.PRODUCT, info.VENDOR), huella: info.UN || '' };
       }
       log('No está en modo descarga: se prueba encendido…');
       const at = async (cmd) => {
@@ -692,7 +719,7 @@
       }
       if (!modelo) throw new Error('El equipo no respondió. Póngalo en modo descarga (pantalla azul «Downloading») y pruebe otro cable o puerto USB.');
       const ver = (info.VER || '').split('/')[0] || info.BASE || '';
-      return { modo: 'Samsung encendido', marca: 'Samsung', modelo: modeloConNombre(modelo), version: ver, bit: bitDe(ver), huella: info.UN || info.SN || '' };
+      return { modo: 'Samsung encendido', marca: 'Samsung', codigo: modelo, modelo: (nombreAprendido(modelo) || {}).modelo || modeloConNombre(modelo), version: ver, bit: bitDe(ver), huella: info.UN || info.SN || '' };
     } finally {
       await port.close().catch(() => {});
     }
@@ -766,9 +793,16 @@
       const fab = (device.manufacturerName || '') + ' ' + producto;
       const huella = (await prueba('getvar:serialno')) || device.serialNumber || '';
       const memoria = await memoriaFastboot();
+      const base = { modo: 'Fastboot', codigo: producto, version: '', bit: '', huella, memoria };
+      const apr = nombreAprendido(producto); // lo que el técnico ya corrigió antes para este código
+      if (apr) return { ...base, marca: apr.marca, modelo: apr.modelo };
       const h = nombreHuawei(producto); // Honor y Huawei: el código dice la marca real y el nombre (RKY-LX3 → Honor X7a)
-      if (h) return { modo: 'Fastboot', marca: h[0], modelo: `${producto} (${h[1]})`, version: '', bit: '', huella, memoria };
-      return { modo: 'Fastboot', marca: marcaNormal(huawei ? 'huawei ' + fab : fab), modelo: producto, version: '', bit: '', huella, memoria };
+      if (h) return { ...base, marca: h[0], modelo: `${producto} (${h[1]})` };
+      const x = nombreXiaomi(producto); // Xiaomi / Redmi / POCO: nombre clave (emerald_global → Redmi Note 13 Pro 4G)
+      if (x) return { ...base, marca: 'Xiaomi', modelo: `${x} (${producto.replace(/_.*$/, '')})` };
+      const honor = /honor/i.test(device.manufacturerName || '');
+      const marca = honor ? 'Honor' : huawei ? 'Huawei' : /_(global|eea|in|ru|tw|id|tr)$/i.test(producto) ? 'Xiaomi' : marcaNormal(fab);
+      return { ...base, marca, modelo: producto };
     } finally {
       await device.close().catch(() => {});
     }
@@ -2783,7 +2817,7 @@
       const n = paso === 1 && leido && marcaSel !== null ? 3 : paso + 1; // con el equipo leído, la marca ya está puesta
       irPaso(Math.min(4, n));
     };
-    function aplicarLectura(r) {
+    function aplicarLectura(r, callado) {
       leido = r;
       $('#or-eq').value = 'Celular';
       const chip = $$('#or-marcas [data-marca]', el).find((b) => b.dataset.marca && b.dataset.marca === r.marca);
@@ -2799,6 +2833,7 @@
       $('#or-leido').hidden = false;
       const vs = visitasDe(r.huella);
       $('#or-leido').textContent = `✅ ${[r.marca, r.modelo].filter(Boolean).join(' ')}${r.bit ? ' · Bit ' + r.bit : ''}${vs.length ? ` · 🔁 ya vino ${vs.length === 1 ? '1 vez' : vs.length + ' veces'}` : ''}`;
+      if (callado) return;
       toast('Equipo leído: ' + [r.marca, r.modelo].filter(Boolean).join(' ') + (r.bit ? ' · Bit ' + r.bit : ''));
       if (clienteTxt()) irPaso(3); else irPaso(paso); // sin cliente todavía: se queda en el paso 1
     }
@@ -2811,6 +2846,10 @@
       cont.innerHTML = `
         <div class="lq-eq"><span>📱 ${esc([r.marca, r.modelo].filter(Boolean).join(' '))}${r.bit ? ` <span class="bit-tag">Bit ${esc(r.bit)}</span>` : ''}</span>${r.memoria ? `<span class="mem-tag" title="Tipo de memoria">💾 ${esc(r.memoria)}</span>` : ''}</div>
         ${avisoVisitas(visitasDe(r.huella))}
+        <div class="lq-precios lq-equipo">
+          <label class="lq-lab">Marca<input id="lq-marca" value="${esc(r.marca || '')}" placeholder="Ej: Xiaomi"></label>
+          <label class="lq-lab">Modelo<input id="lq-modelo" value="${esc(r.modelo || '')}" placeholder="Ej: Redmi Note 13"></label>
+        </div>
         <label class="lq-lab">👤 Cliente</label>
         <input id="lq-cli" placeholder="🔎 Escriba el nombre…" autocomplete="off" value="${esc(cliSel ? clienteNombre(cliSel) : '')}">
         <div class="cli-sug" id="lq-sug"></div>
@@ -2862,6 +2901,15 @@
           else { toast('Busque y toque el cliente'); q('#lq-cli').focus(); return; }
         }
         if (!fq.size || (fq.has('otra') && fq.size === 1 && !q('#lq-otra').value.trim())) { toast('Toque la falla del equipo'); return; }
+        // marca y modelo: si el técnico los corrigió, se usan y se aprenden para la próxima lectura de ese código
+        const nMarca = q('#lq-marca').value.trim();
+        const nModelo = q('#lq-modelo').value.trim();
+        if (nMarca !== (r.marca || '') || nModelo !== (r.modelo || '')) {
+          aplicarLectura({ ...r, marca: nMarca, modelo: nModelo }, true);
+          if (r.codigo && nModelo) {
+            db.config.modelosAprendidos = { ...(db.config.modelosAprendidos || {}), [String(r.codigo).trim().toUpperCase()]: { marca: nMarca, modelo: nModelo } };
+          }
+        }
         // se pasa todo a la plantilla y se guarda con el mismo proceso de siempre
         if (cliSel) {
           if (![...$('#or-cli').options].some((op) => op.value === cliSel)) $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo —');
