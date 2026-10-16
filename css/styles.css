@@ -1033,3 +1033,9 @@ html[data-tema="fucsia"] .acum-tit, html[data-tema="fucsia"] .acum-total span, h
 .lq-precios { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .lq-precios .lq-lab { display: flex; flex-direction: column; gap: 4px; }
 .lq-guardar { margin-top: 6px; width: 100%; }
+
+/* aviso: el mismo equipo (por su código único) ya vino antes */
+.ya-vino { margin-top: 6px; padding: 8px 10px; border-radius: 10px; background: #3b2a00; border: 2px solid #ffd400; color: #ffe680; font-size: 13px; }
+.ya-vino b { color: #ffd400; font-size: 14px; }
+.ya-vino div { margin-top: 2px; }
+.bit-tag.ya { background: #ffd400; color: #000; }

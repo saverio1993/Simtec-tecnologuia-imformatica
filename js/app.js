@@ -672,7 +672,7 @@
       if (cuerpo) {
         const info = {};
         cuerpo.split(';').forEach((kv) => { const i = kv.indexOf('='); if (i > 0) info[kv.slice(0, i).trim()] = kv.slice(i + 1).trim(); });
-        if (info.MODEL) return { modo: 'Samsung modo descarga', marca: 'Samsung', modelo: modeloConNombre(info.MODEL), version: info.VER || '', bit: bitDe(info.VER), memoria: tipoMemoria(info.PRODUCT, info.VENDOR) };
+        if (info.MODEL) return { modo: 'Samsung modo descarga', marca: 'Samsung', modelo: modeloConNombre(info.MODEL), version: info.VER || '', bit: bitDe(info.VER), memoria: tipoMemoria(info.PRODUCT, info.VENDOR), huella: info.UN || '' };
       }
       log('No está en modo descarga: se prueba encendido…');
       const at = async (cmd) => {
@@ -692,7 +692,7 @@
       }
       if (!modelo) throw new Error('El equipo no respondió. Póngalo en modo descarga (pantalla azul «Downloading») y pruebe otro cable o puerto USB.');
       const ver = (info.VER || '').split('/')[0] || info.BASE || '';
-      return { modo: 'Samsung encendido', marca: 'Samsung', modelo: modeloConNombre(modelo), version: ver, bit: bitDe(ver) };
+      return { modo: 'Samsung encendido', marca: 'Samsung', modelo: modeloConNombre(modelo), version: ver, bit: bitDe(ver), huella: info.UN || info.SN || '' };
     } finally {
       await port.close().catch(() => {});
     }
@@ -746,13 +746,24 @@
       const producto = huawei || (await prueba('getvar:product'));
       if (!producto) throw new Error('El equipo no respondió en Fastboot.');
       const fab = (device.manufacturerName || '') + ' ' + producto;
+      const huella = (await prueba('getvar:serialno')) || device.serialNumber || '';
       const h = nombreHuawei(producto); // Honor y Huawei: el código dice la marca real y el nombre (RKY-LX3 → Honor X7a)
-      if (h) return { modo: 'Fastboot', marca: h[0], modelo: `${producto} (${h[1]})`, version: '', bit: '' };
-      return { modo: 'Fastboot', marca: marcaNormal(huawei ? 'huawei ' + fab : fab), modelo: producto, version: '', bit: '' };
+      if (h) return { modo: 'Fastboot', marca: h[0], modelo: `${producto} (${h[1]})`, version: '', bit: '', huella };
+      return { modo: 'Fastboot', marca: marcaNormal(huawei ? 'huawei ' + fab : fab), modelo: producto, version: '', bit: '', huella };
     } finally {
       await device.close().catch(() => {});
     }
   }
+
+  // código único del equipo (UN de Samsung o número de serie): sirve para saber si el mismo teléfono ya vino antes
+  const llaveHuella = (h) => String(h || '').trim().toUpperCase();
+  const visitasDe = (huella, salvoId) => {
+    const k = llaveHuella(huella);
+    if (!k) return [];
+    return db.ordenes.filter((o) => o.id !== salvoId && llaveHuella(o.huella) === k).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+  };
+  const avisoVisitas = (vs) => (vs.length ? `<div class="ya-vino">🔁 <b>Este equipo ya estuvo aquí ${vs.length === 1 ? '1 vez' : vs.length + ' veces'}</b>${vs.slice(0, 3).map((o) =>
+    `<div>N°${esc(o.factura != null ? o.factura : o.numero)} · ${fmtDate(o.fecha)} · ${esc(clienteNombre(o.clienteId) || '')} · ${esc(o.falla || '')} · ${esc(o.estado || '')}</div>`).join('')}</div>` : '');
 
   // ventana "Leer equipo": se elige cómo está conectado y se devuelve { marca, modelo, bit } a quien la abrió
   function abrirLectorEquipo(alListo) {
@@ -787,7 +798,8 @@
           <div class="lr-fila"><span>Marca</span><b>${esc(r.marca || '—')}</b></div>
           <div class="lr-fila"><span>Modelo</span><b>${esc(r.modelo)}</b></div>
           ${r.bit ? `<div class="lr-fila"><span>Binario (bit)</span><b>${esc(r.bit)}</b></div>` : ''}
-          ${r.memoria ? `<div class="lr-fila"><span>Memoria</span><b>${esc(r.memoria)}</b></div>` : ''}`;
+          ${r.memoria ? `<div class="lr-fila"><span>Memoria</span><b>${esc(r.memoria)}</b></div>` : ''}
+          ${avisoVisitas(visitasDe(r.huella))}`;
         // quien abrió la ventana puede seguir aquí mismo (cliente, falla y precio); si no, se cierra
         const sigue = alListo(r, { cont: resEl, close, modal: m });
         if (sigue) { m.querySelector('.lector-modos').hidden = true; logEl.hidden = true; } else setTimeout(close, 900);
@@ -2431,7 +2443,7 @@
           <button class="btn primary big" type="button" id="or-sig">SIGUIENTE →</button>
           <button class="btn big btn-rgb" type="button" id="or-leer" title="Leer marca, modelo y binario del teléfono por cable USB">🔌 LEER EQUIPO</button>
           <span class="or-leido" id="or-leido" hidden></span>
-          <input type="hidden" id="or-bin"><input type="hidden" id="or-mem">
+          <input type="hidden" id="or-bin"><input type="hidden" id="or-mem"><input type="hidden" id="or-huella">
           <button class="btn primary big" type="submit" id="or-guardar" hidden>GUARDAR E IMPRIMIR</button>
         </div>
       </form>
@@ -2479,7 +2491,7 @@
             <td><b class="fact-n">${o.factura != null ? 'N°' + esc(o.factura) : '—'}</b></td>
             <td>${fmtDate(o.fecha)}</td>
             <td>${esc(clienteNombre(o.clienteId))}</td>
-            <td>${esc([o.equipo, o.marca, modeloVer(o)].filter(Boolean).join(' '))}${o.binario ? ` <small class="bit-tag">Bit ${esc(o.binario)}</small>` : ''}</td>
+            <td>${esc([o.equipo, o.marca, modeloVer(o)].filter(Boolean).join(' '))}${o.binario ? ` <small class="bit-tag">Bit ${esc(o.binario)}</small>` : ''}${o.huella && visitasDe(o.huella, o.id).some((x) => x.fecha < o.fecha || (x.fecha === o.fecha && (Number(x.factura) || 0) < (Number(o.factura) || 0))) ? ` <small class="bit-tag ya" title="Este mismo equipo ya había venido antes">🔁 Ya vino</small>` : ''}</td>
             <td>${selFalla(o)}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === (o.estado === 'Entregado' ? 'Entregado' : 'Recibido') ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
@@ -2764,8 +2776,10 @@
       $('#or-modelo').value = r.modelo;
       $('#or-bin').value = r.bit || '';
       $('#or-mem').value = r.memoria || '';
+      $('#or-huella').value = r.huella || '';
       $('#or-leido').hidden = false;
-      $('#or-leido').textContent = `✅ ${[r.marca, r.modelo].filter(Boolean).join(' ')}${r.bit ? ' · Bit ' + r.bit : ''}`;
+      const vs = visitasDe(r.huella);
+      $('#or-leido').textContent = `✅ ${[r.marca, r.modelo].filter(Boolean).join(' ')}${r.bit ? ' · Bit ' + r.bit : ''}${vs.length ? ` · 🔁 ya vino ${vs.length === 1 ? '1 vez' : vs.length + ' veces'}` : ''}`;
       toast('Equipo leído: ' + [r.marca, r.modelo].filter(Boolean).join(' ') + (r.bit ? ' · Bit ' + r.bit : ''));
       if (clienteTxt()) irPaso(3); else irPaso(paso); // sin cliente todavía: se queda en el paso 1
     }
@@ -2777,6 +2791,7 @@
       const fq = new Set();
       cont.innerHTML = `
         <div class="lq-eq">📱 ${esc([r.marca, r.modelo].filter(Boolean).join(' '))}${r.bit ? ` <span class="bit-tag">Bit ${esc(r.bit)}</span>` : ''}${r.memoria ? ` <span class="bit-tag">${esc(r.memoria)}</span>` : ''}</div>
+        ${avisoVisitas(visitasDe(r.huella))}
         <label class="lq-lab">👤 Cliente</label>
         <input id="lq-cli" placeholder="🔎 Escriba el nombre…" autocomplete="off" value="${esc(cliSel ? clienteNombre(cliSel) : '')}">
         <div class="cli-sug" id="lq-sug"></div>
@@ -2890,7 +2905,7 @@
       }
       const o = {
         id: uid(), numero: nuevoNumeroOrden(), factura: nuevaFactura(), fecha: today(), clienteId,
-        equipo: $('#or-eq').value, marca, modelo: $('#or-modelo').value.trim(), binario: $('#or-bin').value.trim(), memoria: $('#or-mem').value.trim(), falla, trabajo: $('#or-trab').value.trim(),
+        equipo: $('#or-eq').value, marca, modelo: $('#or-modelo').value.trim(), binario: $('#or-bin').value.trim(), memoria: $('#or-mem').value.trim(), huella: $('#or-huella').value.trim(), falla, trabajo: $('#or-trab').value.trim(),
         costo: num($('#or-costo').value), abono: num($('#or-abono').value), estado: 'Recibido',
         historial: [{ estado: 'Recibido', fecha: new Date().toISOString() }],
       };
@@ -2909,6 +2924,7 @@
       leido = null;
       $('#or-bin').value = '';
       $('#or-mem').value = '';
+      $('#or-huella').value = '';
       $('#or-leido').hidden = true;
       $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo —');
       $('#or-buscar').value = '';
