@@ -1014,4 +1014,9 @@ html[data-tema="fucsia"] .acum-tit, html[data-tema="fucsia"] .acum-total span, h
 .lector-res { margin-top: 10px; border-radius: 12px; border: 2px solid #4ade80; padding: 8px 12px; background: #052e16; }
 .lr-fila { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; color: #fff; }
 .lr-fila span { color: #bbf7d0; font-weight: 700; font-size: 13px; text-transform: uppercase; }
-@media (max-width: 600px) { .lector-modos { grid-template-columns: 1fr; } .paso-nav .btn.btn-rgb { font-size: 18px; } }
+/* ventana compacta: dos botones lado a lado */
+.lector-box { max-width: 420px; margin: 0 auto; }
+.lector-box .scan-title { font-size: 24px; margin: 4px 0; }
+.lector-modo { grid-template-columns: auto 1fr; grid-template-rows: auto; padding: 10px 12px; }
+.lector-modo .lm-ic { grid-row: auto; font-size: 24px; }
+@media (max-width: 600px) { .paso-nav .btn.btn-rgb { font-size: 18px; } }

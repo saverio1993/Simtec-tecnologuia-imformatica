@@ -545,9 +545,7 @@
   // ================================================================== LEER EQUIPO (cable USB)
   // Lee marca, modelo y (en Samsung) el bit del binario para llenar la orden sin escribir.
   // Solo lectura. Basado en el lector de equipos de la academia:
-  //  · Samsung en modo descarga: puerto COM (Web Serial), comando "DVIF" → @#MODEL=…;VER=…@#
-  //  · Samsung encendido: puerto módem (Web Serial), AT+DEVCONINFO
-  //  · ADB (depuración USB): WebUSB + getprop
+  //  · Samsung: puerto COM (Web Serial). Detecta solo el modo: descarga ("DVIF") o encendido (AT+DEVCONINFO)
   //  · Fastboot: WebUSB, getvar product / oem get-product-model (Huawei, Honor)
   // No se guarda ni se muestra IMEI, número de serie ni cuentas: solo marca, modelo y bit.
   const SAMSUNG_VID = 0x04e8;
@@ -599,30 +597,23 @@
     try { await w.write(new TextEncoder().encode(texto)); } finally { w.releaseLock(); }
   }
 
-  // Samsung en modo descarga: "DVIF\n" → "@#MODEL=SM-A125M;VER=A125MUBS3BVA1;…@#" (no abre sesión ni toca nada)
-  async function leerSamsungDescarga(log) {
+  // Samsung: detecta solo si está en modo descarga o encendido, por el mismo puerto COM.
+  //  · modo descarga: "DVIF\n" → "@#MODEL=SM-A125M;VER=A125MUBS3BVA1;…@#" (no abre sesión ni toca nada)
+  //  · encendido (sin depuración USB): AT+DEVCONINFO por el puerto módem
+  async function leerSamsung(log) {
     const port = await puertoSamsung(log);
     await abrirPuerto(port);
     try {
-      log('> DVIF');
+      log('> DVIF (modo descarga)');
       await escribir(port, 'DVIF\n');
-      const txt = await leerHasta(port, (t) => /@#[\s\S]*@#/.test(t), 6000);
+      const txt = await leerHasta(port, (t) => /@#[\s\S]*@#/.test(t), 2500);
       const cuerpo = (txt.match(/@#([\s\S]*?)@#/) || [])[1];
-      if (!cuerpo) throw new Error('El equipo no respondió en modo descarga. Revise que esté en la pantalla azul «Downloading» y pruebe otro cable o puerto USB.');
-      const info = {};
-      cuerpo.split(';').forEach((kv) => { const i = kv.indexOf('='); if (i > 0) info[kv.slice(0, i).trim()] = kv.slice(i + 1).trim(); });
-      if (!info.MODEL) throw new Error('El equipo respondió, pero sin el modelo.');
-      return { modo: 'Samsung modo descarga', marca: 'Samsung', modelo: info.MODEL, version: info.VER || '', bit: bitDe(info.VER) };
-    } finally {
-      await port.close().catch(() => {});
-    }
-  }
-
-  // Samsung encendido (sin depuración USB): AT+DEVCONINFO por el puerto módem
-  async function leerSamsungEncendido(log) {
-    const port = await puertoSamsung(log);
-    await abrirPuerto(port);
-    try {
+      if (cuerpo) {
+        const info = {};
+        cuerpo.split(';').forEach((kv) => { const i = kv.indexOf('='); if (i > 0) info[kv.slice(0, i).trim()] = kv.slice(i + 1).trim(); });
+        if (info.MODEL) return { modo: 'Samsung modo descarga', marca: 'Samsung', modelo: info.MODEL, version: info.VER || '', bit: bitDe(info.VER) };
+      }
+      log('No está en modo descarga: se prueba encendido…');
       const at = async (cmd) => {
         log('> ' + cmd);
         await escribir(port, cmd + '\r\n');
@@ -631,42 +622,19 @@
       await at('AT');
       const r = await at('AT+DEVCONINFO');
       const info = {};
-      const cuerpo = (r.match(/\+DEVCONINFO:\s*([\s\S]*?)(?:\r?\n(?:OK|ERROR)|$)/) || [])[1] || '';
-      for (const m of cuerpo.matchAll(/([A-Z]+)\(([^)]*)\)/g)) info[m[1]] = m[2];
+      const c2 = (r.match(/\+DEVCONINFO:\s*([\s\S]*?)(?:\r?\n(?:OK|ERROR)|$)/) || [])[1] || '';
+      for (const m of c2.matchAll(/([A-Z]+)\(([^)]*)\)/g)) info[m[1]] = m[2];
       let modelo = info.MN;
       if (!modelo) {
         const g = await at('AT+GMM');
         modelo = g.split(/\r?\n/).map((l) => l.trim()).find((l) => l && l !== 'OK' && !/^AT/.test(l));
       }
-      if (!modelo) throw new Error('El equipo no respondió. Póngalo en modo descarga, o actívele la depuración USB y use ADB.');
+      if (!modelo) throw new Error('El equipo no respondió. Póngalo en modo descarga (pantalla azul «Downloading») y pruebe otro cable o puerto USB.');
       const ver = (info.VER || '').split('/')[0] || info.BASE || '';
       return { modo: 'Samsung encendido', marca: 'Samsung', modelo, version: ver, bit: bitDe(ver) };
     } finally {
       await port.close().catch(() => {});
     }
-  }
-
-  // ADB (depuración USB activada): getprop
-  let adbLib;
-  const cargarAdb = () => adbLib || (adbLib = new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = 'vendor/adb-webusb.min.js';
-    s.onload = () => res(window.SimtecAdb);
-    s.onerror = () => { adbLib = null; rej(new Error('No se pudo cargar el lector ADB. Revise el internet.')); };
-    document.head.appendChild(s);
-  }));
-  async function leerAdb(log) {
-    sinUsb();
-    const lib = await cargarAdb();
-    const { props: p, banner } = await lib.readAdb(log);
-    const uno = (...k) => k.map((x) => p[x]).find((v) => v && v.trim());
-    const marca = marcaNormal(uno('ro.product.brand', 'ro.product.vendor.brand', 'ro.product.manufacturer') || '');
-    const codigo = uno('ro.product.model', 'ro.product.vendor.model') || banner.model || '';
-    const comercial = uno('ro.product.marketname', 'ro.product.vendor.marketname', 'ro.config.marketing_name');
-    const pda = p['ro.build.PDA'] || '';
-    const modelo = comercial && comercial !== codigo ? `${comercial} (${codigo})` : codigo;
-    if (!modelo) throw new Error('El equipo respondió, pero sin el modelo.');
-    return { modo: 'ADB', marca, modelo, version: pda, bit: marca === 'Samsung' ? bitDe(pda) : '' };
   }
 
   // Fastboot: getvar / oem (solo lectura)
@@ -726,18 +694,15 @@
   // ventana "Leer equipo": se elige cómo está conectado y se devuelve { marca, modelo, bit } a quien la abrió
   function abrirLectorEquipo(alListo) {
     const MODOS = [
-      { k: 'descarga', ic: '📥', t: 'Samsung en modo descarga', d: 'Pantalla azul «Downloading». Lee por el puerto COM.', fn: leerSamsungDescarga },
-      { k: 'samsung', ic: '📱', t: 'Samsung encendido', d: 'Sin depuración USB, por el puerto módem.', fn: leerSamsungEncendido },
-      { k: 'adb', ic: '🤖', t: 'ADB (depuración USB)', d: 'Cualquier marca con la depuración USB activada.', fn: leerAdb },
-      { k: 'fastboot', ic: '⚡', t: 'Fastboot', d: 'Xiaomi, Motorola, Huawei, Honor… en modo Fastboot.', fn: leerFastboot },
+      { k: 'samsung', ic: '📥', t: 'Samsung', fn: leerSamsung },
+      { k: 'fastboot', ic: '⚡', t: 'Fastboot', fn: leerFastboot },
     ];
     let ocupado = false;
     const { el: m, close } = openModal(`
       <div class="card lector-box">
         <div class="modal-actions"><button class="btn" data-act="close">Cerrar</button></div>
         <h2 class="scan-title">🔌 LEER EQUIPO</h2>
-        <p class="modal-hint">Conecte el teléfono por cable y toque cómo está. Se lee la marca, el modelo y, en Samsung, el bit del binario.</p>
-        <div class="lector-modos">${MODOS.map((x) => `<button type="button" class="lector-modo" data-modo="${x.k}"><span class="lm-ic">${x.ic}</span><b>${x.t}</b><small>${x.d}</small></button>`).join('')}</div>
+        <div class="lector-modos">${MODOS.map((x) => `<button type="button" class="lector-modo" data-modo="${x.k}"><span class="lm-ic">${x.ic}</span><b>${x.t}</b></button>`).join('')}</div>
         <div class="lector-log" id="le-log" hidden></div>
         <div class="lector-res" id="le-res" hidden></div>
       </div>`, async (e, a) => {
