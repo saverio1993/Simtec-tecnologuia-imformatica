@@ -581,7 +581,29 @@
   };
   const modeloConNombre = (codigo) => { const n = nombreSamsung(codigo); return n ? `${codigo} (${n})` : codigo; };
   // para mostrar: si el modelo guardado es solo el código Samsung, se le agrega el nombre comercial
-  const modeloVer = (o) => (o.modelo && !/\(/.test(o.modelo) && (!o.marca || /samsung/i.test(o.marca)) ? modeloConNombre(o.modelo) : o.modelo || '');
+  const modeloVer = (o) => {
+    if (!o.modelo || /\(/.test(o.modelo)) return o.modelo || '';
+    if (!o.marca || /samsung/i.test(o.marca)) return modeloConNombre(o.modelo);
+    const h = /huawei|honor/i.test(o.marca) && nombreHuawei(o.modelo);
+    return h ? `${o.modelo} (${h[1]})` : o.modelo;
+  };
+  // código Huawei / Honor (lo da Fastboot con «oem get-product-model») → marca y nombre comercial. Se busca por las 3 letras
+  // del código y el tipo (LX = 4G, NX/N = 5G). Ej.: RKY-LX3 → Honor X7a
+  const HUAWEI_NOMBRES = {
+    'RKY-L': ['Honor', 'X7a'], 'CMA-L': ['Honor', 'X7'], 'CLK-L': ['Honor', 'X7b'], 'ALT-L': ['Honor', 'X7c'], 'TFY-L': ['Honor', 'X8'], 'CRT-L': ['Honor', 'X8a'],
+    'LLY-L': ['Honor', 'X8b'], 'VNE-L': ['Honor', 'X6'], 'VNE-N': ['Honor', 'X8 5G'], 'WDY-L': ['Honor', 'X6a'], 'JDY-L': ['Honor', 'X6b'], 'VNA-L': ['Honor', 'X5'],
+    'WOD-L': ['Honor', 'X5 Plus'], 'CRT-N': ['Honor', '90 Lite'], 'RMO-N': ['Honor', 'Magic5 Lite / X9a'], 'ALI-N': ['Honor', 'Magic6 Lite / X9b'],
+    'BRP-N': ['Honor', 'Magic7 Lite / X9c'], 'NTN-L': ['Honor', '50 Lite'],
+    'POT-L': ['Huawei', 'P Smart 2019'], 'FIG-L': ['Huawei', 'P Smart 2018'], 'PPA-L': ['Huawei', 'P Smart 2020'], 'STK-L': ['Huawei', 'Y9 Prime 2019'],
+    'JKM-L': ['Huawei', 'Y9 2019'], 'FLA-L': ['Huawei', 'Y9 2018'], 'MAR-L': ['Huawei', 'P30 Lite'], 'ELE-L': ['Huawei', 'P30'], 'VOG-L': ['Huawei', 'P30 Pro'],
+    'ANE-L': ['Huawei', 'P20 Lite'], 'JNY-L': ['Huawei', 'P40 Lite'], 'ART-L': ['Huawei', 'Y7p / P40 Lite E'], 'DUB-L': ['Huawei', 'Y7 2019'], 'LDN-L': ['Huawei', 'Y7 2018'],
+    'MRD-L': ['Huawei', 'Y6 2019'], 'ATU-L': ['Huawei', 'Y6 2018'], 'MED-L': ['Huawei', 'Y6p'], 'AMN-L': ['Huawei', 'Y5 2019'], 'DRA-L': ['Huawei', 'Y5 2018'],
+    'YAL-L': ['Huawei', 'Nova 5T'], 'MGA-L': ['Huawei', 'Nova Y70'],
+  };
+  const nombreHuawei = (codigo) => {
+    const m = /^([A-Z]{3})-([A-Z])/i.exec(String(codigo || '').trim());
+    return m ? HUAWEI_NOMBRES[`${m[1]}-${m[2]}`.toUpperCase()] || null : null;
+  };
   // tipo de memoria que da el modo descarga: PRODUCT (chip) y VENDOR (fabricante) → "UFS Samsung", "eMMC Micron"…
   const FABRICANTES = { SAMSUNG: 'Samsung', MICRON: 'Micron', SKHYNIX: 'SK Hynix', HYNIX: 'SK Hynix', 'SK HYNIX': 'SK Hynix', TOSHIBA: 'Kioxia', KIOXIA: 'Kioxia', SANDISK: 'SanDisk', WDC: 'SanDisk', YMTC: 'YMTC' };
   const tipoMemoria = (producto, fabricante) => {
@@ -724,6 +746,8 @@
       const producto = huawei || (await prueba('getvar:product'));
       if (!producto) throw new Error('El equipo no respondió en Fastboot.');
       const fab = (device.manufacturerName || '') + ' ' + producto;
+      const h = nombreHuawei(producto); // Honor y Huawei: el código dice la marca real y el nombre (RKY-LX3 → Honor X7a)
+      if (h) return { modo: 'Fastboot', marca: h[0], modelo: `${producto} (${h[1]})`, version: '', bit: '' };
       return { modo: 'Fastboot', marca: marcaNormal(huawei ? 'huawei ' + fab : fab), modelo: producto, version: '', bit: '' };
     } finally {
       await device.close().catch(() => {});
