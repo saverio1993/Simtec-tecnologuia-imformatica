@@ -542,6 +542,234 @@
   };
 
 
+  // ================================================================== LEER EQUIPO (cable USB)
+  // Lee marca, modelo y (en Samsung) el bit del binario para llenar la orden sin escribir.
+  // Solo lectura. Basado en el lector de equipos de la academia:
+  //  · Samsung en modo descarga: puerto COM (Web Serial), comando "DVIF" → @#MODEL=…;VER=…@#
+  //  · Samsung encendido: puerto módem (Web Serial), AT+DEVCONINFO
+  //  · ADB (depuración USB): WebUSB + getprop
+  //  · Fastboot: WebUSB, getvar product / oem get-product-model (Huawei, Honor)
+  // No se guarda ni se muestra IMEI, número de serie ni cuentas: solo marca, modelo y bit.
+  const SAMSUNG_VID = 0x04e8;
+  const bitDe = (ver) => { const v = String(ver || '').trim(); return v.length >= 5 ? v.charAt(v.length - 5) : ''; };
+  const MARCA_DE = [[/samsung/i, 'Samsung'], [/apple|iphone/i, 'iPhone'], [/xiaomi|redmi|poco/i, 'Xiaomi'], [/honor/i, 'Honor'], [/huawei/i, 'Huawei'],
+    [/motorola|moto/i, 'Motorola'], [/oppo/i, 'Oppo'], [/tecno/i, 'Tecno'], [/infinix/i, 'Infinix'], [/zte/i, 'ZTE']];
+  const marcaNormal = (t) => { const m = MARCA_DE.find(([re]) => re.test(String(t || ''))); return m ? m[1] : String(t || '').replace(/^./, (c) => c.toUpperCase()); };
+  const conTiempo = (p, ms, msg) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(msg)), ms))]);
+  const sinSerial = () => { if (!('serial' in navigator)) throw new Error('Este navegador no puede leer el puerto COM. Use Chrome o Edge en una computadora.'); };
+  const sinUsb = () => { if (!('usb' in navigator)) throw new Error('Este navegador no puede leer por USB. Use Chrome o Edge en una computadora.'); };
+
+  async function puertoSamsung(log) {
+    sinSerial();
+    log('Elija el puerto «SAMSUNG Mobile USB Modem» en la ventana de Chrome…');
+    try {
+      return await navigator.serial.requestPort({ filters: [{ usbVendorId: SAMSUNG_VID }] });
+    } catch (e) {
+      throw new Error('No eligió el puerto del Samsung. Si no aparece, instale los drivers USB de Samsung y conecte otra vez el cable.');
+    }
+  }
+  async function abrirPuerto(port) {
+    try {
+      await conTiempo(port.open({ baudRate: 115200 }), 6000, 'No se pudo abrir el puerto');
+    } catch (e) {
+      throw new Error('El puerto del Samsung está ocupado. Cierre Odin, la box o Smart Switch y vuelva a intentar.');
+    }
+    try { await port.setSignals({ dataTerminalReady: true }); } catch (e) { /* no todos lo permiten */ }
+  }
+  // lee del puerto hasta que `listo(texto)` sea verdadero o se acabe el tiempo
+  async function leerHasta(port, listo, ms) {
+    const reader = port.readable.getReader();
+    const dec = new TextDecoder();
+    let txt = '';
+    const fin = Date.now() + ms;
+    try {
+      while (Date.now() < fin && !listo(txt)) {
+        const r = await Promise.race([reader.read(), new Promise((res) => setTimeout(() => res({ done: true, tiempo: true }), Math.max(50, fin - Date.now())))]);
+        if (r.value) txt += dec.decode(r.value, { stream: true });
+        if (r.done) break;
+      }
+    } finally {
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
+    return txt;
+  }
+  async function escribir(port, texto) {
+    const w = port.writable.getWriter();
+    try { await w.write(new TextEncoder().encode(texto)); } finally { w.releaseLock(); }
+  }
+
+  // Samsung en modo descarga: "DVIF\n" → "@#MODEL=SM-A125M;VER=A125MUBS3BVA1;…@#" (no abre sesión ni toca nada)
+  async function leerSamsungDescarga(log) {
+    const port = await puertoSamsung(log);
+    await abrirPuerto(port);
+    try {
+      log('> DVIF');
+      await escribir(port, 'DVIF\n');
+      const txt = await leerHasta(port, (t) => /@#[\s\S]*@#/.test(t), 6000);
+      const cuerpo = (txt.match(/@#([\s\S]*?)@#/) || [])[1];
+      if (!cuerpo) throw new Error('El equipo no respondió en modo descarga. Revise que esté en la pantalla azul «Downloading» y pruebe otro cable o puerto USB.');
+      const info = {};
+      cuerpo.split(';').forEach((kv) => { const i = kv.indexOf('='); if (i > 0) info[kv.slice(0, i).trim()] = kv.slice(i + 1).trim(); });
+      if (!info.MODEL) throw new Error('El equipo respondió, pero sin el modelo.');
+      return { modo: 'Samsung modo descarga', marca: 'Samsung', modelo: info.MODEL, version: info.VER || '', bit: bitDe(info.VER) };
+    } finally {
+      await port.close().catch(() => {});
+    }
+  }
+
+  // Samsung encendido (sin depuración USB): AT+DEVCONINFO por el puerto módem
+  async function leerSamsungEncendido(log) {
+    const port = await puertoSamsung(log);
+    await abrirPuerto(port);
+    try {
+      const at = async (cmd) => {
+        log('> ' + cmd);
+        await escribir(port, cmd + '\r\n');
+        return leerHasta(port, (t) => /\r?\n(OK|ERROR)\r?\n?$/.test(t) || /\+CME ERROR/.test(t), 4000);
+      };
+      await at('AT');
+      const r = await at('AT+DEVCONINFO');
+      const info = {};
+      const cuerpo = (r.match(/\+DEVCONINFO:\s*([\s\S]*?)(?:\r?\n(?:OK|ERROR)|$)/) || [])[1] || '';
+      for (const m of cuerpo.matchAll(/([A-Z]+)\(([^)]*)\)/g)) info[m[1]] = m[2];
+      let modelo = info.MN;
+      if (!modelo) {
+        const g = await at('AT+GMM');
+        modelo = g.split(/\r?\n/).map((l) => l.trim()).find((l) => l && l !== 'OK' && !/^AT/.test(l));
+      }
+      if (!modelo) throw new Error('El equipo no respondió. Póngalo en modo descarga, o actívele la depuración USB y use ADB.');
+      const ver = (info.VER || '').split('/')[0] || info.BASE || '';
+      return { modo: 'Samsung encendido', marca: 'Samsung', modelo, version: ver, bit: bitDe(ver) };
+    } finally {
+      await port.close().catch(() => {});
+    }
+  }
+
+  // ADB (depuración USB activada): getprop
+  let adbLib;
+  const cargarAdb = () => adbLib || (adbLib = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'vendor/adb-webusb.min.js';
+    s.onload = () => res(window.SimtecAdb);
+    s.onerror = () => { adbLib = null; rej(new Error('No se pudo cargar el lector ADB. Revise el internet.')); };
+    document.head.appendChild(s);
+  }));
+  async function leerAdb(log) {
+    sinUsb();
+    const lib = await cargarAdb();
+    const { props: p, banner } = await lib.readAdb(log);
+    const uno = (...k) => k.map((x) => p[x]).find((v) => v && v.trim());
+    const marca = marcaNormal(uno('ro.product.brand', 'ro.product.vendor.brand', 'ro.product.manufacturer') || '');
+    const codigo = uno('ro.product.model', 'ro.product.vendor.model') || banner.model || '';
+    const comercial = uno('ro.product.marketname', 'ro.product.vendor.marketname', 'ro.config.marketing_name');
+    const pda = p['ro.build.PDA'] || '';
+    const modelo = comercial && comercial !== codigo ? `${comercial} (${codigo})` : codigo;
+    if (!modelo) throw new Error('El equipo respondió, pero sin el modelo.');
+    return { modo: 'ADB', marca, modelo, version: pda, bit: marca === 'Samsung' ? bitDe(pda) : '' };
+  }
+
+  // Fastboot: getvar / oem (solo lectura)
+  async function leerFastboot(log) {
+    sinUsb();
+    const FB = { classCode: 0xff, subclassCode: 0x42, protocolCode: 0x03 };
+    log('Elija el equipo en modo Fastboot en la ventana de Chrome…');
+    let device;
+    try { device = await navigator.usb.requestDevice({ filters: [FB] }); } catch (e) { throw new Error('No eligió ningún equipo en modo Fastboot.'); }
+    await device.open();
+    if (!device.configuration) await device.selectConfiguration(1);
+    let c = null;
+    for (const iface of device.configuration.interfaces) {
+      for (const alt of iface.alternates) {
+        if (alt.interfaceClass !== FB.classCode || alt.interfaceSubclass !== FB.subclassCode || alt.interfaceProtocol !== FB.protocolCode) continue;
+        const epIn = alt.endpoints.find((x) => x.direction === 'in' && x.type === 'bulk');
+        const epOut = alt.endpoints.find((x) => x.direction === 'out' && x.type === 'bulk');
+        if (!epIn || !epOut) continue;
+        try { await device.claimInterface(iface.interfaceNumber); } catch (e) {
+          await device.close().catch(() => {});
+          throw new Error('El puerto Fastboot está ocupado. Cierre fastboot.exe, la box o Mi Flash y vuelva a intentar.');
+        }
+        c = { epIn: epIn.endpointNumber, epOut: epOut.endpointNumber };
+        break;
+      }
+      if (c) break;
+    }
+    if (!c) { await device.close().catch(() => {}); throw new Error('El equipo no está en modo Fastboot.'); }
+    const dec = new TextDecoder();
+    const cmd = async (t) => {
+      log('> fastboot ' + t.replace(':', ' '));
+      await device.transferOut(c.epOut, new TextEncoder().encode(t));
+      const info = [];
+      for (let i = 0; i < 200; i++) {
+        const r = await conTiempo(device.transferIn(c.epIn, 512), 5000, 'sin respuesta');
+        const pkt = r.data ? dec.decode(r.data) : '';
+        const head = pkt.slice(0, 4);
+        const body = pkt.slice(4).trim();
+        if (head === 'INFO' || head === 'TEXT') info.push(body);
+        else if (head === 'OKAY') return [body, ...info].filter(Boolean).join(' ').trim();
+        else throw new Error(body || 'FAIL');
+      }
+      return '';
+    };
+    const prueba = (t) => cmd(t).catch(() => '');
+    try {
+      const huawei = await prueba('oem get-product-model'); // Huawei / Honor dan el modelo completo
+      const producto = huawei || (await prueba('getvar:product'));
+      if (!producto) throw new Error('El equipo no respondió en Fastboot.');
+      const fab = (device.manufacturerName || '') + ' ' + producto;
+      return { modo: 'Fastboot', marca: marcaNormal(huawei ? 'huawei ' + fab : fab), modelo: producto, version: '', bit: '' };
+    } finally {
+      await device.close().catch(() => {});
+    }
+  }
+
+  // ventana "Leer equipo": se elige cómo está conectado y se devuelve { marca, modelo, bit } a quien la abrió
+  function abrirLectorEquipo(alListo) {
+    const MODOS = [
+      { k: 'descarga', ic: '📥', t: 'Samsung en modo descarga', d: 'Pantalla azul «Downloading». Lee por el puerto COM.', fn: leerSamsungDescarga },
+      { k: 'samsung', ic: '📱', t: 'Samsung encendido', d: 'Sin depuración USB, por el puerto módem.', fn: leerSamsungEncendido },
+      { k: 'adb', ic: '🤖', t: 'ADB (depuración USB)', d: 'Cualquier marca con la depuración USB activada.', fn: leerAdb },
+      { k: 'fastboot', ic: '⚡', t: 'Fastboot', d: 'Xiaomi, Motorola, Huawei, Honor… en modo Fastboot.', fn: leerFastboot },
+    ];
+    let ocupado = false;
+    const { el: m, close } = openModal(`
+      <div class="card lector-box">
+        <div class="modal-actions"><button class="btn" data-act="close">Cerrar</button></div>
+        <h2 class="scan-title">🔌 LEER EQUIPO</h2>
+        <p class="modal-hint">Conecte el teléfono por cable y toque cómo está. Se lee la marca, el modelo y, en Samsung, el bit del binario.</p>
+        <div class="lector-modos">${MODOS.map((x) => `<button type="button" class="lector-modo" data-modo="${x.k}"><span class="lm-ic">${x.ic}</span><b>${x.t}</b><small>${x.d}</small></button>`).join('')}</div>
+        <div class="lector-log" id="le-log" hidden></div>
+        <div class="lector-res" id="le-res" hidden></div>
+      </div>`, async (e, a) => {
+      const b = e.target.closest('[data-modo]');
+      if (!b || ocupado) return;
+      const modo = MODOS.find((x) => x.k === b.dataset.modo);
+      const logEl = m.querySelector('#le-log');
+      const resEl = m.querySelector('#le-res');
+      const log = (t) => { logEl.hidden = false; logEl.insertAdjacentHTML('beforeend', `<div>${esc(t)}</div>`); logEl.scrollTop = logEl.scrollHeight; };
+      logEl.innerHTML = '';
+      resEl.hidden = true;
+      ocupado = true;
+      $$('.lector-modo', m).forEach((x) => { x.disabled = true; x.classList.toggle('on', x === b); });
+      try {
+        const r = await modo.fn(log);
+        log('✅ Equipo leído');
+        resEl.hidden = false;
+        resEl.innerHTML = `
+          <div class="lr-fila"><span>Marca</span><b>${esc(r.marca || '—')}</b></div>
+          <div class="lr-fila"><span>Modelo</span><b>${esc(r.modelo)}</b></div>
+          ${r.bit ? `<div class="lr-fila"><span>Binario (bit)</span><b>${esc(r.bit)}</b></div>` : ''}`;
+        setTimeout(() => { close(); alListo(r); }, 900);
+      } catch (err) {
+        log('❌ ' + (err && err.message ? err.message : String(err)));
+      } finally {
+        ocupado = false;
+        $$('.lector-modo', m).forEach((x) => { x.disabled = false; });
+      }
+    });
+    return close;
+  }
+
   // ================================================================== CLIENTES
   views.clientes = (el) => {
     let editId = null;
@@ -1718,7 +1946,7 @@
     const [aviso, avisoColor] = avisos[o.estado] || avisos.Recibido;
     const filas = [
       { icono: '📄', etiqueta: 'Factura:', valor: o.factura != null ? `N°${o.factura}` : o.numero, color: 'cian' },
-      { icono: '📱', etiqueta: 'Equipo:', valor: [o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || '-', color: 'turquesa' },
+      { icono: '📱', etiqueta: 'Equipo:', valor: ([o.marca, o.modelo].filter(Boolean).join(' ') || o.equipo || '-') + (o.binario ? ` · Bit ${o.binario}` : ''), color: 'turquesa' },
       { icono: '🔧', etiqueta: 'Falla:', valor: o.falla || '-', color: 'cian' },
       { icono: '💵', etiqueta: 'Precio:', valor: num(o.costo) ? money(o.costo) : 'Por definir', color: 'turquesa' },
     ];
@@ -1798,7 +2026,7 @@
         <div class="f-bar"><span style="flex:1">MARCA</span><span style="flex:1.3">MODELO</span><span style="flex:2.2">IMEI</span></div>
         <div class="f-row f-cells">
           <div style="flex:1">${esc(o.marca || o.equipo || '')}</div>
-          <div style="flex:1.3">${esc(o.modelo || '')}</div>
+          <div style="flex:1.3">${esc(o.modelo || '')}${o.binario ? ` <small>(Bit ${esc(o.binario)})</small>` : ''}</div>
           <div class="f-imei" style="flex:2.2">${imei.map((ch) => `<span>${ch.trim() ? esc(ch) : ''}</span>`).join('')}</div>
         </div>
       </div>
@@ -2168,6 +2396,9 @@
         <div class="form-actions paso-nav">
           <button class="btn" type="button" id="or-atras" hidden>← Atrás</button>
           <button class="btn primary big" type="button" id="or-sig">SIGUIENTE →</button>
+          <button class="btn big btn-rgb" type="button" id="or-leer" title="Leer marca, modelo y binario del teléfono por cable USB">🔌 LEER EQUIPO</button>
+          <span class="or-leido" id="or-leido" hidden></span>
+          <input type="hidden" id="or-bin">
           <button class="btn primary big" type="submit" id="or-guardar" hidden>GUARDAR E IMPRIMIR</button>
         </div>
       </form>
@@ -2215,7 +2446,7 @@
             <td><b class="fact-n">${o.factura != null ? 'N°' + esc(o.factura) : '—'}</b></td>
             <td>${fmtDate(o.fecha)}</td>
             <td>${esc(clienteNombre(o.clienteId))}</td>
-            <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}</td>
+            <td>${esc([o.equipo, o.marca, o.modelo].filter(Boolean).join(' '))}${o.binario ? ` <small class="bit-tag">Bit ${esc(o.binario)}</small>` : ''}</td>
             <td>${selFalla(o)}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === (o.estado === 'Entregado' ? 'Entregado' : 'Recibido') ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
@@ -2291,6 +2522,7 @@
             <div class="field"><label for="ed-eq">Equipo</label><select id="ed-eq">${['Celular', 'Tablet', 'Laptop', 'PC', 'Otro'].map((e) => `<option ${e === o.equipo ? 'selected' : ''}>${e}</option>`).join('')}</select></div>
             <div class="field"><label for="ed-marca">Marca</label><input id="ed-marca" list="ed-marcas" value="${esc(o.marca || '')}"><datalist id="ed-marcas">${MARCAS.map((x) => `<option value="${x}">`).join('')}</datalist></div>
             <div class="field full"><label for="ed-modelo">Modelo</label><input id="ed-modelo" value="${esc(o.modelo || '')}"></div>
+            <div class="field"><label for="ed-bin">Binario (bit)</label><input id="ed-bin" value="${esc(o.binario || '')}" placeholder="Solo Samsung"></div>
             <div class="field full"><label for="ed-falla">Falla</label><input id="ed-falla" value="${esc(o.falla || '')}" placeholder="FRP, KG, PAY…"></div>
             <div class="field full"><label for="ed-nota">Nota</label><input id="ed-nota" value="${esc(o.trabajo || '')}"></div>
             <div class="field"><label for="ed-costo">Precio / costo</label><input id="ed-costo" type="number" step="0.01" min="0" value="${num(o.costo) || ''}" placeholder="Sin precio"></div>
@@ -2309,7 +2541,7 @@
         const q = (sel) => m.querySelector(sel).value.trim();
         if (!q('#ed-falla')) { toast('Escriba la falla'); return; }
         Object.assign(x, {
-          clienteId: q('#ed-cli') || x.clienteId, equipo: q('#ed-eq'), marca: q('#ed-marca'), modelo: q('#ed-modelo'),
+          clienteId: q('#ed-cli') || x.clienteId, equipo: q('#ed-eq'), marca: q('#ed-marca'), modelo: q('#ed-modelo'), binario: q('#ed-bin'),
           falla: q('#ed-falla'), trabajo: q('#ed-nota'), costo: num(q('#ed-costo')),
         });
         // la deuda de esta orden en cartera queda igual al nuevo precio
@@ -2423,7 +2655,7 @@
       $('#or-buscar').value = clienteNombre(id);
       $('#or-sug').innerHTML = '';
       toggleNuevo();
-      irPaso(2);
+      irPaso(leido && marcaSel !== null ? 3 : 2);
     }
     function clienteNuevo() {
       $('#or-cli').value = '';
@@ -2469,17 +2701,40 @@
       $('#or-atras').hidden = n === 1;
       $('#or-sig').hidden = n === 4;
       $('#or-guardar').hidden = n !== 4;
+      $('#or-leer').hidden = n === 4;
       const partes = [
         n > 1 && `👤 ${esc(clienteTxt())}`,
         n > 2 && `📱 ${esc([$('#or-eq').value !== 'Celular' ? $('#or-eq').value : '', marcaTxt()].filter(Boolean).join(' '))}`,
-        n > 3 && `${esc($('#or-modelo').value.trim())} · 🔧 ${esc(fallaTxt())}`,
+        n > 3 && `${esc($('#or-modelo').value.trim())}${$('#or-bin').value ? ' · Bit ' + esc($('#or-bin').value) : ''} · 🔧 ${esc(fallaTxt())}`,
       ].filter(Boolean);
       $('#or-resumen').hidden = !partes.length;
       $('#or-resumen').innerHTML = partes.map((p, i) => `<button type="button" class="chip" data-volver="${i + 1}" title="Cambiar">${p} ✎</button>`).join('');
       const foco = { 1: $('#or-cli').value ? null : modoNuevo ? '#or-nom' : '#or-buscar', 3: '#or-modelo', 4: '#or-costo' }[n];
       if (foco) setTimeout(() => $(foco).focus(), 50);
     }
-    const siguiente = () => { if (validarPaso(paso)) irPaso(Math.min(4, paso + 1)); };
+    let leido = null; // datos leídos del teléfono con 🔌 LEER EQUIPO
+    const siguiente = () => {
+      if (!validarPaso(paso)) return;
+      const n = paso === 1 && leido && marcaSel !== null ? 3 : paso + 1; // con el equipo leído, la marca ya está puesta
+      irPaso(Math.min(4, n));
+    };
+    function aplicarLectura(r) {
+      leido = r;
+      $('#or-eq').value = 'Celular';
+      const chip = $$('#or-marcas [data-marca]', el).find((b) => b.dataset.marca && b.dataset.marca === r.marca);
+      marcaSel = chip ? r.marca : '';
+      $$('#or-marcas .chip', el).forEach((x) => x.classList.toggle('on', chip ? x === chip : x.dataset.marca === ''));
+      $('#or-marca-otra').hidden = !!chip;
+      if (!chip) $('#or-marca-otra').value = r.marca || '';
+      fillModelos();
+      $('#or-modelo').value = r.modelo;
+      $('#or-bin').value = r.bit || '';
+      $('#or-leido').hidden = false;
+      $('#or-leido').textContent = `✅ ${[r.marca, r.modelo].filter(Boolean).join(' ')}${r.bit ? ' · Bit ' + r.bit : ''}`;
+      toast('Equipo leído: ' + [r.marca, r.modelo].filter(Boolean).join(' ') + (r.bit ? ' · Bit ' + r.bit : ''));
+      if (clienteTxt()) irPaso(3); else irPaso(paso); // sin cliente todavía: se queda en el paso 1
+    }
+    $('#or-leer').addEventListener('click', () => abrirLectorEquipo(aplicarLectura));
     $('#or-sig').addEventListener('click', siguiente);
     $('#or-atras').addEventListener('click', () => irPaso(Math.max(1, paso - 1)));
     $('#or-resumen').addEventListener('click', (e) => { const b = e.target.closest('[data-volver]'); if (b) irPaso(Number(b.dataset.volver)); });
@@ -2514,7 +2769,7 @@
       }
       const o = {
         id: uid(), numero: nuevoNumeroOrden(), factura: nuevaFactura(), fecha: today(), clienteId,
-        equipo: $('#or-eq').value, marca, modelo: $('#or-modelo').value.trim(), falla, trabajo: $('#or-trab').value.trim(),
+        equipo: $('#or-eq').value, marca, modelo: $('#or-modelo').value.trim(), binario: $('#or-bin').value.trim(), falla, trabajo: $('#or-trab').value.trim(),
         costo: num($('#or-costo').value), abono: num($('#or-abono').value), estado: 'Recibido',
         historial: [{ estado: 'Recibido', fecha: new Date().toISOString() }],
       };
@@ -2530,6 +2785,9 @@
       save();
       $('#or-form').reset();
       resetChips();
+      leido = null;
+      $('#or-bin').value = '';
+      $('#or-leido').hidden = true;
       $('#or-cli').innerHTML = clienteOptions('', '— Cliente nuevo —');
       $('#or-buscar').value = '';
       $('#or-sug').innerHTML = '';
