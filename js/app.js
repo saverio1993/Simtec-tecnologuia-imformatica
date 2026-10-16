@@ -741,15 +741,34 @@
       return '';
     };
     const prueba = (t) => cmd(t).catch(() => '');
+    // tipo de memoria por Fastboot: no hay un comando común a todas las marcas; se busca en «getvar all»
+    // (solo lectura) si dice UFS o eMMC y el fabricante (Samsung, Micron, SK Hynix, Kioxia, SanDisk, YMTC)
+    const memoriaFastboot = async () => {
+      let todo = '';
+      try {
+        log('> fastboot getvar all');
+        await device.transferOut(c.epOut, new TextEncoder().encode('getvar:all'));
+        for (let i = 0; i < 600; i++) {
+          const r = await conTiempo(device.transferIn(c.epIn, 512), 4000, 'sin respuesta');
+          const pkt = r.data ? dec.decode(r.data) : '';
+          if (pkt.startsWith('INFO') || pkt.startsWith('TEXT')) todo += pkt.slice(4) + '\n'; else break;
+        }
+      } catch (e) { /* no todos lo soportan */ }
+      const t = todo.toLowerCase();
+      const tipo = /\bufs\b|ufs[-_ ]?\d/.test(t) ? 'UFS' : /emmc|mmcblk/.test(t) ? 'eMMC' : '';
+      const fab = [[/samsung/, 'Samsung'], [/micron/, 'Micron'], [/hynix/, 'SK Hynix'], [/kioxia|toshiba/, 'Kioxia'], [/sandisk|western ?digital/, 'SanDisk'], [/ymtc/, 'YMTC']].find(([re]) => re.test(t));
+      return [tipo, fab ? fab[1] : ''].filter(Boolean).join(' ');
+    };
     try {
       const huawei = await prueba('oem get-product-model'); // Huawei / Honor dan el modelo completo
       const producto = huawei || (await prueba('getvar:product'));
       if (!producto) throw new Error('El equipo no respondió en Fastboot.');
       const fab = (device.manufacturerName || '') + ' ' + producto;
       const huella = (await prueba('getvar:serialno')) || device.serialNumber || '';
+      const memoria = await memoriaFastboot();
       const h = nombreHuawei(producto); // Honor y Huawei: el código dice la marca real y el nombre (RKY-LX3 → Honor X7a)
-      if (h) return { modo: 'Fastboot', marca: h[0], modelo: `${producto} (${h[1]})`, version: '', bit: '', huella };
-      return { modo: 'Fastboot', marca: marcaNormal(huawei ? 'huawei ' + fab : fab), modelo: producto, version: '', bit: '', huella };
+      if (h) return { modo: 'Fastboot', marca: h[0], modelo: `${producto} (${h[1]})`, version: '', bit: '', huella, memoria };
+      return { modo: 'Fastboot', marca: marcaNormal(huawei ? 'huawei ' + fab : fab), modelo: producto, version: '', bit: '', huella, memoria };
     } finally {
       await device.close().catch(() => {});
     }
@@ -2790,7 +2809,7 @@
       let cliNuevo = '';
       const fq = new Set();
       cont.innerHTML = `
-        <div class="lq-eq">📱 ${esc([r.marca, r.modelo].filter(Boolean).join(' '))}${r.bit ? ` <span class="bit-tag">Bit ${esc(r.bit)}</span>` : ''}${r.memoria ? ` <span class="bit-tag">${esc(r.memoria)}</span>` : ''}</div>
+        <div class="lq-eq"><span>📱 ${esc([r.marca, r.modelo].filter(Boolean).join(' '))}${r.bit ? ` <span class="bit-tag">Bit ${esc(r.bit)}</span>` : ''}</span>${r.memoria ? `<span class="mem-tag" title="Tipo de memoria">💾 ${esc(r.memoria)}</span>` : ''}</div>
         ${avisoVisitas(visitasDe(r.huella))}
         <label class="lq-lab">👤 Cliente</label>
         <input id="lq-cli" placeholder="🔎 Escriba el nombre…" autocomplete="off" value="${esc(cliSel ? clienteNombre(cliSel) : '')}">
