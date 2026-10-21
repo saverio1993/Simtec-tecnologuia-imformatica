@@ -17,6 +17,7 @@ export const emptyData = () => ({
     paisWa: '507',
     encargadoWa: '6240-9181',
     importOct2026: '', // '6' cuando ya se cargó la contabilidad manual de octubre
+    modelosAprendidos: '{}', // JSON: código del equipo → { marca, modelo } (lo que se corrigió o se encontró con IA)
   },
   seq: { orden: 0, factura: 0 },
   clientes: [],

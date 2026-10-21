@@ -23,6 +23,7 @@
       paisWa: '507',
       encargadoWa: ENCARGADO_WA,
       importOct2026: '',
+      modelosAprendidos: '{}',
     },
     seq: { orden: 0, factura: 0 },
     clientes: [],
@@ -627,9 +628,20 @@
     return XIAOMI_NOMBRES[k] || '';
   };
   // nombres que el técnico corrigió a mano: la próxima vez que se lea ese código sale igual
+  // la base de modelos aprendidos se guarda como texto JSON en la configuración (el servidor solo guarda textos)
+  const aprendidos = () => {
+    const v = db.config.modelosAprendidos;
+    if (v && typeof v === 'object') return v;
+    try { return JSON.parse(v || '{}') || {}; } catch (e) { return {}; }
+  };
+  const aprender = (codigo, marca, modelo) => {
+    const k = String(codigo || '').trim().toUpperCase();
+    if (!k || !modelo) return;
+    db.config.modelosAprendidos = JSON.stringify({ ...aprendidos(), [k]: { marca, modelo } });
+  };
   const nombreAprendido = (codigo) => {
     const k = String(codigo || '').trim().toUpperCase();
-    return k && db.config.modelosAprendidos ? db.config.modelosAprendidos[k] || null : null;
+    return k ? aprendidos()[k] || null : null;
   };
   // tipo de memoria que da el modo descarga: PRODUCT (chip) y VENDOR (fabricante) → "UFS Samsung", "eMMC Micron"…
   const FABRICANTES = { SAMSUNG: 'Samsung', MICRON: 'Micron', SKHYNIX: 'SK Hynix', HYNIX: 'SK Hynix', 'SK HYNIX': 'SK Hynix', TOSHIBA: 'Kioxia', KIOXIA: 'Kioxia', SANDISK: 'SanDisk', WDC: 'SanDisk', YMTC: 'YMTC' };
@@ -2908,7 +2920,7 @@
         if (nMarca !== (r.marca || '') || nModelo !== (r.modelo || '') || buscadoIA) {
           aplicarLectura({ ...r, marca: nMarca, modelo: nModelo }, true);
           if (r.codigo && nModelo) {
-            db.config.modelosAprendidos = { ...(db.config.modelosAprendidos || {}), [String(r.codigo).trim().toUpperCase()]: { marca: nMarca, modelo: nModelo } };
+            aprender(r.codigo, nMarca, nModelo);
           }
         }
         // se pasa todo a la plantilla y se guarda con el mismo proceso de siempre
@@ -2955,7 +2967,10 @@
             const tit = q('.lq-eq > span');
             if (tit && !tocado.m && !tocado.o) tit.textContent = `📱 ${[q('#lq-marca').value, modelo].filter(Boolean).join(' ')}`;
             buscadoIA = true;
-            aviso.textContent = '✨ Encontrado en internet. Revíselo antes de guardar.';
+            // se guarda ya en la base de modelos aprendidos (se comparte con todos los equipos de la tienda)
+            aprender(r.codigo, q('#lq-marca').value.trim(), modelo);
+            save();
+            aviso.textContent = x.deBase ? '📚 Encontrado en la base de modelos. Revíselo antes de guardar.' : '✨ Encontrado en internet y guardado en la base. Revíselo antes de guardar.';
           })
           .catch(() => { aviso.textContent = '🔎 No se pudo buscar en internet: corrija el modelo a mano (la app lo aprende).'; });
       }
