@@ -699,7 +699,7 @@
       if (cuerpo) {
         const info = {};
         cuerpo.split(';').forEach((kv) => { const i = kv.indexOf('='); if (i > 0) info[kv.slice(0, i).trim()] = kv.slice(i + 1).trim(); });
-        if (info.MODEL) return { modo: 'Samsung modo descarga', marca: 'Samsung', codigo: info.MODEL, modelo: (nombreAprendido(info.MODEL) || {}).modelo || modeloConNombre(info.MODEL), version: info.VER || '', bit: bitDe(info.VER), memoria: tipoMemoria(info.PRODUCT, info.VENDOR), huella: info.UN || '' };
+        if (info.MODEL) return { modo: 'Samsung modo descarga', marca: 'Samsung', codigo: info.MODEL, desconocido: !nombreAprendido(info.MODEL) && !nombreSamsung(info.MODEL), modelo: (nombreAprendido(info.MODEL) || {}).modelo || modeloConNombre(info.MODEL), version: info.VER || '', bit: bitDe(info.VER), memoria: tipoMemoria(info.PRODUCT, info.VENDOR), huella: info.UN || '' };
       }
       log('No está en modo descarga: se prueba encendido…');
       const at = async (cmd) => {
@@ -719,7 +719,7 @@
       }
       if (!modelo) throw new Error('El equipo no respondió. Póngalo en modo descarga (pantalla azul «Downloading») y pruebe otro cable o puerto USB.');
       const ver = (info.VER || '').split('/')[0] || info.BASE || '';
-      return { modo: 'Samsung encendido', marca: 'Samsung', codigo: modelo, modelo: (nombreAprendido(modelo) || {}).modelo || modeloConNombre(modelo), version: ver, bit: bitDe(ver), huella: info.UN || info.SN || '' };
+      return { modo: 'Samsung encendido', marca: 'Samsung', codigo: modelo, desconocido: !nombreAprendido(modelo) && !nombreSamsung(modelo), modelo: (nombreAprendido(modelo) || {}).modelo || modeloConNombre(modelo), version: ver, bit: bitDe(ver), huella: info.UN || info.SN || '' };
     } finally {
       await port.close().catch(() => {});
     }
@@ -802,7 +802,7 @@
       if (x) return { ...base, marca: 'Xiaomi', modelo: `${x} (${producto.replace(/_.*$/, '')})` };
       const honor = /honor/i.test(device.manufacturerName || '');
       const marca = honor ? 'Honor' : huawei ? 'Huawei' : /_(global|eea|in|ru|tw|id|tr)$/i.test(producto) ? 'Xiaomi' : marcaNormal(fab);
-      return { ...base, marca, modelo: producto };
+      return { ...base, marca, modelo: producto, desconocido: true, fabricante: device.manufacturerName || '' }; // se busca en internet
     } finally {
       await device.close().catch(() => {});
     }
@@ -2904,7 +2904,7 @@
         // marca y modelo: si el técnico los corrigió, se usan y se aprenden para la próxima lectura de ese código
         const nMarca = q('#lq-marca').value.trim();
         const nModelo = q('#lq-modelo').value.trim();
-        if (nMarca !== (r.marca || '') || nModelo !== (r.modelo || '')) {
+        if (nMarca !== (r.marca || '') || nModelo !== (r.modelo || '') || buscadoIA) {
           aplicarLectura({ ...r, marca: nMarca, modelo: nModelo }, true);
           if (r.codigo && nModelo) {
             db.config.modelosAprendidos = { ...(db.config.modelosAprendidos || {}), [String(r.codigo).trim().toUpperCase()]: { marca: nMarca, modelo: nModelo } };
@@ -2935,6 +2935,29 @@
         $('#or-form').requestSubmit();
       });
       setTimeout(() => (cliSel ? q('#lq-costo') : q('#lq-cli')).focus(), 50);
+      // código que la app no conoce: se busca el teléfono en internet con la IA de Vercel
+      let buscadoIA = false;
+      if (r.desconocido && r.codigo) {
+        const aviso = document.createElement('div');
+        aviso.className = 'lq-ia';
+        aviso.textContent = '🔎 Buscando el modelo en internet…';
+        q('.lq-eq').after(aviso);
+        const tocado = { m: false, o: false };
+        q('#lq-marca').addEventListener('input', () => (tocado.m = true));
+        q('#lq-modelo').addEventListener('input', () => (tocado.o = true));
+        api('POST', 'modelo', { codigo: r.codigo, fabricante: r.fabricante || '' })
+          .then((x) => {
+            if (!x || !x.modelo) { aviso.textContent = '🔎 No se encontró en internet: corrija el modelo a mano (la app lo aprende).'; return; }
+            const modelo = r.marca === 'Samsung' ? `${r.codigo} (${x.modelo.replace(/^samsung\s+(galaxy\s+)?/i, '')})` : `${x.modelo} (${String(r.codigo).replace(/_.*$/, '')})`;
+            if (!tocado.m && x.marca) q('#lq-marca').value = marcaNormal(x.marca) || x.marca;
+            if (!tocado.o) q('#lq-modelo').value = modelo;
+            const tit = q('.lq-eq > span');
+            if (tit && !tocado.m && !tocado.o) tit.textContent = `📱 ${[q('#lq-marca').value, modelo].filter(Boolean).join(' ')}`;
+            buscadoIA = true;
+            aviso.textContent = '✨ Encontrado en internet. Revíselo antes de guardar.';
+          })
+          .catch(() => { aviso.textContent = '🔎 No se pudo buscar en internet: corrija el modelo a mano (la app lo aprende).'; });
+      }
       return true;
     }
     $('#or-leer').addEventListener('click', () => abrirLectorEquipo(seguirEnVentana));
