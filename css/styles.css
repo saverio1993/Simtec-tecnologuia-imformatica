@@ -1041,3 +1041,12 @@ html[data-tema="fucsia"] .acum-tit, html[data-tema="fucsia"] .acum-total span, h
 .ya-vino div { margin-top: 2px; }
 .bit-tag.ya { background: #ffd400; color: #000; }
 .lq-ia { font-size: 13px; color: #9be7ff; background: #00e5ff14; border: 1px dashed #00e5ff88; border-radius: 10px; padding: 6px 10px; }
+
+/* lista de órdenes: el bit del binario en rojo neón que parpadea (se ve en todos los temas) */
+@keyframes bitNeon { 0%, 100% { box-shadow: 0 0 4px #ff1a1a, 0 0 10px #ff1a1aaa; opacity: 1; } 50% { box-shadow: 0 0 1px #ff1a1a; opacity: .55; } }
+.table-wrap td small.bit-tag:not(.ya) { background: #ff1a1a !important; color: #fff !important; font-size: 12px; padding: 2px 8px; border: 1px solid #fff;
+  text-shadow: 0 0 4px #fff8; animation: bitNeon 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .table-wrap td small.bit-tag:not(.ya) { animation: none; } }
+/* el botón RGB conserva sus colores también en los temas rojo y fucsia */
+html[data-tema] .btn.btn-rgb { color: #fff !important; border-color: #fff !important;
+  background: linear-gradient(90deg, #ff0040, #ff8a00, #ffe600, #00ff88, #00e5ff, #4d5bff, #c400ff, #ff0040) !important; background-size: 300% 100% !important; }
