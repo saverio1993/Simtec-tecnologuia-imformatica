@@ -2188,6 +2188,19 @@
   }
 
   // ventana con botones encima de un contenido (comprobante, etiqueta, escáner)
+  // botones de precio rápido ($5, $10, $15, $20): llenan la casilla de precio que tienen al lado
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-precio]');
+    if (!b) return;
+    e.preventDefault();
+    const caja = b.closest('.precio-rapido');
+    const input = caja && document.getElementById(caja.dataset.para);
+    if (!input) return;
+    input.value = b.dataset.precio;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    $$('[data-precio]', caja).forEach((x) => x.classList.toggle('on', x === b));
+  });
+
   function openModal(html, onClick, onClose) {
     const m = document.createElement('div');
     m.className = 'modal-back';
@@ -2501,7 +2514,7 @@
         <div class="paso" data-paso="4" hidden>
           <h3 class="paso-t">💵 Precio</h3>
           <div class="form-grid">
-            <div class="field"><label for="or-costo">Costo</label><input id="or-costo" type="number" step="0.01" min="0" value="0"></div>
+            <div class="field"><label for="or-costo">Costo</label><input id="or-costo" type="number" step="0.01" min="0" value="0"><div class="precio-rapido" data-para="or-costo">${[5, 10, 15, 20].map((v) => `<button type="button" class="chip" data-precio="${v}">$${v}</button>`).join('')}</div></div>
             <div class="field"><label for="or-abono">Abono</label><input id="or-abono" type="number" step="0.01" min="0" value="0"></div>
             <div class="field full"><label for="or-trab">Nota (opcional)</label><input id="or-trab" placeholder="Algo que quiera recordar del equipo"></div>
           </div>
@@ -2876,6 +2889,7 @@
           <label class="lq-lab">💵 Precio<input id="lq-costo" type="number" step="0.01" min="0" placeholder="0,00"></label>
           <label class="lq-lab">Abono<input id="lq-abono" type="number" step="0.01" min="0" placeholder="0,00"></label>
         </div>
+        <div class="precio-rapido" data-para="lq-costo">${[5, 10, 15, 20].map((v) => `<button type="button" class="chip" data-precio="${v}">$${v}</button>`).join('')}</div>
         <button type="button" class="btn primary big lq-guardar" id="lq-guardar">GUARDAR E IMPRIMIR</button>`;
       cont.classList.add('lq');
       const q = (sel) => cont.querySelector(sel);

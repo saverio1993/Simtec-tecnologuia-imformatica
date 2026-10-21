@@ -1050,3 +1050,9 @@ html[data-tema="fucsia"] .acum-tit, html[data-tema="fucsia"] .acum-total span, h
 /* el botón RGB conserva sus colores también en los temas rojo y fucsia */
 html[data-tema] .btn.btn-rgb { color: #fff !important; border-color: #fff !important;
   background: linear-gradient(90deg, #ff0040, #ff8a00, #ffe600, #00ff88, #00e5ff, #4d5bff, #c400ff, #ff0040) !important; background-size: 300% 100% !important; }
+
+/* precio rápido: $5, $10, $15, $20 */
+.precio-rapido { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.precio-rapido .chip { padding: 6px 12px; font-size: 15px; font-weight: 700; min-width: 54px; }
+.precio-rapido .chip.on { background: #22c55e !important; color: #000 !important; border-color: #fff !important; box-shadow: 0 0 8px #22c55e; }
+.precio-rapido .chip { flex: 1 1 0; }
