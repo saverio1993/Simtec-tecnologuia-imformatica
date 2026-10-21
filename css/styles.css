@@ -1024,6 +1024,7 @@ html[data-tema="fucsia"] .acum-tit, html[data-tema="fucsia"] .acum-total span, h
 /* ventana Leer equipo: después de leer, cliente, falla y precio en la misma ventana */
 .lector-res.lq { background: #101016; border-color: #00e5ff; display: flex; flex-direction: column; gap: 6px; animation: lqEntra .25s ease-out; }
 @keyframes lqEntra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.lq-ver { font-size: 12px; color: #ffffffaa; margin-top: -4px; }
 .lq-eq { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-weight: 700; font-size: 17px; color: #fff; padding-bottom: 6px; border-bottom: 1px solid #ffffff22; }
 .mem-tag { margin-left: auto; padding: 3px 10px; border-radius: 999px; background: #14532d; color: #4ade80; border: 2px solid #4ade80; font-size: 13px; white-space: nowrap; box-shadow: 0 0 8px #4ade8055; }
 .lq-lab { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #ffffffbb; margin-top: 4px; }

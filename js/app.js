@@ -619,9 +619,9 @@
     veux: 'Redmi Note 11 Pro 5G', viva: 'Redmi Note 11 Pro 4G', vida: 'Redmi Note 11 Pro 4G', fleur: 'Redmi Note 11S / POCO M4 Pro', miel: 'Redmi Note 11S',
     merlin: 'Redmi Note 9', merlinnfc: 'Redmi Note 9', joyeuse: 'Redmi Note 9 Pro', curtana: 'Redmi Note 9S', ginkgo: 'Redmi Note 8', willow: 'Redmi Note 8T',
     begonia: 'Redmi Note 8 Pro', lavender: 'Redmi Note 7', violet: 'Redmi Note 7 Pro', lancelot: 'Redmi 9', dandelion: 'Redmi 9A', angelica: 'Redmi 9C',
-    angelican: 'Redmi 9C NFC', lime: 'Redmi 9T', selene: 'Redmi 10', fog: 'Redmi 10C', earth: 'Redmi 12C', fire: 'Redmi 12', sky: 'Redmi 12 5G',
+    angelican: 'Redmi 9C NFC', lime: 'Redmi 9T', selene: 'Redmi 10', fog: 'Redmi 10C', earth: 'Redmi 12C / POCO C55', fire: 'Redmi 12', sky: 'Redmi 12 5G / POCO M6 Pro 5G',
     alioth: 'POCO F3', munch: 'POCO F4', marble: 'POCO F5', surya: 'POCO X3 NFC', karna: 'POCO X3', vayu: 'POCO X3 Pro', bhima: 'POCO X3 Pro',
-    citrus: 'POCO M3', duchamp: 'POCO X6 Pro', ice: 'Redmi A1', water: 'Redmi A2', arctic: 'Redmi A5',
+    citrus: 'POCO M3', duchamp: 'POCO X6 Pro', ice: 'Redmi A1', water: 'Redmi A2+ / POCO C51', arctic: 'Redmi A7 Pro / POCO C81',
   };
   const nombreXiaomi = (codigo) => {
     const k = String(codigo || '').trim().toLowerCase().replace(/_(global|eea|in|ru|tw|id|tr|jp|cn|mx|lm|lx)$/, '');
@@ -739,6 +739,16 @@
   }
 
   // Fastboot: getvar / oem (solo lectura)
+  // región de un Huawei / Honor según «vendorcountry» (hw/la) o el código C de la compilación (C605)
+  const regionHuawei = (pais, compilacion) => {
+    const v = String(pais || '').toLowerCase().split('/').pop();
+    const porPais = { la: 'Latinoamérica', eu: 'Europa', cn: 'China', meafnaf: 'Medio Oriente / África', spcseas: 'Asia', ru: 'Rusia', in: 'India', jp: 'Japón', ca: 'Canadá', us: 'EE. UU.' };
+    if (porPais[v]) return porPais[v];
+    const c = (String(compilacion || '').match(/\(C(\d+)/) || [])[1];
+    const porC = { 605: 'Latinoamérica', 432: 'Europa', 185: 'Medio Oriente / África', 636: 'Asia', 10: 'Rusia', 675: 'India', 900: 'Global', 567: 'EE. UU.', 652: 'Canadá', 0: 'China', 1: 'China' };
+    return c != null && porC[Number(c)] ? porC[Number(c)] : '';
+  };
+
   async function leerFastboot(log) {
     sinUsb();
     const FB = { classCode: 0xff, subclassCode: 0x42, protocolCode: 0x03 };
@@ -800,13 +810,21 @@
       return [tipo, fab ? fab[1] : ''].filter(Boolean).join(' ');
     };
     try {
-      const huawei = await prueba('oem get-product-model'); // Huawei / Honor dan el modelo completo
+      let huawei = (await prueba('oem get-product-model')).replace(/^:/, '').trim(); // Huawei / Honor dan el modelo completo
+      // Huawei / Honor: la compilación (RKY-LX3 8.0.0.130(C605E2R1P1)) confirma el modelo y la región (solo lectura, sin IMEI)
+      const esHw = huawei || /huawei|honor/i.test(device.manufacturerName || '');
+      const compilacion = esHw ? (await prueba('oem get-build-number')).replace(/^:/, '').trim() : '';
+      const pais = esHw ? (await prueba('getvar:vendorcountry')).trim() : '';
+      if (!huawei && /^[A-Z0-9]{2,5}-[A-Z]{1,3}\d{1,3}[A-Z]?\b/.test(compilacion)) huawei = compilacion.split(/\s/)[0];
       const producto = huawei || (await prueba('getvar:product'));
       if (!producto) throw new Error('El equipo no respondió en Fastboot.');
       const fab = (device.manufacturerName || '') + ' ' + producto;
       const huella = (await prueba('getvar:serialno')) || device.serialNumber || '';
       const memoria = await memoriaFastboot();
-      const base = { modo: 'Fastboot', codigo: producto, version: '', bit: '', huella, memoria };
+      const region = regionHuawei(pais, compilacion);
+      const version = compilacion.replace(/^[A-Z0-9]{2,5}-[A-Z0-9]+\s+/, '');
+      const extra = [compilacion && 'compilación ' + compilacion, pais && 'región ' + pais].filter(Boolean).join(', ');
+      const base = { modo: 'Fastboot', codigo: producto, version, bit: '', huella, memoria, region, extra };
       const apr = nombreAprendido(producto); // lo que el técnico corrigió o lo que encontró la IA para este código
       const h = nombreHuawei(producto); // Honor y Huawei: el código dice la marca real y el nombre (RKY-LX3 → Honor X7a)
       const x = nombreXiaomi(producto); // Xiaomi / Redmi / POCO: nombre clave (emerald_global → Redmi Note 13 Pro 4G)
@@ -868,6 +886,8 @@
           <div class="lr-fila"><span>Modelo</span><b>${esc(r.modelo)}</b></div>
           ${r.bit ? `<div class="lr-fila"><span>Binario (bit)</span><b>${esc(r.bit)}</b></div>` : ''}
           ${r.memoria ? `<div class="lr-fila"><span>Memoria</span><b>${esc(r.memoria)}</b></div>` : ''}
+          ${r.version && r.modo === 'Fastboot' ? `<div class="lr-fila"><span>Versión</span><b>${esc(r.version)}</b></div>` : ''}
+          ${r.region ? `<div class="lr-fila"><span>Región</span><b>${esc(r.region)}</b></div>` : ''}
           ${avisoVisitas(visitasDe(r.huella))}`;
         // quien abrió la ventana puede seguir aquí mismo (cliente, falla y precio); si no, se cierra
         const sigue = alListo(r, { cont: resEl, close, modal: m });
@@ -2874,6 +2894,7 @@
       const fq = new Set();
       cont.innerHTML = `
         <div class="lq-eq"><span>📱 ${esc([r.marca, r.modelo].filter(Boolean).join(' '))}${r.bit ? ` <span class="bit-tag">Bit ${esc(r.bit)}</span>` : ''}</span>${r.memoria ? `<span class="mem-tag" title="Tipo de memoria">💾 ${esc(r.memoria)}</span>` : ''}</div>
+        ${r.region || (r.version && r.modo === 'Fastboot') ? `<div class="lq-ver">${esc([r.version && r.modo === 'Fastboot' ? 'Versión ' + r.version : '', r.region ? '🌎 ' + r.region : ''].filter(Boolean).join(' · '))}</div>` : ''}
         ${avisoVisitas(visitasDe(r.huella))}
         <div class="lq-precios lq-equipo">
           <label class="lq-lab">Marca<input id="lq-marca" value="${esc(r.marca || '')}" placeholder="Ej: Xiaomi"></label>
@@ -2976,10 +2997,13 @@
         const tocado = { m: false, o: false };
         q('#lq-marca').addEventListener('input', () => (tocado.m = true));
         q('#lq-modelo').addEventListener('input', () => (tocado.o = true));
-        api('POST', 'modelo', { codigo: r.codigo, fabricante: r.fabricante || '' })
+        api('POST', 'modelo', { codigo: r.codigo, fabricante: r.fabricante || '', marca: r.marca || '', extra: r.extra || '' })
           .then((x) => {
             if (!x || !x.modelo) { aviso.textContent = '🔎 No se encontró en internet: corrija el modelo a mano (la app lo aprende).'; return; }
-            const modelo = r.marca === 'Samsung' ? `${r.codigo} (${x.modelo.replace(/^samsung\s+(galaxy\s+)?/i, '')})` : `${x.modelo} (${String(r.codigo).replace(/_.*$/, '')})`;
+            // Samsung, Honor y Huawei: el número de modelo y el nombre entre paréntesis (SM-G990E (S21 FE 5G), RKY-LX3 (X7a));
+            // Xiaomi y demás: el nombre y el nombre clave entre paréntesis (Redmi A7 Pro (arctic))
+            const conCodigo = /samsung|honor|huawei/i.test(x.marca || r.marca) && /\d/.test(r.codigo);
+            const modelo = conCodigo ? `${r.codigo} (${x.modelo.replace(/^samsung\s+(galaxy\s+)?/i, '').replace(/^galaxy\s+/i, '')})` : `${x.modelo} (${String(r.codigo).replace(/_.*$/, '')})`;
             if (!tocado.m && x.marca) q('#lq-marca').value = /huawei/i.test(x.marca) ? 'Honor' : marcaNormal(x.marca) || x.marca;
             if (!tocado.o) q('#lq-modelo').value = modelo;
             const tit = q('.lq-eq > span');
@@ -2988,7 +3012,7 @@
             // se guarda ya en la base de modelos aprendidos (se comparte con todos los equipos de la tienda)
             aprender(r.codigo, q('#lq-marca').value.trim(), modelo, true);
             save();
-            aviso.textContent = x.deBase ? '📚 Encontrado en la base de modelos. Revíselo antes de guardar.' : '✨ Encontrado en internet y guardado en la base. Revíselo antes de guardar.';
+            aviso.textContent = x.fuente === 'base' ? '📚 Encontrado en la lista oficial de modelos. Revíselo antes de guardar.' : x.deBase ? '📚 Encontrado en la base de modelos. Revíselo antes de guardar.' : '✨ Encontrado en internet y guardado en la base. Revíselo antes de guardar.';
           })
           .catch(() => { aviso.textContent = '🔎 No se pudo buscar en internet: corrija el modelo a mano (la app lo aprende).'; });
       }
