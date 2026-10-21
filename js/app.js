@@ -621,7 +621,7 @@
     begonia: 'Redmi Note 8 Pro', lavender: 'Redmi Note 7', violet: 'Redmi Note 7 Pro', lancelot: 'Redmi 9', dandelion: 'Redmi 9A', angelica: 'Redmi 9C',
     angelican: 'Redmi 9C NFC', lime: 'Redmi 9T', selene: 'Redmi 10', fog: 'Redmi 10C', earth: 'Redmi 12C', fire: 'Redmi 12', sky: 'Redmi 12 5G',
     alioth: 'POCO F3', munch: 'POCO F4', marble: 'POCO F5', surya: 'POCO X3 NFC', karna: 'POCO X3', vayu: 'POCO X3 Pro', bhima: 'POCO X3 Pro',
-    citrus: 'POCO M3', duchamp: 'POCO X6 Pro', ice: 'Redmi A1', water: 'Redmi A2',
+    citrus: 'POCO M3', duchamp: 'POCO X6 Pro', ice: 'Redmi A1', water: 'Redmi A2', arctic: 'Redmi A5',
   };
   const nombreXiaomi = (codigo) => {
     const k = String(codigo || '').trim().toLowerCase().replace(/_(global|eea|in|ru|tw|id|tr|jp|cn|mx|lm|lx)$/, '');
@@ -634,10 +634,11 @@
     if (v && typeof v === 'object') return v;
     try { return JSON.parse(v || '{}') || {}; } catch (e) { return {}; }
   };
-  const aprender = (codigo, marca, modelo) => {
+  // ia: true cuando lo dijo la IA y nadie lo confirmó (las tablas de la app le ganan)
+  const aprender = (codigo, marca, modelo, ia = false) => {
     const k = String(codigo || '').trim().toUpperCase();
     if (!k || !modelo) return;
-    db.config.modelosAprendidos = JSON.stringify({ ...aprendidos(), [k]: { marca, modelo } });
+    db.config.modelosAprendidos = JSON.stringify({ ...aprendidos(), [k]: ia ? { marca, modelo, ia: true } : { marca, modelo } });
   };
   const nombreAprendido = (codigo) => {
     const k = String(codigo || '').trim().toUpperCase();
@@ -806,11 +807,13 @@
       const huella = (await prueba('getvar:serialno')) || device.serialNumber || '';
       const memoria = await memoriaFastboot();
       const base = { modo: 'Fastboot', codigo: producto, version: '', bit: '', huella, memoria };
-      const apr = nombreAprendido(producto); // lo que el técnico ya corrigió antes para este código
-      if (apr) return { ...base, marca: apr.marca, modelo: apr.modelo };
+      const apr = nombreAprendido(producto); // lo que el técnico corrigió o lo que encontró la IA para este código
       const h = nombreHuawei(producto); // Honor y Huawei: el código dice la marca real y el nombre (RKY-LX3 → Honor X7a)
-      if (h) return { ...base, marca: h[0], modelo: `${producto} (${h[1]})` };
       const x = nombreXiaomi(producto); // Xiaomi / Redmi / POCO: nombre clave (emerald_global → Redmi Note 13 Pro 4G)
+      const marcaTabla = h ? h[0] : x ? 'Xiaomi' : '';
+      // gana lo que el técnico corrigió a mano; lo de la IA (o una marca distinta a la de la tabla) pierde contra las tablas
+      if (apr && (!marcaTabla || (!apr.ia && apr.marca === marcaTabla))) return { ...base, marca: apr.marca, modelo: apr.modelo };
+      if (h) return { ...base, marca: h[0], modelo: `${producto} (${h[1]})` };
       if (x) return { ...base, marca: 'Xiaomi', modelo: `${x} (${producto.replace(/_.*$/, '')})` };
       const honor = /honor/i.test(device.manufacturerName || '');
       const marca = honor ? 'Honor' : huawei ? 'Huawei' : /_(global|eea|in|ru|tw|id|tr)$/i.test(producto) ? 'Xiaomi' : marcaNormal(fab);
@@ -2921,6 +2924,7 @@
           aplicarLectura({ ...r, marca: nMarca, modelo: nModelo }, true);
           if (r.codigo && nModelo) {
             aprender(r.codigo, nMarca, nModelo);
+            api('POST', 'modelo', { codigo: r.codigo, corregir: { marca: nMarca, modelo: nModelo } }).catch(() => {}); // también la base del servidor
           }
         }
         // se pasa todo a la plantilla y se guarda con el mismo proceso de siempre
@@ -2968,7 +2972,7 @@
             if (tit && !tocado.m && !tocado.o) tit.textContent = `📱 ${[q('#lq-marca').value, modelo].filter(Boolean).join(' ')}`;
             buscadoIA = true;
             // se guarda ya en la base de modelos aprendidos (se comparte con todos los equipos de la tienda)
-            aprender(r.codigo, q('#lq-marca').value.trim(), modelo);
+            aprender(r.codigo, q('#lq-marca').value.trim(), modelo, true);
             save();
             aviso.textContent = x.deBase ? '📚 Encontrado en la base de modelos. Revíselo antes de guardar.' : '✨ Encontrado en internet y guardado en la base. Revíselo antes de guardar.';
           })

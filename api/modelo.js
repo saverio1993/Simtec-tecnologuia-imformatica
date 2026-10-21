@@ -47,10 +47,19 @@ async function preguntar(llave, model, pregunta, cod, conBusqueda) {
 export async function POST(request) {
   const { doc } = await load();
   if (!verifyToken(doc, bearer(request))) return json(401, { error: 'Sesión vencida, vuelva a entrar' });
-  const { codigo = '', fabricante = '' } = await readBody(request);
+  const body = await readBody(request);
+  const { codigo = '', fabricante = '' } = body;
   const cod = String(codigo).trim().slice(0, 60);
   if (!cod) return json(400, { error: 'Falta el código' });
   const clave = cod.toUpperCase();
+
+  // corrección del técnico: reemplaza lo que haya en la base (por ejemplo, una respuesta equivocada de la IA)
+  const { corregir } = body;
+  if (corregir && corregir.modelo) {
+    const fijo = { marca: String(corregir.marca || '').trim().slice(0, 30), modelo: String(corregir.modelo).trim().slice(0, 80), fecha: new Date().toISOString().slice(0, 10), manual: true };
+    await update((d) => { d.modelosIA = { ...(d.modelosIA || {}), [clave]: fijo }; });
+    return json(200, { ...fijo, deBase: true });
+  }
 
   // 1) base guardada: si ya se buscó antes, no se usa IA
   const guardado = doc.modelosIA && doc.modelosIA[clave];
@@ -63,6 +72,7 @@ export async function POST(request) {
     `Un teléfono Android conectado por USB (Fastboot / modo descarga) se identificó con el código "${cod}"` +
     (fabricante ? ` y el fabricante USB "${String(fabricante).slice(0, 40)}"` : '') +
     '. Ese código puede ser el nombre clave (codename) del dispositivo o su número de modelo. ' +
+    'Ojo: Xiaomi, Redmi y POCO usan nombres clave en inglés (emerald, sapphire, arctic…); no los confundas con nombres de colores de otras marcas. ' +
     '¿A qué teléfono corresponde? Responde SOLO un JSON sin texto extra, así: ' +
     '{"marca":"Xiaomi|Samsung|Honor|Huawei|Motorola|Oppo|Tecno|Infinix|ZTE|…","modelo":"nombre comercial completo, ej. Redmi Note 13 Pro 4G"}. ' +
     'Si no estás seguro, responde {"marca":"","modelo":""}.';
