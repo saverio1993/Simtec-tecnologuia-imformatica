@@ -845,6 +845,7 @@
       $$('.lector-modo', m).forEach((x) => { x.disabled = true; x.classList.toggle('on', x === b); });
       try {
         const r = await modo.fn(log);
+        if (/huawei/i.test(r.marca || '')) r.marca = 'Honor'; // en Panamá ya no se vende Huawei: se registra como Honor
         log('✅ Equipo leído');
         resEl.hidden = false;
         resEl.innerHTML = `
@@ -2949,7 +2950,7 @@
           .then((x) => {
             if (!x || !x.modelo) { aviso.textContent = '🔎 No se encontró en internet: corrija el modelo a mano (la app lo aprende).'; return; }
             const modelo = r.marca === 'Samsung' ? `${r.codigo} (${x.modelo.replace(/^samsung\s+(galaxy\s+)?/i, '')})` : `${x.modelo} (${String(r.codigo).replace(/_.*$/, '')})`;
-            if (!tocado.m && x.marca) q('#lq-marca').value = marcaNormal(x.marca) || x.marca;
+            if (!tocado.m && x.marca) q('#lq-marca').value = /huawei/i.test(x.marca) ? 'Honor' : marcaNormal(x.marca) || x.marca;
             if (!tocado.o) q('#lq-modelo').value = modelo;
             const tit = q('.lq-eq > span');
             if (tit && !tocado.m && !tocado.o) tit.textContent = `📱 ${[q('#lq-marca').value, modelo].filter(Boolean).join(' ')}`;
