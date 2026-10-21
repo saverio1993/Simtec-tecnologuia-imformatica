@@ -38,7 +38,17 @@ export function makeAuth(user, pass) {
 function authOf(doc) {
   return (doc && doc.auth) || null;
 }
+// acceso extra (además del de la app), definido en Vercel con ACCESO_EXTRA = "usuario:salt:hash" (scrypt, igual que makeAuth)
+function checkExtra(user, pass) {
+  const [u, salt, hash] = String(process.env.ACCESO_EXTRA || '').split(':');
+  if (!u || !salt || !hash || String(user).toLowerCase() !== u.toLowerCase()) return null;
+  const a = Buffer.from(hashPass(pass, salt), 'hex');
+  const b = Buffer.from(hash, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b) ? u : null;
+}
 export function checkLogin(doc, user, pass) {
+  const extra = checkExtra(user, pass);
+  if (extra) return extra;
   const auth = authOf(doc);
   if (!auth) return String(user).toLowerCase() === DEFAULT_USER && pass === DEFAULT_PASS ? DEFAULT_USER : null;
   if (String(user).toLowerCase() !== auth.user.toLowerCase()) return null;
