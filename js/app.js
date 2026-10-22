@@ -593,6 +593,9 @@
     const i = texto.lastIndexOf(' ');
     return `${esc(texto.slice(0, i + 1))}<span class="pegado">${esc(texto.slice(i + 1))}${etiquetas}</span>`;
   };
+  // en la lista de órdenes solo el nombre comercial (lo que va entre paréntesis) y, si hay varios, el primero:
+  // «SM-A165M (A16)» → «A16», «ALT-NX3 (200 Smart / X6b 5G)» → «200 Smart»
+  const modeloCorto = (o) => { const m = modeloVer(o).match(/\(([^()]+)\)\s*$/); return m ? m[1].split(' / ')[0].trim() : modeloVer(o); };
   const modeloVer = (o) => {
     if (!o.modelo || /\(/.test(o.modelo)) return o.modelo || '';
     if (!o.marca || /samsung/i.test(o.marca)) return modeloConNombre(o.modelo);
@@ -2599,7 +2602,7 @@
             <td><b class="fact-n">${o.factura != null ? 'N°' + esc(o.factura) : '—'}</b></td>
             <td>${fmtDate(o.fecha)}</td>
             <td>${esc(clienteNombre(o.clienteId))}</td>
-            <td>${pegarEtiquetas([o.equipo, o.marca, modeloVer(o)].filter(Boolean).join(' '), (o.binario ? ` <small class="bit-tag">Bit ${esc(o.binario)}</small>` : '') + (o.memoria ? ` <small class="bit-tag mem" title="Tipo de memoria">💾 ${esc(o.memoria)}</small>` : '') + (o.huella && visitasDe(o.huella, o.id).some((x) => x.fecha < o.fecha || (x.fecha === o.fecha && (Number(x.factura) || 0) < (Number(o.factura) || 0))) ? ` <small class="bit-tag ya" title="Este mismo equipo ya había venido antes">🔁 Ya vino</small>` : ''))}</td>
+            <td>${pegarEtiquetas([o.equipo, o.marca, modeloCorto(o)].filter(Boolean).join(' '), (o.binario ? ` <small class="bit-tag">Bit ${esc(o.binario)}</small>` : '') + (o.memoria ? ` <small class="bit-tag mem" title="Tipo de memoria">💾 ${esc(o.memoria)}</small>` : '') + (o.huella && visitasDe(o.huella, o.id).some((x) => x.fecha < o.fecha || (x.fecha === o.fecha && (Number(x.factura) || 0) < (Number(o.factura) || 0))) ? ` <small class="bit-tag ya" title="Este mismo equipo ya había venido antes">🔁 Ya vino</small>` : ''))}</td>
             <td>${selFalla(o)}</td>
             <td><select data-estado="${o.id}" class="btn sm" style="background:#000">${ESTADOS.map((e) => `<option ${e === (o.estado === 'Entregado' ? 'Entregado' : 'Recibido') ? 'selected' : ''}>${e}</option>`).join('')}</select></td>
             <td class="num">${s > 0 ? `<span class="tag due">${money(s)}</span>` : !num(o.costo) ? '<span class="tag gray">SIN PRECIO</span>' : '<span class="tag ok">PAGADO</span>'}</td>
