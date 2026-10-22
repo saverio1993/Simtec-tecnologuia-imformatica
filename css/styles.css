@@ -1057,3 +1057,4 @@ html[data-tema] .btn.btn-rgb { color: #fff !important; border-color: #fff !impor
 .precio-rapido .chip { padding: 6px 12px; font-size: 15px; font-weight: 700; min-width: 54px; }
 .precio-rapido .chip.on { background: #22c55e !important; color: #000 !important; border-color: #fff !important; box-shadow: 0 0 8px #22c55e; }
 .precio-rapido .chip { flex: 1 1 0; }
+.pegado { white-space: nowrap; }
