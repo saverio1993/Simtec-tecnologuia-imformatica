@@ -1045,9 +1045,9 @@ html[data-tema="fucsia"] .acum-tit, html[data-tema="fucsia"] .acum-total span, h
 
 /* lista de órdenes: el bit del binario en rojo neón que parpadea (se ve en todos los temas) */
 @keyframes bitNeon { 0%, 100% { box-shadow: 0 0 4px #ff1a1a, 0 0 10px #ff1a1aaa; opacity: 1; } 50% { box-shadow: 0 0 1px #ff1a1a; opacity: .55; } }
-.table-wrap td small.bit-tag:not(.ya) { background: #ff1a1a !important; color: #fff !important; font-size: 12px; padding: 2px 8px; border: 1px solid #fff;
+.table-wrap td small.bit-tag:not(.ya):not(.mem) { background: #ff1a1a !important; color: #fff !important; font-size: 12px; padding: 2px 8px; border: 1px solid #fff;
   text-shadow: 0 0 4px #fff8; animation: bitNeon 1.2s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .table-wrap td small.bit-tag:not(.ya) { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .table-wrap td small.bit-tag:not(.ya):not(.mem) { animation: none; } }
 /* el botón RGB conserva sus colores también en los temas rojo y fucsia */
 html[data-tema] .btn.btn-rgb { color: #fff !important; border-color: #fff !important;
   background: linear-gradient(90deg, #ff0040, #ff8a00, #ffe600, #00ff88, #00e5ff, #4d5bff, #c400ff, #ff0040) !important; background-size: 300% 100% !important; }
@@ -1058,3 +1058,4 @@ html[data-tema] .btn.btn-rgb { color: #fff !important; border-color: #fff !impor
 .precio-rapido .chip.on { background: #22c55e !important; color: #000 !important; border-color: #fff !important; box-shadow: 0 0 8px #22c55e; }
 .precio-rapido .chip { flex: 1 1 0; }
 .pegado { white-space: nowrap; }
+.bit-tag.mem { background: #14532d; color: #4ade80; border: 1px solid #4ade80; font-size: 12px; padding: 2px 8px; }
