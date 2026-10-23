@@ -595,9 +595,9 @@
   };
   // en la lista de órdenes solo el nombre comercial (lo que va entre paréntesis) y, si hay varios, el primero:
   // «SM-A165M (A16)» → «A16», «ALT-NX3 (200 Smart / X6b 5G)» → «200 Smart»
-  const modeloCorto = (o) => { const m = modeloVer(o).match(/\(([^()]+)\)\s*$/); return m ? m[1].split(' / ')[0].trim() : modeloVer(o); };
+  const modeloCorto = (o) => { const m = String(modeloVer(o)).match(/\(([^()]+)\)\s*$/); return m ? m[1].split(' / ')[0].trim() : modeloVer(o); };
   const modeloVer = (o) => {
-    if (!o.modelo || /\(/.test(o.modelo)) return o.modelo || '';
+    if (!o.modelo || /\(/.test(o.modelo)) return String(o.modelo || '');
     if (!o.marca || /samsung/i.test(o.marca)) return modeloConNombre(o.modelo);
     const h = /huawei|honor/i.test(o.marca) && nombreHuawei(o.modelo);
     return h ? `${o.modelo} (${h[1]})` : o.modelo;

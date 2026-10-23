@@ -49,7 +49,7 @@ export async function writeDoc(doc, etag, expectedVersion) {
       await put(DB_PATH, body, etag ? { ...opts, ifMatch: etag } : { ...opts, allowOverwrite: false });
       return;
     } catch (e) {
-      if (!/precondition|already exists|etag|412|409/i.test(`${e.name} ${e.message}`)) throw e;
+      if (!/precondition|already exists|etag|conditional|conflict|412|409/i.test(`${e.name} ${e.message}`)) throw e;
       console.warn('[simtec] escritura condicional rechazada:', e.name, e.message);
     }
     // Respaldo: si la versión guardada sigue siendo la que se leyó, nadie más escribió
