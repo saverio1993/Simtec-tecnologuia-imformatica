@@ -185,7 +185,6 @@
       cacheLocal();
       setStatus('ok');
       if (changed && rerender) refreshView();
-      importarOctubre();
       // el negocio ahora se llama 212 V.I.P (una sola vez si aún tenía el nombre anterior)
       if (/^SIMTEC/i.test(db.config.negocio || '')) { db.config.negocio = '212 V.I.P Servicio Técnico de Celulares'; save(); }
     } catch (e) {
@@ -3284,117 +3283,16 @@
     };
   }
 
-  // La contabilidad que se llevaba a mano se carga sola, una única vez para todos los equipos:
-  // clientes, la cartera al día y los equipos de HOY (5 de octubre) como órdenes de ingreso en "Recibido"
-  // (entraron al negocio, no están listos y no se han cobrado). Los días 1 al 4 no se cargan.
-  // config.importOct2026: '' = falta cargar · '1' = cargado con días 1–4 · '2' = solo hoy en el reporte · '3' = listo
-  const IMPORT_OCT = 'importOct2026';
-  const VIEJOS_OCT = /^imp-mov-2026-10-0[1-4]-/;
-  const HOY_OCT = /^imp-mov-2026-10-05-(\d+)$/;
-  function ordenDesdeTrabajo(m, n) {
-    // "Honor Magic 6 Lite 5G – FRP", "Redmi Note 10 Pro – FRP", "Samsung A05S (garantía)"
-    let txt = m.concepto || '';
-    const fallas = [];
-    txt = txt.replace(/\s+–\s+(FRP|KG)\b/g, (x, f) => { fallas.push(f); return ''; });
-    if (/\(garant[ií]a\)/i.test(txt)) { fallas.push('Garantía'); txt = txt.replace(/\s*\(garant[ií]a\)/i, ''); }
-    txt = txt.trim();
-    const [primera, ...resto] = txt.split(' ');
-    let marca = '', modelo = txt;
-    if (MARCAS.includes(primera)) { marca = primera; modelo = resto.join(' '); }
-    else if (/^(Redmi|Poco)$/i.test(primera)) { marca = 'Xiaomi'; modelo = txt; }
-    else if (/^\S+$/.test(txt)) { marca = txt; modelo = ''; }
-    return {
-      id: 'imp-ord-2026-10-05-' + n, numero: nuevoNumeroOrden(), factura: nuevaFactura(), fecha: '2026-10-05',
-      clienteId: m.clienteId, equipo: 'Celular', marca, modelo, falla: fallas.join(', ') || 'Por revisar', trabajo: '',
-      costo: num(m.total), abono: 0, estado: 'Recibido', importado: true,
-      historial: [{ estado: 'Recibido', fecha: '2026-10-05T12:00:00.000Z' }],
-    };
-  }
-  let importOctIntentado = false;
-  async function importarOctubre() {
-    if (importOctIntentado || db.config[IMPORT_OCT] === '6') return;
-    // '5' era un borrado automático de una sola vez (pedido del 5/10); ya no se hace nunca solo
-    if (db.config[IMPORT_OCT] === '5') return;
-    if (db.config[IMPORT_OCT] === '3') return importarCopia();
-    if (db.config[IMPORT_OCT] === '4') return renumerarFacturas();
-    importOctIntentado = true;
-    try {
-      let msg = '';
-      if (!['1', '2'].includes(db.config[IMPORT_OCT])) {
-        const r = await fetch('data/contabilidad-oct-2026.json', { cache: 'no-store' });
-        const data = await r.json();
-        if (hasPending() || db.config[IMPORT_OCT] === '3') return;
-        const imp = prepararImport(data);
-        imp.aplicar();
-        if (imp.nC || imp.nD) msg = `Se cargó la contabilidad: ${imp.nC} clientes y ${imp.nD} deudas. `;
-      }
-      // días 1 al 4: fuera
-      db.movimientos = db.movimientos.filter((m) => !VIEJOS_OCT.test(m.id));
-      // trabajos de hoy: pasan del reporte diario a Orden de ingreso
-      const hoy = db.movimientos.filter((m) => HOY_OCT.test(m.id)).sort((x, y) => Number(x.id.match(HOY_OCT)[1]) - Number(y.id.match(HOY_OCT)[1]));
-      let nO = 0;
-      hoy.forEach((m) => {
-        const n = m.id.match(HOY_OCT)[1];
-        if (db.ordenes.some((o) => o.id === 'imp-ord-2026-10-05-' + n)) return;
-        const o = ordenDesdeTrabajo(m, n);
-        db.ordenes.push(o);
-        if (o.costo > 0) {
-          db.cartera.push({ id: 'imp-ordcart-2026-10-05-' + n, origen: 'orden', ordenId: o.id, clienteId: o.clienteId, concepto: `Orden ${o.numero} - ${[o.equipo, o.marca, o.modelo].filter(Boolean).join(' ')}`, monto: o.costo, fecha: o.fecha, abonos: [] });
-        }
-        nO++;
-      });
-      db.movimientos = db.movimientos.filter((m) => !HOY_OCT.test(m.id));
-      if (nO) msg += `${nO} equipos de hoy pasaron a Orden de ingreso (Recibido)`;
-      db.config[IMPORT_OCT] = '3';
-      save();
-      if (msg) { toast(msg.trim()); refreshView(); }
-      importOctIntentado = false;
-      setTimeout(importarOctubre, 1500); // sigue con la copia del 5/10
-    } catch (e) {
-      importOctIntentado = false; // sin conexión: se intenta en la próxima sincronización
-    }
-  }
-  // '3' → '4': la copia de seguridad del 5/10 (órdenes del 4/10, deudas y el cierre del 4/10), una única vez.
-  // La deuda "Cliente final $25" del Excel son esas mismas 2 órdenes (Redmi 15C $20 + Samsung A23 $5): se quita para no cobrarla doble.
-  async function importarCopia() {
-    try {
-      const r = await fetch('data/copia-2026-10-05.json', { cache: 'no-store' });
-      const data = await r.json();
-      if (hasPending() || db.config[IMPORT_OCT] !== '3') { importOctIntentado = false; return; }
-      const imp = prepararImport(data);
-      imp.aplicar();
-      const cf = db.cartera.find((d) => d.id === 'imp-cart-12' && !(d.abonos || []).length);
-      if (cf && imp.nO) db.cartera = db.cartera.filter((d) => d !== cf);
-      db.config[IMPORT_OCT] = '4';
-      save();
-      if (imp.total) { toast(`Se cargó la copia: ${imp.nO} órdenes, ${imp.nD} deudas, ${imp.nC} clientes y ${imp.nCi} cierre`); refreshView(); }
-      importOctIntentado = false;
-      setTimeout(importarOctubre, 1500);
-    } catch (e) {
-      importOctIntentado = false;
-    }
-  }
   // deja SOLO los clientes: borra órdenes, cartera, reporte diario, cierres e inventario y la factura vuelve a 001
-  async function borrarTrabajos(marca) {
-    const limpio = { ...emptyDB(), config: { ...db.config, ...(marca ? { [IMPORT_OCT]: marca } : {}) }, clientes: clone(db.clientes) };
+  // (solo desde el botón de Ajustes, con confirmación; la app ya no borra ni carga nada sola)
+  async function borrarTrabajos() {
+    const limpio = { ...emptyDB(), config: { ...db.config }, clientes: clone(db.clientes) };
     const res = await api('POST', 'data', { replace: limpio });
     synced = normalize(res.data);
     db = clone(synced);
     version = res.version;
     cacheLocal();
     route({ keepScroll: true });
-  }
-  // '4' → '5': las facturas quedan 001, 002, 003… en orden de fecha (una única vez)
-  function renumerarFacturas() {
-    if (hasPending()) { importOctIntentado = false; return; }
-    const lista = db.ordenes.slice().sort((a, b) => a.fecha.localeCompare(b.fecha) || (Number(a.factura) || 0) - (Number(b.factura) || 0));
-    lista.forEach((o, i) => { o.factura = String(i + 1).padStart(3, '0'); });
-    db.seq.factura = lista.length + 1;
-    db.config[IMPORT_OCT] = '5';
-    save();
-    if (lista.length) { toast(`Facturas ordenadas: N°001 a N°${String(lista.length).padStart(3, '0')}`); refreshView(); }
-    importOctIntentado = false;
-    setTimeout(importarOctubre, 1500);
   }
 
   views.ajustes = (el) => {
