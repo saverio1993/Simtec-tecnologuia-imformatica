@@ -3313,11 +3313,8 @@
   let importOctIntentado = false;
   async function importarOctubre() {
     if (importOctIntentado || db.config[IMPORT_OCT] === '6') return;
-    if (db.config[IMPORT_OCT] === '5') { // pedido del 5/10: borrar todos los trabajos y dejar solo los clientes (una única vez)
-      if (hasPending()) return;
-      importOctIntentado = true;
-      return borrarTrabajos('6').then(() => toast('Listo: se borraron los trabajos y quedaron solo los clientes'), () => { importOctIntentado = false; });
-    }
+    // '5' era un borrado automático de una sola vez (pedido del 5/10); ya no se hace nunca solo
+    if (db.config[IMPORT_OCT] === '5') return;
     if (db.config[IMPORT_OCT] === '3') return importarCopia();
     if (db.config[IMPORT_OCT] === '4') return renumerarFacturas();
     importOctIntentado = true;
