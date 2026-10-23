@@ -1069,6 +1069,7 @@
       <div class="stats-row" id="ca-stats"></div>
       <div class="toolbar">
         <div class="search"><input id="ca-q" placeholder="Buscar cliente o modelo…"></div>
+        <button type="button" class="btn red" id="ca-huerfanas" hidden></button>
       </div>
       <div class="table-wrap"><table>
         <thead id="ca-head"></thead>
@@ -1226,6 +1227,9 @@
       $('#ca-stats').innerHTML = `
         <div class="stat yellow"><div class="label">Total por cobrar</div><div class="value">${money(total)}</div></div>
         <div class="stat red"><div class="label">Clientes que deben</div><div class="value">${deudores}</div></div>`;
+      const huerfanas = db.cartera.filter((d) => !clienteById(d.clienteId));
+      $('#ca-huerfanas').hidden = !huerfanas.length;
+      $('#ca-huerfanas').textContent = `🧹 Quitar los "(cliente borrado)" (${huerfanas.length})`;
       const pendHoy = db.cartera.filter((d) => !enCartera(d) && saldo(d) > 0);
       $('#ca-pend').innerHTML = pendHoy.length
         ? `⏳ Hay ${pendHoy.length} ${pendHoy.length === 1 ? 'trabajo' : 'trabajos'} de hoy con saldo (${money(pendHoy.reduce((s, d) => s + saldo(d), 0))}) que pasan a Cartera con el <a href="#reporte">cierre del día</a>.`
@@ -1233,6 +1237,18 @@
     }
 
     $('#ca-q').addEventListener('input', render);
+    // deudas cuyo cliente ya no existe (aparecen como «(cliente borrado)»): se quitan solo con este botón, nunca solas
+    $('#ca-huerfanas').addEventListener('click', () => {
+      const huerfanas = db.cartera.filter((d) => !clienteById(d.clienteId));
+      if (!huerfanas.length) return;
+      const suma = huerfanas.reduce((t, d) => t + saldo(d), 0);
+      if (!confirm(`Se quitan ${huerfanas.length} deudas de clientes que ya no existen ("cliente borrado"), que suman ${money(suma)} por cobrar. Los clientes con nombre no se tocan. ¿Continuar?`)) return;
+      const ids = new Set(huerfanas.map((d) => d.id));
+      db.cartera = db.cartera.filter((d) => !ids.has(d.id));
+      save();
+      toast(`Listo: se quitaron ${ids.size} deudas de clientes borrados`);
+      render();
+    });
     const setVista = (v) => {
       vista = v;
       render();
