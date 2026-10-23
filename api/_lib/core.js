@@ -131,6 +131,8 @@ export function applyChanges(data, changes) {
   }
   if (changes.config && typeof changes.config === 'object') {
     for (const [k, v] of Object.entries(changes.config)) {
+      // la marca de la carga de octubre solo avanza: una computadora con la app vieja no puede volver a pedir el borrado automático
+      if (k === 'importOct2026' && Number(v) < Number(data.config[k] || 0)) continue;
       if (k in emptyData().config) data.config[k] = String(v ?? '');
     }
   }
